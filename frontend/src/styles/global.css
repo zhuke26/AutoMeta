@@ -1071,6 +1071,94 @@ a {
   padding: 12px 16px;
 }
 
+.screening-page {
+  max-width: 1380px;
+  margin: 0 auto;
+}
+
+.screening-controls {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 1fr auto;
+  align-items: end;
+  gap: 14px;
+  padding: 20px;
+}
+
+.screening-controls input[type="file"] {
+  width: 100%;
+  color: var(--ink-3);
+}
+
+.selection-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selection-tools .text-input {
+  width: 80px;
+}
+
+.screening-table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: collapse;
+}
+
+.screening-table th,
+.screening-table td {
+  border-bottom: 1px solid var(--line-faint);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.screening-table th {
+  color: var(--ink-4);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.screening-table td {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+.screening-table td small,
+.screening-table td strong {
+  display: block;
+}
+
+.screening-table td small {
+  max-width: 180px;
+  margin-top: 4px;
+  color: var(--ink-4);
+}
+
+.decision-badge {
+  border-radius: 999px;
+  background: var(--canvas-deep);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 7px;
+}
+
+.decision-badge--include {
+  background: var(--success-wash);
+  color: var(--success);
+}
+
+.decision-badge--uncertain {
+  background: var(--warning-wash);
+  color: var(--warning);
+}
+
+.decision-badge--exclude {
+  background: var(--danger-wash);
+  color: var(--danger);
+}
+
 @media (max-width: 1200px) {
   .brand__descriptor,
   .stage-card__tool {

@@ -2,12 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from autometa.agents.protocol_agent import ProtocolAgent
 from autometa.agents.search_agent import SearchAgent
+from autometa.agents.screening_agent_v2 import ScreeningAgentV2
 from autometa.api.dependencies import get_review_service, get_workflow_coordinator
 from autometa.jobs.manager import JobConflict, JobContext
 from autometa.schemas.jobs import JobView
-from autometa.schemas.models import PICODefinition
+from autometa.schemas.artifacts import ArtifactView
+from autometa.schemas.models import PICODefinition, Paper, StudyDesignFilter
 from autometa.schemas.workflows import (
     ProtocolWorkflowRequest,
+    ScreeningRecordsImportRequest,
+    ScreeningRunWorkflowRequest,
     SearchQueryWorkflowRequest,
     SearchRunWorkflowRequest,
 )
@@ -77,6 +81,92 @@ def draft_protocol(
         review_id,
         "protocol",
         [],
+        operation,
+    )
+
+
+@router.put("/screening/records", response_model=ArtifactView)
+def import_screening_records(
+    review_id: str,
+    request: ScreeningRecordsImportRequest,
+    coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
+    reviews: ReviewService = Depends(get_review_service),
+) -> ArtifactView:
+    _require_review(review_id, reviews)
+    return coordinator.artifacts.save_draft(
+        review_id,
+        "records",
+        {
+            "source": "import",
+            "source_format": request.source_format,
+            "total_count": len(request.papers),
+            "retrieved_count": len(request.papers),
+            "papers": [paper.model_dump() for paper in request.papers],
+        },
+    )
+
+
+@router.post("/screening/run", response_model=JobView, status_code=202)
+def run_screening(
+    review_id: str,
+    request: ScreeningRunWorkflowRequest,
+    coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
+    reviews: ReviewService = Depends(get_review_service),
+) -> JobView:
+    _require_review(review_id, reviews)
+    try:
+        inputs = coordinator.require_approved(
+            review_id,
+            ("question_pico", "records"),
+        )
+        pico = PICODefinition.model_validate(inputs[0].payload.get("pico"))
+        raw_papers = inputs[1].payload.get("papers")
+        if not isinstance(raw_papers, list) or not raw_papers:
+            raise WorkflowInputConflict("Approved Records contain no papers")
+        papers = [Paper.model_validate(paper) for paper in raw_papers]
+    except WorkflowInputConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Approved Screening inputs are invalid",
+        ) from exc
+
+    def operation(context: JobContext) -> dict:
+        context.emit(
+            "screening",
+            {"message": "Ranking records", "total": len(papers)},
+        )
+        output = ScreeningAgentV2().run_scored_direct(
+            papers=papers,
+            pico=pico,
+            study_design_filter=StudyDesignFilter(request.study_design_filter),
+            max_concurrency=request.max_concurrency,
+        ).model_dump()
+        decisions = output.get("decisions", [])
+        output["selected_pmids"] = [
+            str(decision.get("pmid"))
+            for decision in decisions
+            if decision.get("final_decision") in {"INCLUDE", "UNCERTAIN"}
+        ]
+        artifact = coordinator.artifacts.save_draft(
+            review_id,
+            "selected_studies",
+            output,
+        )
+        result = {
+            "artifact_id": artifact.artifact_id,
+            "kind": artifact.kind,
+            "version": artifact.version,
+        }
+        context.emit("artifact_saved", result)
+        return result
+
+    return _submit_or_conflict(
+        coordinator,
+        review_id,
+        "screening",
+        inputs,
         operation,
     )
 
