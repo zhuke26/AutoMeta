@@ -13,6 +13,7 @@ from autometa.schemas.reviews import (
 from autometa.services.files import FileStorage
 from autometa.services.reviews import (
     ReviewConfirmationMismatch,
+    ReviewBusy,
     ReviewNotFound,
     ReviewService,
 )
@@ -80,5 +81,7 @@ def delete_review(
     except ReviewNotFound as exc:
         raise _not_found(review_id) from exc
     except ReviewConfirmationMismatch as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ReviewBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)

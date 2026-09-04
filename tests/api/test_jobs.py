@@ -3,8 +3,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from autometa.api.dependencies import get_database, get_job_manager
-from autometa.api.main import app
+from autometa.api.main import create_app
 from autometa.jobs.manager import JobManager
 from autometa.persistence.models import ReviewMode
 from autometa.repositories.jobs import JobRepository
@@ -23,12 +22,9 @@ def wait_until(predicate, timeout=2.0):
 @pytest.fixture
 def job_client(database):
     manager = JobManager(JobRepository(database), max_workers=1)
-    app.dependency_overrides[get_database] = lambda: database
-    app.dependency_overrides[get_job_manager] = lambda: manager
-    with TestClient(app) as test_client:
+    test_app = create_app(database.settings, database=database, job_manager=manager)
+    with TestClient(test_app) as test_client:
         yield test_client, database, manager
-    app.dependency_overrides.clear()
-    manager.shutdown()
 
 
 def test_job_event_endpoint_replays_after_sequence(job_client) -> None:

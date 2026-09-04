@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 
 def _create_review(client, name="Delete me"):
@@ -57,3 +58,27 @@ def test_exact_confirmation_deletes_database_and_files(client, database) -> None
     assert response.status_code == 204
     assert client.get(f"/api/v1/reviews/{review['id']}").status_code == 404
     assert not review_directory.exists()
+
+
+def test_delete_review_cancels_jobs_before_removing_files(client, database) -> None:
+    review = _create_review(client, "Busy review")
+    manager = client.app.state.job_manager
+
+    def operation(context):
+        while not context.cancelled:
+            time.sleep(0.01)
+        return {"cancelled": True}
+
+    job = manager.submit(review["id"], "extraction", operation)
+    deadline = time.monotonic() + 2
+    while manager.get(job.id).state != "running" and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    response = client.request(
+        "DELETE",
+        f"/api/v1/reviews/{review['id']}",
+        json={"confirmation_name": review["name"]},
+    )
+
+    assert response.status_code == 204
+    assert client.get(f"/api/v1/reviews/{review['id']}").status_code == 404

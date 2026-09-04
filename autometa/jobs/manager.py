@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from threading import Event, RLock
+import time
 
 from autometa.persistence.models import JobState
 from autometa.repositories.jobs import JobRepository
@@ -44,9 +45,16 @@ class JobManager:
         self._lock = RLock()
         self._futures: dict[str, Future] = {}
         self._cancellations: dict[str, Event] = {}
+        self._closed = False
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
 
     def submit(self, review_id: str, stage: str, operation: JobOperation) -> JobView:
         with self._lock:
+            if self._closed:
+                raise JobConflict("Job manager is shut down")
             try:
                 job = self.repository.create(review_id, stage)
             except RuntimeError as exc:
@@ -85,14 +93,27 @@ class JobManager:
                 future = self._futures.get(job.id)
                 if future is not None and future.cancel():
                     self.repository.transition(job.id, JobState.CANCELLED)
+                    self._futures.pop(job.id, None)
+                    self._cancellations.pop(job.id, None)
                 cancelled += 1
         return cancelled
 
+    def wait_for_review(self, review_id: str, timeout: float = 5.0) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if not self.repository.active_for_review(review_id):
+                return True
+            time.sleep(0.01)
+        return not self.repository.active_for_review(review_id)
+
     def shutdown(self) -> None:
         with self._lock:
+            if self._closed:
+                return
+            self._closed = True
             for cancellation in self._cancellations.values():
                 cancellation.set()
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._executor.shutdown(wait=True, cancel_futures=True)
 
     def _execute(
         self,

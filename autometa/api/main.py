@@ -15,6 +15,7 @@ API:
 """
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -24,6 +25,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from autometa.api.routers import artifacts, extraction, files, jobs, meta_analysis, protocol, reviews, screening, search
+from autometa.config import Settings, get_settings
+from autometa.jobs.manager import JobManager
+from autometa.persistence.database import Database
+from autometa.repositories.artifacts import ArtifactRepository
+from autometa.repositories.jobs import JobRepository
+from autometa.repositories.reviews import ReviewRepository
+from autometa.services.artifacts import ArtifactService
+from autometa.services.files import FileStorage
+from autometa.services.reviews import ReviewService
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -35,52 +45,87 @@ logging.basicConfig(
 logger = logging.getLogger("autometa")
 API_PREFIX = "/api/v1"
 
-# ---------------------------------------------------------------------------
-# App
-# ---------------------------------------------------------------------------
-app = FastAPI(
-    title="AutoMeta",
-    description="Automated Systematic Review — literature search, screening, and data extraction API.",
-    version="1.0.0",
-)
-
-app.add_middleware(GZipMiddleware, minimum_size=500)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ---------------------------------------------------------------------------
-# Static files & root page
-# ---------------------------------------------------------------------------
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-@app.get("/", include_in_schema=False)
-def root():
-    return FileResponse(
-        str(STATIC_DIR / "index.html"),
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+
+def create_app(
+    settings: Settings | None = None,
+    *,
+    database: Database | None = None,
+    job_manager: JobManager | None = None,
+) -> FastAPI:
+    resolved_settings = settings or get_settings()
+
+    @asynccontextmanager
+    async def lifespan(application: FastAPI):
+        active_database = database or Database(resolved_settings)
+        active_database.create_schema()
+        active_database.mark_running_jobs_interrupted()
+        active_manager = job_manager or JobManager(
+            JobRepository(active_database),
+            max_workers=resolved_settings.autometa_job_workers,
+        )
+        file_storage = FileStorage(active_database)
+        application.state.database = active_database
+        application.state.job_manager = active_manager
+        application.state.file_storage = file_storage
+        application.state.artifact_service = ArtifactService(
+            ArtifactRepository(active_database)
+        )
+        application.state.review_service = ReviewService(
+            ReviewRepository(active_database),
+            job_manager=active_manager,
+        )
+        try:
+            yield
+        finally:
+            active_manager.shutdown()
+            active_database.dispose()
+
+    application = FastAPI(
+        title="AutoMeta",
+        description="Researcher-supervised evidence synthesis workspace API.",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
+    application.add_middleware(GZipMiddleware, minimum_size=500)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    application.mount(
+        "/static",
+        StaticFiles(directory=str(STATIC_DIR)),
+        name="static",
     )
 
-# ---------------------------------------------------------------------------
-# Routers
-# ---------------------------------------------------------------------------
-app.include_router(protocol.router, prefix=API_PREFIX)
-app.include_router(search.router, prefix=API_PREFIX)
-app.include_router(screening.router, prefix=API_PREFIX)
-app.include_router(extraction.router, prefix=API_PREFIX)
-app.include_router(meta_analysis.router, prefix=API_PREFIX)
-app.include_router(reviews.router, prefix=API_PREFIX)
-app.include_router(files.router, prefix=API_PREFIX)
-app.include_router(artifacts.router, prefix=API_PREFIX)
-app.include_router(jobs.router, prefix=API_PREFIX)
+    @application.get("/", include_in_schema=False)
+    def root() -> FileResponse:
+        return FileResponse(
+            str(STATIC_DIR / "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 
-# ---------------------------------------------------------------------------
-# Utility endpoints
-# ---------------------------------------------------------------------------
-@app.get(f"{API_PREFIX}/health", tags=["utility"])
-def health() -> dict[str, str]:
-    return {"status": "ok", "product": "AutoMeta"}
+    for router in (
+        protocol.router,
+        search.router,
+        screening.router,
+        extraction.router,
+        meta_analysis.router,
+        reviews.router,
+        files.router,
+        artifacts.router,
+        jobs.router,
+    ):
+        application.include_router(router, prefix=API_PREFIX)
+
+    @application.get(f"{API_PREFIX}/health", tags=["utility"])
+    def health() -> dict[str, str]:
+        return {"status": "ok", "product": "AutoMeta"}
+
+    return application
+
+
+app = create_app()

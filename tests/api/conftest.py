@@ -1,8 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from autometa.api.dependencies import get_database
-from autometa.api.main import app
+from autometa.api.main import create_app
 from autometa.config import Settings
 from autometa.persistence.database import Database
 
@@ -17,7 +16,6 @@ def database(tmp_path):
 
 @pytest.fixture
 def client(database):
-    app.dependency_overrides[get_database] = lambda: database
-    with TestClient(app) as test_client:
+    test_app = create_app(database.settings, database=database)
+    with TestClient(test_app) as test_client:
         yield test_client
-    app.dependency_overrides.clear()

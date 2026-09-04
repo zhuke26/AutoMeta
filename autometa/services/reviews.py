@@ -3,6 +3,7 @@ from __future__ import annotations
 from autometa.persistence.models import Review, ReviewMode, ReviewStatus
 from autometa.repositories.reviews import ReviewRepository
 from autometa.services.files import FileStorage
+from autometa.jobs.manager import JobManager
 
 
 class ReviewNotFound(LookupError):
@@ -13,9 +14,18 @@ class ReviewConfirmationMismatch(ValueError):
     pass
 
 
+class ReviewBusy(RuntimeError):
+    pass
+
+
 class ReviewService:
-    def __init__(self, repository: ReviewRepository):
+    def __init__(
+        self,
+        repository: ReviewRepository,
+        job_manager: JobManager | None = None,
+    ):
         self.repository = repository
+        self.job_manager = job_manager
 
     def create(self, name: str, entry_mode: ReviewMode) -> Review:
         return self.repository.create(name=name, entry_mode=entry_mode)
@@ -45,6 +55,11 @@ class ReviewService:
         review = self.get(review_id)
         if confirmation_name != review.name:
             raise ReviewConfirmationMismatch("Review name does not match")
+
+        if self.job_manager is not None:
+            self.job_manager.cancel_review(review_id)
+            if not self.job_manager.wait_for_review(review_id):
+                raise ReviewBusy("Review still has a running job")
 
         previous_status = review.status
         self.repository.set_status(review_id, ReviewStatus.DELETING)
