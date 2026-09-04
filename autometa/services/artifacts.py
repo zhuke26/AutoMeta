@@ -246,6 +246,22 @@ class ArtifactService:
     def _mark_downstream_stale(self, session, review_id: str, kind: str) -> None:
         downstream = ARTIFACT_ORDER[ARTIFACT_ORDER.index(kind) + 1 :]
         if downstream:
+            current_versions = select(Artifact.current_version_id).where(
+                Artifact.review_id == review_id,
+                Artifact.kind.in_(downstream),
+                Artifact.current_version_id.is_not(None),
+            )
+            session.execute(
+                update(Approval)
+                .where(
+                    Approval.artifact_version_id.in_(current_versions),
+                    Approval.status == "approved",
+                )
+                .values(
+                    status="revoked",
+                    revoked_at=datetime.now(timezone.utc),
+                )
+            )
             session.execute(
                 update(Artifact)
                 .where(

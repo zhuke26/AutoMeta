@@ -8,7 +8,6 @@ import { ReviewSetupPage } from "./pages/ReviewSetupPage";
 import { ReviewEntryRedirect, ReviewWorkspace } from "./pages/ReviewWorkspace";
 import { SearchPage } from "./pages/SearchPage";
 import { ScreeningPage } from "./pages/ScreeningPage";
-import { StagePendingPage } from "./pages/StagePendingPage";
 import { SystemStatusPage } from "./pages/SystemStatusPage";
 
 

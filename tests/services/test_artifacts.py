@@ -48,6 +48,7 @@ def test_editing_approved_artifact_stales_downstream(artifact_service, review) -
     assert revised.version == 2
     assert service.get_state(review.id, "query") == "draft"
     assert service.get_state(review.id, "records") == "stale"
+    assert service.get_current(review.id, "records").approved is False
 
 
 def test_approve_rejects_noncurrent_version(artifact_service, review) -> None:
