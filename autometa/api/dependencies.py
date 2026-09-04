@@ -7,6 +7,7 @@ from autometa.services.artifacts import ArtifactService
 from autometa.services.reviews import ReviewService
 from autometa.services.files import FileStorage
 from autometa.services.workflows import WorkflowCoordinator
+from autometa.services.settings import LocalSettingsService
 
 
 def get_database(request: Request) -> Database:
@@ -49,6 +50,13 @@ def get_workflow_coordinator(request: Request) -> WorkflowCoordinator:
     if coordinator is None:
         raise RuntimeError("AutoMeta workflow coordinator is not initialized")
     return coordinator
+
+
+def get_local_settings(request: Request) -> LocalSettingsService:
+    service = getattr(request.app.state, "local_settings", None)
+    if service is None:
+        raise RuntimeError("AutoMeta local settings service is not initialized")
+    return service
 
 
 def get_app_settings(request: Request) -> Settings:

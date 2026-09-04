@@ -180,10 +180,10 @@ describe("ReviewWorkspace", () => {
 
   it("renders unavailable stage work as explicitly disabled", async () => {
     vi.stubGlobal("fetch", mockWorkspace());
-    renderWorkspace("/reviews/review-1/extraction");
+    renderWorkspace("/reviews/review-1/meta-analysis");
 
-    expect(await screen.findByRole("heading", { name: "Extraction Agent" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Run Extraction" })).toBeDisabled();
+    expect(await screen.findByRole("heading", { name: "Meta-analysis Agent" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run Meta-analysis" })).toBeDisabled();
     expect(screen.getByText("Workflow migration pending")).toBeInTheDocument();
   });
 });

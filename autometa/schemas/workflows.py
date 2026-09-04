@@ -42,3 +42,22 @@ class ScreeningRecordsImportRequest(BaseModel):
 class ScreeningRunWorkflowRequest(BaseModel):
     study_design_filter: Literal["rct_only", "obs_only", "both"] = "both"
     max_concurrency: int = Field(default=50, ge=1, le=200)
+
+
+class ExtractionFieldInput(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=2000)
+
+
+class ExtractionWorkflowRequest(BaseModel):
+    file_ids: list[str] = Field(min_length=1)
+    study_characteristics_fields: list[ExtractionFieldInput] = Field(default_factory=list)
+    study_results_fields: list[ExtractionFieldInput] = Field(default_factory=list)
+    top_k: int = Field(default=15, ge=1, le=30)
+    max_concurrency: int = Field(default=10, ge=1, le=50)
+
+    @model_validator(mode="after")
+    def validate_fields(self):
+        if not self.study_characteristics_fields and not self.study_results_fields:
+            raise ValueError("At least one extraction field must be defined")
+        return self

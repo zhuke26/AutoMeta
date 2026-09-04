@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { LibraryPage } from "./pages/LibraryPage";
 import { NewReviewPage } from "./pages/NewReviewPage";
+import { ExtractionPage } from "./pages/ExtractionPage";
 import { ReviewSetupPage } from "./pages/ReviewSetupPage";
 import { ReviewEntryRedirect, ReviewWorkspace } from "./pages/ReviewWorkspace";
 import { SearchPage } from "./pages/SearchPage";
@@ -22,7 +23,7 @@ export function App() {
         <Route path="setup" element={<ReviewSetupPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="screening" element={<ScreeningPage />} />
-        <Route path="extraction" element={<StagePendingPage stage="extraction" />} />
+        <Route path="extraction" element={<ExtractionPage />} />
         <Route path="meta-analysis" element={<StagePendingPage stage="meta_analysis" />} />
         <Route path="*" element={<ReviewEntryRedirect />} />
       </Route>

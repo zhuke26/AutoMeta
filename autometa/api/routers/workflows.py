@@ -3,19 +3,29 @@ from fastapi import APIRouter, Depends, HTTPException
 from autometa.agents.protocol_agent import ProtocolAgent
 from autometa.agents.search_agent import SearchAgent
 from autometa.agents.screening_agent_v2 import ScreeningAgentV2
-from autometa.api.dependencies import get_review_service, get_workflow_coordinator
+from autometa.agents.extraction_agent import ExtractionAgent
+from autometa.api.dependencies import (
+    get_file_storage,
+    get_local_settings,
+    get_review_service,
+    get_workflow_coordinator,
+)
 from autometa.jobs.manager import JobConflict, JobContext
 from autometa.schemas.jobs import JobView
 from autometa.schemas.artifacts import ArtifactView
+from autometa.schemas.extraction_models import ExtractionFieldDefinition
 from autometa.schemas.models import PICODefinition, Paper, StudyDesignFilter
 from autometa.schemas.workflows import (
     ProtocolWorkflowRequest,
+    ExtractionWorkflowRequest,
     ScreeningRecordsImportRequest,
     ScreeningRunWorkflowRequest,
     SearchQueryWorkflowRequest,
     SearchRunWorkflowRequest,
 )
 from autometa.services.reviews import ReviewNotFound, ReviewService
+from autometa.services.files import FileStorage, StoredFileNotFound
+from autometa.services.settings import LocalSettingsService
 from autometa.services.workflows import WorkflowCoordinator, WorkflowInputConflict
 
 
@@ -282,6 +292,98 @@ def run_search(
         coordinator,
         review_id,
         "search",
+        inputs,
+        operation,
+    )
+
+
+@router.post("/extraction/run", response_model=JobView, status_code=202)
+def run_extraction(
+    review_id: str,
+    request: ExtractionWorkflowRequest,
+    coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
+    reviews: ReviewService = Depends(get_review_service),
+    storage: FileStorage = Depends(get_file_storage),
+    local_settings: LocalSettingsService = Depends(get_local_settings),
+) -> JobView:
+    _require_review(review_id, reviews)
+    if not local_settings.pdf_disclosure_acknowledged():
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Confirm that relevant PDF text will be sent to the configured "
+                "model service before starting Extraction"
+            ),
+        )
+    try:
+        inputs = coordinator.require_approved(review_id, ("question_pico",))
+        pico = PICODefinition.model_validate(inputs[0].payload.get("pico"))
+        records = []
+        for file_id in request.file_ids:
+            record = storage.get(file_id)
+            if record.review_id != review_id:
+                raise WorkflowInputConflict("PDF does not belong to this Review")
+            if record.mime_type != "application/pdf":
+                raise WorkflowInputConflict("Extraction accepts PDF files only")
+            records.append(record)
+    except StoredFileNotFound as exc:
+        raise HTTPException(status_code=409, detail=f"PDF not found: {exc}") from exc
+    except WorkflowInputConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Approved Extraction inputs are invalid",
+        ) from exc
+
+    characteristic_fields = [
+        ExtractionFieldDefinition.model_validate(field.model_dump())
+        for field in request.study_characteristics_fields
+    ]
+    result_fields = [
+        ExtractionFieldDefinition.model_validate(field.model_dump())
+        for field in request.study_results_fields
+    ]
+
+    def operation(context: JobContext) -> dict:
+        context.emit("parsing", {"message": "Parsing locally stored PDFs"})
+        paths = [str(storage.resolve(record)) for record in records]
+        context.emit(
+            "extracting",
+            {"message": "Sending relevant PDF text to the configured model service"},
+        )
+        output = ExtractionAgent().run(
+            file_paths=paths,
+            pico=pico,
+            char_fields=characteristic_fields,
+            result_fields=result_fields,
+            top_k=request.top_k,
+            max_concurrency=request.max_concurrency,
+        )
+        artifact = coordinator.artifacts.save_draft(
+            review_id,
+            "sources",
+            {
+                **output.model_dump(),
+                "file_ids": [record.id for record in records],
+                "study_characteristics_fields": [
+                    field.model_dump() for field in characteristic_fields
+                ],
+                "study_results_fields": [field.model_dump() for field in result_fields],
+            },
+        )
+        result = {
+            "artifact_id": artifact.artifact_id,
+            "kind": artifact.kind,
+            "version": artifact.version,
+        }
+        context.emit("artifact_saved", result)
+        return result
+
+    return _submit_or_conflict(
+        coordinator,
+        review_id,
+        "extraction",
         inputs,
         operation,
     )
