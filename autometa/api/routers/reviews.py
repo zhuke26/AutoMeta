@@ -1,10 +1,21 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from autometa.api.dependencies import get_review_service
-from autometa.schemas.reviews import ReviewCreate, ReviewList, ReviewSummary, ReviewUpdate
-from autometa.services.reviews import ReviewNotFound, ReviewService
+from autometa.api.dependencies import get_file_storage, get_review_service
+from autometa.schemas.reviews import (
+    ReviewCreate,
+    ReviewDeleteRequest,
+    ReviewList,
+    ReviewSummary,
+    ReviewUpdate,
+)
+from autometa.services.files import FileStorage
+from autometa.services.reviews import (
+    ReviewConfirmationMismatch,
+    ReviewNotFound,
+    ReviewService,
+)
 
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -55,3 +66,19 @@ def rename_review(
         return ReviewSummary.model_validate(service.rename(review_id, request.name))
     except ReviewNotFound as exc:
         raise _not_found(review_id) from exc
+
+
+@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_review(
+    review_id: str,
+    request: ReviewDeleteRequest,
+    service: ReviewService = Depends(get_review_service),
+    storage: FileStorage = Depends(get_file_storage),
+) -> Response:
+    try:
+        service.delete(review_id, request.confirmation_name, storage)
+    except ReviewNotFound as exc:
+        raise _not_found(review_id) from exc
+    except ReviewConfirmationMismatch as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

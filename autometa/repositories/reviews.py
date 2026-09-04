@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from autometa.persistence.database import Database
-from autometa.persistence.models import Review, ReviewMode
+from autometa.persistence.models import Review, ReviewMode, ReviewStatus
 
 
 class ReviewRepository:
@@ -36,3 +36,19 @@ class ReviewRepository:
                 return None
             review.name = name
             return review
+
+    def set_status(self, review_id: str, status: ReviewStatus) -> Review | None:
+        with self.database.session() as session:
+            review = session.get(Review, review_id)
+            if review is None:
+                return None
+            review.status = status
+            return review
+
+    def delete(self, review_id: str) -> bool:
+        with self.database.session() as session:
+            review = session.get(Review, review_id)
+            if review is None:
+                return False
+            session.delete(review)
+            return True

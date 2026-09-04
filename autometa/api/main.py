@@ -23,7 +23,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from autometa.api.routers import extraction, meta_analysis, protocol, reviews, screening, search
+from autometa.api.routers import extraction, files, meta_analysis, protocol, reviews, screening, search
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -74,6 +74,7 @@ app.include_router(screening.router, prefix=API_PREFIX)
 app.include_router(extraction.router, prefix=API_PREFIX)
 app.include_router(meta_analysis.router, prefix=API_PREFIX)
 app.include_router(reviews.router, prefix=API_PREFIX)
+app.include_router(files.router, prefix=API_PREFIX)
 
 # ---------------------------------------------------------------------------
 # Utility endpoints

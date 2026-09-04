@@ -29,6 +29,10 @@ class ReviewUpdate(BaseModel):
         return ReviewCreate.validate_name(value)
 
 
+class ReviewDeleteRequest(BaseModel):
+    confirmation_name: str
+
+
 class ReviewSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
