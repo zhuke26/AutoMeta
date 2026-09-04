@@ -42,6 +42,7 @@ build/
 dist/
 *.egg-info/
 uv.lock
+*.tsbuildinfo
 .pytest_cache/
 .ruff_cache/
 .coverage

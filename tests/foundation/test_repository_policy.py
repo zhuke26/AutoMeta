@@ -76,6 +76,7 @@ def test_private_workspace_paths_are_gitignored() -> None:
         "dist/",
         "*.egg-info/",
         "uv.lock",
+        "*.tsbuildinfo",
         ".superpowers/",
         "/deploy/",
         "/tools/",
