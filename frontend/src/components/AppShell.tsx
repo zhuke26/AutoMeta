@@ -45,6 +45,7 @@ export function AppShell({
         <nav aria-label="Primary navigation" className="topbar__nav">
           <NavLink to="/reviews/new">New review</NavLink>
           <NavLink to="/library">Library</NavLink>
+          <NavLink to="/system">System status</NavLink>
         </nav>
         <span className="version-badge">v0.1.0</span>
       </header>

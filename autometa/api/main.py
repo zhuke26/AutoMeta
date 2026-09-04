@@ -18,7 +18,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
@@ -96,6 +96,17 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @application.middleware("http")
+    async def cache_compiled_assets(request: Request, call_next):
+        response = await call_next(request)
+        if (
+            request.url.path.startswith("/static/assets/")
+            and response.status_code == status.HTTP_200_OK
+        ):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
     application.mount(
         "/static",
         StaticFiles(directory=str(STATIC_DIR)),
@@ -126,6 +137,16 @@ def create_app(
     @application.get(f"{API_PREFIX}/health", tags=["utility"])
     def health() -> dict[str, str]:
         return {"status": "ok", "product": "AutoMeta"}
+
+    @application.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str) -> FileResponse:
+        reserved = ("api/", "static/", "docs", "redoc", "openapi.json")
+        if full_path in reserved or full_path.startswith(reserved):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        return FileResponse(
+            str(STATIC_DIR / "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 
     return application
 

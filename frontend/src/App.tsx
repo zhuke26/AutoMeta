@@ -5,6 +5,7 @@ import { NewReviewPage } from "./pages/NewReviewPage";
 import { ReviewSetupPage } from "./pages/ReviewSetupPage";
 import { ReviewEntryRedirect, ReviewWorkspace } from "./pages/ReviewWorkspace";
 import { StagePendingPage } from "./pages/StagePendingPage";
+import { SystemStatusPage } from "./pages/SystemStatusPage";
 
 
 export function App() {
@@ -13,6 +14,7 @@ export function App() {
       <Route path="/" element={<Navigate to="/library" replace />} />
       <Route path="/library" element={<LibraryPage />} />
       <Route path="/reviews/new" element={<NewReviewPage />} />
+      <Route path="/system" element={<SystemStatusPage />} />
       <Route path="/reviews/:reviewId" element={<ReviewWorkspace />}>
         <Route index element={<ReviewEntryRedirect />} />
         <Route path="setup" element={<ReviewSetupPage />} />

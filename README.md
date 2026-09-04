@@ -64,6 +64,38 @@ python -m pip install -e .
 Copy `.env.example` to `.env` and configure the OpenAI-compatible endpoint,
 API key, and model before starting the server.
 
+## Frontend development
+
+The committed frontend build lets ordinary users run AutoMeta without Node.js.
+Contributors changing the interface should use Node.js 20 and start the Python
+server first:
+
+```bash
+python -m autometa serve
+```
+
+In a second terminal, install the locked dependencies and start Vite. Requests
+under `/api` are proxied to the default local AutoMeta server at port 8016.
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Before committing frontend changes, regenerate the packaged assets and run all
+frontend checks:
+
+```bash
+cd frontend
+npm test -- --run
+npm run typecheck
+npm run build
+```
+
+The build writes directly to `autometa/static/`; those generated files are part
+of the published Python package and must remain synchronized with the source.
+
 ## License
 
 AutoMeta is available under the MIT License. See [LICENSE](LICENSE).

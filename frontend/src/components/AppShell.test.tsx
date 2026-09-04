@@ -19,6 +19,10 @@ describe("AppShell", () => {
     expect(screen.getByText("Evidence synthesis workspace")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "New review" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Library" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "System status" })).toHaveAttribute(
+      "href",
+      "/system",
+    );
   });
 
   it("shows all agents, checkpoints, and semantic stage states", () => {
