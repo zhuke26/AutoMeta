@@ -1,17 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./components/AppShell";
-
-function LibraryPlaceholder() {
-  return (
-    <AppShell>
-      <main>
-        <h1>Library</h1>
-      </main>
-    </AppShell>
-  );
-}
-
+import { LibraryPage } from "./pages/LibraryPage";
 
 function NewReviewPlaceholder() {
   return (
@@ -39,7 +29,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/library" replace />} />
-      <Route path="/library" element={<LibraryPlaceholder />} />
+      <Route path="/library" element={<LibraryPage />} />
       <Route path="/reviews/new" element={<NewReviewPlaceholder />} />
       <Route path="/reviews/:reviewId/*" element={<ReviewPlaceholder />} />
     </Routes>

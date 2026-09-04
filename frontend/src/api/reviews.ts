@@ -75,12 +75,13 @@ export function useCreateReview() {
 }
 
 
-export function useRenameReview(reviewId: string) {
+export function useRenameReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => renameReview(reviewId, name),
+    mutationFn: ({ reviewId, name }: { reviewId: string; name: string }) =>
+      renameReview(reviewId, name),
     onSuccess: (review) => {
-      queryClient.setQueryData(reviewKeys.detail(reviewId), review);
+      queryClient.setQueryData(reviewKeys.detail(review.id), review);
       queryClient.invalidateQueries({ queryKey: reviewKeys.all });
     },
   });
