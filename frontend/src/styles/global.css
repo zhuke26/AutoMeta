@@ -268,6 +268,116 @@ textarea {
   margin-top: 20px;
 }
 
+.new-review-page {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.new-review-form__section {
+  padding: 24px;
+}
+
+.new-review-form__section + .new-review-form__section {
+  border-top: 1px solid var(--line);
+}
+
+.review-name-input {
+  max-width: 560px;
+}
+
+.field-help {
+  margin: 7px 0 0;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.mode-fieldset {
+  margin: 0;
+  border: 0;
+}
+
+.mode-fieldset legend {
+  color: var(--navy);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.entry-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.entry-mode-card {
+  position: relative;
+  display: flex;
+  min-height: 112px;
+  align-items: flex-start;
+  gap: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  cursor: pointer;
+  padding: 17px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.entry-mode-card:hover {
+  border-color: var(--accent-line);
+  background: var(--surface-sunk);
+}
+
+.entry-mode-card.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.entry-mode-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.entry-mode-card__copy {
+  display: grid;
+  gap: 6px;
+}
+
+.entry-mode-card__copy strong {
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.entry-mode-card__copy span {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.entry-mode-card__mark {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.form-error {
+  margin: 0 24px 20px;
+  border: 1px solid #e8bcbc;
+  border-radius: var(--radius-sm);
+  background: var(--danger-wash);
+  color: var(--danger);
+  padding: 10px 12px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding: 16px 24px;
+}
+
 a {
   color: inherit;
   text-decoration: none;
