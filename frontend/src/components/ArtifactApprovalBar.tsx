@@ -14,9 +14,11 @@ function artifactLabel(kind: ArtifactView["kind"]) {
 
 export function ArtifactApprovalBar({
   artifact,
+  canApprove = true,
   reviewId,
 }: {
   artifact: ArtifactView;
+  canApprove?: boolean;
   reviewId: string;
 }) {
   const approve = useApproveArtifact();
@@ -53,7 +55,7 @@ export function ArtifactApprovalBar({
         ) : (
           <button
             className="button button--primary"
-            disabled={busy || current.state === "stale"}
+            disabled={busy || current.state === "stale" || !canApprove}
             onClick={() => approve.mutate(
               { reviewId, artifact: current },
               { onSuccess: setCurrent },

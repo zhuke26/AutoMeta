@@ -884,6 +884,60 @@ a {
   color: var(--danger);
 }
 
+.protocol-editor__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  padding: 20px 24px;
+}
+
+.protocol-editor__heading h2 {
+  margin: 0;
+  color: var(--navy);
+}
+
+.protocol-editor__heading p:not(.eyebrow) {
+  margin: 5px 0 0;
+  color: var(--ink-3);
+}
+
+.protocol-editor__body {
+  padding: 22px 24px;
+}
+
+.protocol-question {
+  resize: vertical;
+}
+
+.protocol-generate-row,
+.workflow-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.pico-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.pico-grid textarea {
+  resize: vertical;
+}
+
+.autosave-state {
+  min-width: 80px;
+  color: var(--ink-3);
+  font-size: 11px;
+  text-align: right;
+}
+
 @media (max-width: 1200px) {
   .brand__descriptor,
   .stage-card__tool {
