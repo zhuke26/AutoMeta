@@ -22,6 +22,31 @@ export interface ReviewList {
   total: number;
 }
 
+export type ArtifactState = "draft" | "approved" | "stale";
+
+export type ArtifactKind =
+  | "question_pico"
+  | "query"
+  | "records"
+  | "selected_studies"
+  | "sources"
+  | "plan"
+  | "code"
+  | "result";
+
+export interface ArtifactView {
+  artifact_id: string;
+  review_id: string;
+  stage: string;
+  kind: ArtifactKind;
+  state: ArtifactState;
+  version: number;
+  payload: Record<string, unknown>;
+  content_hash: string;
+  created_at: string;
+  approved: boolean;
+}
+
 export interface SystemStatus {
   product: string;
   version: string;

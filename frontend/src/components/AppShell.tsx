@@ -2,23 +2,27 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import { AutoMetaLogo } from "./AutoMetaLogo";
-import { ProvenanceRail } from "./ProvenanceRail";
+import { ProvenanceRail, type ProvenanceArtifact, type ProvenanceState } from "./ProvenanceRail";
 import { StageRail, type StageId, type StageState } from "./StageRail";
 
 
 interface AppShellProps {
   children: ReactNode;
+  reviewId?: string;
   reviewLabel?: string;
   activeStage?: StageId;
   stageStates?: Partial<Record<StageId, StageState>>;
+  provenanceStates?: Partial<Record<ProvenanceArtifact, ProvenanceState>>;
 }
 
 
 export function AppShell({
   children,
+  reviewId,
   reviewLabel,
   activeStage,
   stageStates,
+  provenanceStates,
 }: AppShellProps) {
   const showWorkflow = Boolean(
     reviewLabel || activeStage || Object.keys(stageStates ?? {}).length,
@@ -44,9 +48,11 @@ export function AppShell({
         </nav>
         <span className="version-badge">v0.1.0</span>
       </header>
-      {showWorkflow ? <StageRail activeStage={activeStage} stageStates={stageStates} /> : null}
+      {showWorkflow ? (
+        <StageRail reviewId={reviewId} activeStage={activeStage} stageStates={stageStates} />
+      ) : null}
       <div className="workspace-canvas">{children}</div>
-      {showWorkflow ? <ProvenanceRail /> : null}
+      {showWorkflow ? <ProvenanceRail states={provenanceStates} /> : null}
     </div>
   );
 }

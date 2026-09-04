@@ -20,6 +20,14 @@ const modeLabels: Record<ReviewSummary["entry_mode"], string> = {
   meta_analysis: "Meta-analysis",
 };
 
+const entryRoutes: Record<ReviewSummary["entry_mode"], string> = {
+  guided: "setup",
+  search: "search",
+  screening: "screening",
+  extraction: "extraction",
+  meta_analysis: "meta-analysis",
+};
+
 
 export function ReviewCard({ review, renaming, onDelete, onRename }: ReviewCardProps) {
   const [editing, setEditing] = useState(false);
@@ -70,7 +78,11 @@ export function ReviewCard({ review, renaming, onDelete, onRename }: ReviewCardP
         )}
       </div>
       <div className="review-card__actions">
-        <Link aria-label={`Open ${review.name}`} className="button button--primary" to={`/reviews/${review.id}/setup`}>
+        <Link
+          aria-label={`Open ${review.name}`}
+          className="button button--primary"
+          to={`/reviews/${review.id}/${entryRoutes[review.entry_mode]}`}
+        >
           Open
         </Link>
         <button aria-label={`Rename ${review.name}`} className="button button--quiet" onClick={() => setEditing(true)} type="button">
