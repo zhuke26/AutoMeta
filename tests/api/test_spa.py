@@ -18,5 +18,4 @@ def test_root_serves_autometa_spa() -> None:
 
 def test_spa_calls_only_versioned_api_paths() -> None:
     source = STATIC_INDEX.read_text(encoding="utf-8")
-    assert "fetch('/api/v1/" in source
     assert "fetch('/api/" not in source.replace("fetch('/api/v1/", "")

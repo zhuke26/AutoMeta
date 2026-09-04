@@ -6,7 +6,7 @@
 
 **Architecture:** Keep `frontend/` as typed source and build committed assets into `autometa/static/`. React Router owns page navigation, TanStack Query owns server state, and components consume only `/api/v1` contracts. The branch is not merged until the later workflow-migration plan replaces all legacy stage screens.
 
-**Tech Stack:** React 18, TypeScript 5, Vite, React Router 6, TanStack Query 5, TanStack Table 8, Vitest, Testing Library, CSS custom properties.
+**Tech Stack:** React 18, TypeScript 5, Vite, React Router 7, TanStack Query 5, TanStack Table 8, Vitest, Testing Library, CSS custom properties.
 
 ## Global Constraints
 
