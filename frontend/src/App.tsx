@@ -1,32 +1,36 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { AppShell } from "./components/AppShell";
 
 function LibraryPlaceholder() {
   return (
-    <main>
-      <p>AutoMeta</p>
-      <h1>Library</h1>
-    </main>
+    <AppShell>
+      <main>
+        <h1>Library</h1>
+      </main>
+    </AppShell>
   );
 }
 
 
 function NewReviewPlaceholder() {
   return (
-    <main>
-      <p>AutoMeta</p>
-      <h1>New review</h1>
-    </main>
+    <AppShell>
+      <main>
+        <h1>New review</h1>
+      </main>
+    </AppShell>
   );
 }
 
 
 function ReviewPlaceholder() {
   return (
-    <main>
-      <p>AutoMeta</p>
-      <h1>Review workspace</h1>
-    </main>
+    <AppShell reviewLabel="Untitled review">
+      <main>
+        <h1>Review workspace</h1>
+      </main>
+    </AppShell>
   );
 }
 

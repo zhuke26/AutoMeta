@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" fill="none" role="img" aria-labelledby="title">
+  <title id="title">AutoMeta</title>
+  <rect x="0.6" y="0.6" width="26.8" height="26.8" rx="7.8" fill="#16233F"/>
+  <rect x="0.6" y="0.6" width="26.8" height="26.8" rx="7.8" stroke="#000" stroke-opacity="0.2"/>
+  <g stroke="#fff" stroke-opacity="0.46" stroke-width="1.25" stroke-linecap="round">
+    <path d="M14 11.4V8.4"/><path d="M16.6 14h3"/>
+    <path d="M14 16.6v3"/><path d="M11.4 14h-3"/>
+  </g>
+  <circle cx="14" cy="14" r="3.15" fill="#fff"/>
+  <circle cx="14" cy="6.75" r="2.05" fill="#6FE0C0"/>
+  <circle cx="21.25" cy="14" r="2.05" fill="#fff" fill-opacity="0.92"/>
+  <circle cx="14" cy="21.25" r="2.05" fill="#fff" fill-opacity="0.92"/>
+  <circle cx="6.75" cy="14" r="2.05" fill="#fff" fill-opacity="0.92"/>
+</svg>
