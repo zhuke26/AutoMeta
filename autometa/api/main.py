@@ -24,7 +24,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from autometa.api.routers import artifacts, extraction, files, jobs, meta_analysis, protocol, reviews, screening, search
+from autometa.api.routers import artifacts, extraction, files, jobs, meta_analysis, protocol, reviews, screening, search, system
 from autometa.config import Settings, get_settings
 from autometa.jobs.manager import JobManager
 from autometa.persistence.database import Database
@@ -67,6 +67,7 @@ def create_app(
         )
         file_storage = FileStorage(active_database)
         application.state.database = active_database
+        application.state.settings = resolved_settings
         application.state.job_manager = active_manager
         application.state.file_storage = file_storage
         application.state.artifact_service = ArtifactService(
@@ -118,6 +119,7 @@ def create_app(
         files.router,
         artifacts.router,
         jobs.router,
+        system.router,
     ):
         application.include_router(router, prefix=API_PREFIX)
 

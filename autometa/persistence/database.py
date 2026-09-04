@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from sqlalchemy import Engine, create_engine, event, inspect, update
+from sqlalchemy import Engine, create_engine, event, inspect, text, update
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -15,6 +15,7 @@ from autometa.persistence.models import Base, Job, JobState
 
 class Database:
     def __init__(self, settings: Settings):
+        self.settings = settings
         self.data_dir = Path(settings.autometa_data_dir).expanduser().resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.path = self.data_dir / "autometa.db"
@@ -53,6 +54,13 @@ class Database:
 
     def inspect_table_names(self) -> list[str]:
         return inspect(self.engine).get_table_names()
+
+    def is_ready(self) -> bool:
+        try:
+            with self.engine.connect() as connection:
+                return connection.execute(text("SELECT 1")).scalar_one() == 1
+        except Exception:
+            return False
 
     def mark_running_jobs_interrupted(self) -> int:
         with self.session() as session:

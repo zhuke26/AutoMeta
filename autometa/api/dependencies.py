@@ -2,6 +2,7 @@ from fastapi import Request
 
 from autometa.persistence.database import Database
 from autometa.jobs.manager import JobManager
+from autometa.config import Settings
 from autometa.services.artifacts import ArtifactService
 from autometa.services.reviews import ReviewService
 from autometa.services.files import FileStorage
@@ -40,3 +41,10 @@ def get_job_manager(request: Request) -> JobManager:
     if manager is None:
         raise RuntimeError("AutoMeta job manager is not initialized")
     return manager
+
+
+def get_app_settings(request: Request) -> Settings:
+    settings = getattr(request.app.state, "settings", None)
+    if settings is None:
+        raise RuntimeError("AutoMeta settings are not initialized")
+    return settings
