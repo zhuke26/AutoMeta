@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     autometa_data_dir: Path = Path("data")
     autometa_host: str = "127.0.0.1"
     autometa_port: int = Field(default=8016, ge=1, le=65535)
+    autometa_max_upload_mb: int = Field(default=100, ge=1)
+    autometa_job_workers: int = Field(default=2, ge=1, le=32)
 
     def model_for(self, stage: AgentStage) -> str:
         override = {
@@ -47,6 +49,8 @@ class Settings(BaseSettings):
             "data_dir": str(self.autometa_data_dir),
             "host": self.autometa_host,
             "port": self.autometa_port,
+            "max_upload_mb": self.autometa_max_upload_mb,
+            "job_workers": self.autometa_job_workers,
             "api_key_configured": bool(self.llm_api_key.get_secret_value()),
         }
 
