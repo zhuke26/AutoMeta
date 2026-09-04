@@ -47,6 +47,38 @@ export interface ArtifactView {
   approved: boolean;
 }
 
+export type JobState =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "interrupted"
+  | "cancelled";
+
+export interface JobView {
+  id: string;
+  review_id: string;
+  stage: string;
+  state: JobState;
+  progress: Record<string, unknown> | null;
+  result_reference: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface FileView {
+  id: string;
+  review_id: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  parse_status: string;
+  created_at: string;
+}
+
 export interface SystemStatus {
   product: string;
   version: string;

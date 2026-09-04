@@ -841,6 +841,49 @@ a {
   overflow-wrap: anywhere;
 }
 
+.artifact-approval,
+.job-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+.artifact-approval > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.artifact-approval__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.artifact-approval .form-error {
+  margin: 0;
+}
+
+.job-progress {
+  align-items: flex-start;
+}
+
+.job-progress pre {
+  max-width: 50%;
+  overflow: auto;
+  margin: 0;
+  color: var(--ink-3);
+  font: 11px/1.45 var(--mono);
+}
+
+.job-progress__error {
+  color: var(--danger);
+}
+
 @media (max-width: 1200px) {
   .brand__descriptor,
   .stage-card__tool {
