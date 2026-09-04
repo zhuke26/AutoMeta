@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoMeta - Automated Meta-Analysis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: light; }
+    body { background:#f7f8fb; }
+    .stage-pill { position:relative; display:inline-flex; align-items:center; gap:8px; min-height:32px; padding:6px 11px; border-radius:8px; font-size:.78rem; font-weight:750; white-space:nowrap; border:1px solid transparent; }
+    .stage-pill::before { content:""; width:8px; height:8px; border-radius:9999px; background:currentColor; opacity:.9; }
+    .step-active { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .step-done { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+    .step-inactive { background:#f8fafc; color:#64748b; border-color:#e2e8f0; }
+
+    .panel { background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+    .panel-header { padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+    .panel-body { padding:20px; }
+    .section-title { font-size:.95rem; line-height:1.4; font-weight:750; color:#0f172a; }
+    .section-subtitle { margin-top:4px; font-size:.78rem; color:#64748b; }
+    .btn-primary { background:#2563eb; color:#fff; border-radius:8px; padding:11px 14px; font-size:.9rem; font-weight:750; transition:background .15s, transform .15s; }
+    .btn-primary:hover { background:#1d4ed8; }
+    .btn-dark { background:#0f172a; color:#fff; border-radius:8px; padding:11px 14px; font-size:.9rem; font-weight:750; transition:background .15s; }
+    .btn-dark:hover { background:#020617; }
+    .btn-secondary { border:1px solid #cbd5e1; color:#334155; background:#fff; border-radius:8px; padding:8px 11px; font-size:.78rem; font-weight:700; transition:background .15s, border-color .15s; }
+    .btn-secondary:hover { background:#f8fafc; border-color:#94a3b8; }
+    .btn-muted { border:1px solid #e2e8f0; color:#64748b; background:#fff; border-radius:8px; padding:8px 11px; font-size:.78rem; font-weight:700; }
+    .btn-muted:hover { background:#f8fafc; color:#334155; }
+    .form-input { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; font-size:.875rem; color:#0f172a; background:#fff; }
+    .form-input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+    .form-label { display:block; font-size:.72rem; line-height:1.2; font-weight:750; color:#475569; margin-bottom:6px; }
+    .metric-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px; }
+    .metric-value { font-size:1.75rem; line-height:1; font-weight:800; color:#0f172a; }
+    .metric-label { margin-top:6px; font-size:.72rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.03em; }
+
+    .tag { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:.75rem; margin:2px; }
+    .tag-pop { background:#dbeafe; color:#1d4ed8; }
+    .tag-int { background:#dcfce7; color:#166534; }
+    .tag-out { background:#fef3c7; color:#92400e; }
+    .badge-include { background:#dcfce7; color:#166534; }
+    .badge-exclude { background:#fee2e2; color:#991b1b; }
+    .badge-uncertain { background:#fef3c7; color:#92400e; }
+    .eval-yes { color:#15803d; font-weight:700; }
+    .eval-no { color:#b91c1c; font-weight:700; }
+    .eval-uncertain { color:#b45309; font-weight:700; }
+    .conf-high { color:#15803d; }
+    .conf-medium { color:#b45309; }
+    .conf-low { color:#b91c1c; }
+    .conf-notfound { color:#94a3b8; font-style:italic; }
+
+    .dropzone { border:1.5px dashed #cbd5e1; border-radius:8px; padding:28px; text-align:center; transition:border-color .2s, background .2s; cursor:pointer; background:#f8fafc; }
+    .dropzone:hover, .dropzone.dragover { border-color:#2563eb; background:#eff6ff; }
+    .field-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .field-row input { flex:1; }
+    .field-row button { flex-shrink:0; }
+    textarea { resize:vertical; }
+    .spinner { border:3px solid #e5e7eb; border-top-color:#2563eb; border-radius:50%; width:24px; height:24px; animation:spin .8s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .table-row:hover { background:#f8fafc; }
+    .abstract-short { max-height:3.2em; overflow:hidden; }
+    .abstract-full { max-height:none; }
+    .page-btn { padding:4px 10px; border-radius:6px; border:1px solid #cbd5e1; cursor:pointer; font-size:.85rem; color:#334155; background:#fff; }
+    .page-btn:hover { background:#f8fafc; }
+    .page-btn.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+    .page-btn:disabled { opacity:.4; cursor:default; }
+    .active-tab { background:#eff6ff; color:#2563eb; border-bottom:2px solid #2563eb; }
+    .screen-tab { transition:background .15s; }
+    .screen-tab:hover:not(.active-tab) { background:#f8fafc; }
+    .stage-pill { cursor:pointer; }
+    .page-header { overflow:hidden; }
+    .page-header .panel-header { border-left:4px solid #2563eb; background:linear-gradient(90deg, rgba(37,99,235,.08), #fff 44%); }
+    .page-protocol .panel-header { border-left-color:#0f766e; background:linear-gradient(90deg, rgba(15,118,110,.08), #fff 44%); }
+    .page-search .panel-header { border-left-color:#2563eb; background:linear-gradient(90deg, rgba(37,99,235,.08), #fff 44%); }
+    .page-screening .panel-header { border-left-color:#16a34a; background:linear-gradient(90deg, rgba(22,163,74,.08), #fff 44%); }
+    .page-extraction .panel-header { border-left-color:#7c3aed; background:linear-gradient(90deg, rgba(124,58,237,.08), #fff 44%); }
+    .page-meta .panel-header { border-left-color:#4f46e5; background:linear-gradient(90deg, rgba(79,70,229,.08), #fff 44%); }
+    .workflow-pager { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:20px 0 0; }
+    .workflow-pager button:disabled { opacity:.45; cursor:not-allowed; }
+    .workflow-hint { display:flex; align-items:center; gap:10px; min-height:52px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
+    .workflow-index { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; color:#fff; background:#0f766e; font-size:.78rem; font-weight:800; flex:0 0 auto; }
+    .protocol-layout { display:grid; grid-template-columns:minmax(0, 1.45fr) minmax(320px, .75fr); gap:22px; align-items:start; }
+    .protocol-fields { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
+    .question-panel { border:1px solid #cbd5e1; background:#f8fafc; border-radius:8px; padding:16px; margin-bottom:18px; }
+    .outcome-review { margin-top:14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden; }
+    .outcome-review.hidden { display:none; }
+    .outcome-review-header { padding:12px 14px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .outcome-item { padding:12px 14px; border-top:1px solid #f1f5f9; display:grid; grid-template-columns:minmax(120px, .7fr) 100px minmax(0, 1fr); gap:12px; align-items:start; }
+    .outcome-item:first-child { border-top:0; }
+    .term-editor-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+    .term-editor-grid textarea { min-height:150px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:.78rem; }
+    .search-review-note { border:1px solid #bfdbfe; background:#eff6ff; color:#1e40af; border-radius:8px; padding:10px 12px; font-size:.78rem; }
+    .included-list { display:grid; gap:10px; }
+    .included-study { display:grid; grid-template-columns:auto 110px minmax(0, 1fr) auto; gap:12px; align-items:start; padding:12px 14px; border:1px solid #dcfce7; border-radius:8px; background:#f7fef9; }
+    .included-study-title { font-size:.88rem; font-weight:700; color:#0f172a; line-height:1.35; }
+    .included-study-meta { margin-top:4px; font-size:.72rem; color:#64748b; }
+    .handoff-list { display:grid; gap:8px; }
+    .handoff-item { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; gap:10px; align-items:start; padding:10px 12px; border:1px solid #e9d5ff; border-radius:8px; background:#faf5ff; }
+    .handoff-title { font-size:.82rem; font-weight:700; color:#1e293b; line-height:1.35; }
+    .pdf-match-ok { color:#166534; background:#dcfce7; border-color:#bbf7d0; }
+    .pdf-match-missing { color:#991b1b; background:#fee2e2; border-color:#fecaca; }
+    .pdf-match-extra { color:#475569; background:#f1f5f9; border-color:#e2e8f0; }
+    .extraction-edit-input { min-width:160px; width:100%; border:1px solid #e2e8f0; border-radius:7px; padding:5px 7px; font-size:.82rem; color:#0f172a; background:#fff; }
+    .extraction-edit-input:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.12); }
+    .extraction-row-selected { background:#faf5ff; }
+    .evidence-cell { display:inline-flex; align-items:center; gap:6px; max-width:260px; padding:4px 7px; border-radius:7px; border:1px solid transparent; text-align:left; vertical-align:top; }
+    .evidence-cell:hover { border-color:#c4b5fd; background:#f5f3ff; }
+    .evidence-dot { width:6px; height:6px; border-radius:9999px; background:#7c3aed; flex:0 0 auto; }
+    .evidence-modal-card { width:min(760px, calc(100vw - 32px)); max-height:calc(100vh - 72px); overflow:auto; border-radius:8px; background:#fff; box-shadow:0 24px 64px rgba(15,23,42,.25); }
+    .evidence-meta-grid { display:grid; grid-template-columns:120px minmax(0, 1fr); gap:8px 12px; font-size:.82rem; }
+    .evidence-quote { white-space:pre-wrap; border:1px solid #e2e8f0; background:#f8fafc; border-radius:8px; padding:14px; color:#334155; line-height:1.6; font-size:.88rem; }
+    @media (max-width: 960px) {
+      .term-editor-grid { grid-template-columns:1fr; }
+    }
+    .settings-stack { display:flex; flex-direction:column; gap:14px; }
+    .settings-section { padding-bottom:14px; border-bottom:1px solid #e2e8f0; }
+    .settings-section:last-child { padding-bottom:0; border-bottom:0; }
+    .page-actions { display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+    @media (max-width: 960px) {
+      .protocol-layout { grid-template-columns:1fr; }
+      .protocol-fields { grid-template-columns:1fr; }
+      .page-actions { justify-content:flex-start; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+<!-- =================== HEADER =================== -->
+<header class="bg-white border-b border-slate-200">
+  <div class="max-w-[1440px] mx-auto px-6 py-4 flex flex-col gap-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div>
+        <div class="text-xl font-bold tracking-tight text-slate-950">AutoMeta</div>
+        <div class="text-xs text-slate-500 mt-1">Automated Meta-Analysis Workspace</div>
+      </div>
+      <div id="current-step-label" class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Current step: Protocol</div>
+    </div>
+    <div class="flex items-center gap-2 text-sm select-none flex-wrap">
+      <button id="step1-badge" type="button" onclick="showWorkflowPage(1)" class="stage-pill step-active">Protocol</button>
+      <button id="step2-badge" type="button" onclick="showWorkflowPage(2)" class="stage-pill step-inactive">Search</button>
+      <button id="step3-badge" type="button" onclick="showWorkflowPage(3)" class="stage-pill step-inactive">Screening</button>
+      <button id="step4-badge" type="button" onclick="showWorkflowPage(4)" class="stage-pill step-inactive">Extraction</button>
+      <button id="step5-badge" type="button" onclick="showWorkflowPage(5)" class="stage-pill step-inactive">Meta Analysis</button>
+    </div>
+  </div>
+</header>
+
+<!-- =================== LOADING OVERLAY =================== -->
+<div id="overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-2xl p-8 text-center w-80">
+    <div class="spinner mx-auto mb-4"></div>
+    <div id="overlay-title" class="text-lg font-semibold text-gray-700 mb-1"></div>
+    <div id="overlay-sub"   class="text-sm text-gray-500 mb-3"></div>
+    <div id="overlay-timer" class="text-3xl font-mono font-bold text-blue-600">0:00</div>
+    <div class="text-xs text-gray-400 mt-1">LLM reasoning can take a few minutes.</div>
+  </div>
+</div>
+
+<!-- =================== MAIN LAYOUT =================== -->
+<div class="max-w-[1440px] mx-auto px-4 md:px-6 py-6">
+
+  <!-- --- MAIN CONTENT --- -->
+  <main class="min-w-0 space-y-4">
+    <div id="error-box" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700"></div>
+
+    <!-- Welcome placeholder -->
+    <div id="welcome" class="space-y-4">
+      <div class="panel page-header page-protocol">
+        <div class="panel-header">
+          <div>
+            <h2 class="section-title">Review Protocol</h2>
+            <p class="section-subtitle">Define the review scope and PubMed retrieval settings before moving into screening and extraction.</p>
+          </div>
+          <div class="page-actions">
+            <button onclick="resetAll()" class="btn-muted">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="workflow-hint">
+          <span class="workflow-index">1</span>
+          <div>
+            <div class="text-sm font-bold text-slate-800">Protocol</div>
+            <div class="text-xs text-slate-500">PICO and limits</div>
+          </div>
+        </div>
+        <div class="workflow-hint">
+          <span class="workflow-index" style="background:#2563eb;">2</span>
+          <div>
+            <div class="text-sm font-bold text-slate-800">Search</div>
+            <div class="text-xs text-slate-500">PubMed records</div>
+          </div>
+        </div>
+        <div class="workflow-hint">
+          <span class="workflow-index" style="background:#16a34a;">3</span>
+          <div>
+            <div class="text-sm font-bold text-slate-800">Screening</div>
+            <div class="text-xs text-slate-500">Eligibility review</div>
+          </div>
+        </div>
+        <div class="workflow-hint">
+          <span class="workflow-index" style="background:#7c3aed;">4</span>
+          <div>
+            <div class="text-sm font-bold text-slate-800">Extraction</div>
+            <div class="text-xs text-slate-500">Full-text data</div>
+          </div>
+        </div>
+        <div class="workflow-hint">
+          <span class="workflow-index" style="background:#4f46e5;">5</span>
+          <div>
+            <div class="text-sm font-bold text-slate-800">Meta Analysis</div>
+            <div class="text-xs text-slate-500">Method plans</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <div class="protocol-layout">
+            <section>
+              <div class="question-panel">
+                <div class="flex flex-col lg:flex-row lg:items-start gap-3">
+                  <div class="flex-1 min-w-0">
+                    <label class="form-label">Research question</label>
+                    <textarea id="research-question" rows="4" placeholder="Enter a natural-language review question, e.g. In older adults with insomnia, does mobile CBT-I improve sleep quality compared with usual care?" class="form-input"></textarea>
+                  </div>
+                  <button id="btn-draft-protocol" type="button" onclick="draftProtocol()" class="btn-dark mt-0 lg:mt-6">Generate PICO</button>
+                </div>
+                <div id="protocol-draft-rationale" class="hidden mt-3 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2"></div>
+              </div>
+
+              <div class="mb-4">
+                <h3 class="text-base font-bold text-slate-900">PICO Definition</h3>
+                <p class="text-xs text-slate-500 mt-1">Review and edit the generated protocol before searching PubMed.</p>
+              </div>
+              <div class="protocol-fields">
+                <div>
+                  <label class="form-label text-blue-700">Population</label>
+                  <textarea id="pico-p" rows="5" placeholder="Describe the target population..." class="form-input"></textarea>
+                </div>
+                <div>
+                  <label class="form-label text-green-700">Intervention / Exposure</label>
+                  <textarea id="pico-i" rows="5" placeholder="Describe the intervention or exposure..." class="form-input"></textarea>
+                </div>
+                <div>
+                  <label class="form-label text-yellow-700">Comparison</label>
+                  <textarea id="pico-c" rows="4" placeholder="Describe the comparator condition..." class="form-input"></textarea>
+                </div>
+                <div>
+                  <label class="form-label text-purple-700">Outcomes</label>
+                  <textarea id="pico-o" rows="4" placeholder="Describe primary and secondary outcomes..." class="form-input"></textarea>
+                </div>
+              </div>
+
+              <div id="recommended-outcomes-panel" class="outcome-review hidden">
+                <div class="outcome-review-header">
+                  <div>
+                    <div class="text-sm font-bold text-slate-800">Recommended Outcomes</div>
+                    <div class="text-xs text-slate-500">Review, edit, or remove suggested outcomes before searching.</div>
+                  </div>
+                  <button type="button" onclick="addOutcomeRow()" class="btn-secondary">Add Outcome</button>
+                </div>
+                <div id="recommended-outcomes-list"></div>
+                <div class="px-4 py-3 border-t border-slate-100 flex justify-end">
+                  <button type="button" onclick="syncOutcomesToPico()" class="btn-primary">Apply to PICO Outcomes</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-stack">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Search Settings</h3>
+                <p class="text-xs text-slate-500 mt-1">Tune retrieval size, publication years, and screening concurrency.</p>
+              </div>
+
+              <input type="hidden" id="search-strategy-mode" value="field_tagged_balanced" />
+
+              <div class="settings-section">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="form-label mb-0">Maximum records</label>
+                  <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                    <span class="text-xs text-gray-500">Expanded retrieval</span>
+                    <div class="relative">
+                      <input type="checkbox" id="fetch-all" class="sr-only peer" onchange="onFetchAllChange()" />
+                      <div class="w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+                      <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
+                    </div>
+                  </label>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="retmax" min="50" max="1000" step="50" value="200" oninput="document.getElementById('retmax-val').textContent=this.value" class="flex-1 accent-blue-600" />
+                  <span id="retmax-val" class="w-11 text-right font-mono text-blue-700 font-semibold">200</span>
+                </div>
+                <div id="fetch-all-hint" class="hidden mt-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1">
+                  Expanded retrieval uses the largest safe PubMed result window; edit the query if coverage is too broad.
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="form-label">Start year</label>
+                    <input type="number" id="min-year" placeholder="e.g. 2015" min="1900" max="2100" class="form-input text-center" />
+                  </div>
+                  <div>
+                    <label class="form-label">End year</label>
+                    <input type="number" id="max-year" placeholder="e.g. 2024" min="1900" max="2100" class="form-input text-center" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <label class="form-label">Max concurrent screening requests</label>
+                <input type="number" id="max-concurrency" value="5" min="1" max="5" class="form-input text-center" />
+              </div>
+
+              <button onclick="prepareSearchTerms()" class="btn-primary w-full">Generate PubMed Query</button>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- == SEARCH RESULTS PANEL == -->
+    <div id="search-panel" class="hidden space-y-4">
+      <div class="panel page-header page-search">
+        <div class="panel-header">
+          <div>
+            <h2 class="section-title">Literature Search</h2>
+            <p class="section-subtitle">Review and edit the balanced PubMed query before searching.</p>
+          </div>
+        </div>
+      </div>
+      <div id="search-review-panel" class="panel hidden">
+        <div class="panel-header">
+          <div>
+            <h3 class="section-title">PubMed Query Review</h3>
+            <p class="section-subtitle">Edit the field-tagged balanced query below before searching PubMed.</p>
+          </div>
+          <div class="page-actions">
+            <button onclick="prepareSearchTerms()" class="btn-secondary">Regenerate</button>
+            <button onclick="runSearch()" class="btn-primary">Search PubMed</button>
+          </div>
+        </div>
+        <div class="panel-body space-y-4">
+          <div id="search-review-note" class="search-review-note">The system generates one editable field-tagged balanced PubMed query from PICO to balance recall and candidate-set size.</div>
+          <div id="term-editor-grid" class="grid grid-cols-1 gap-3">
+            <div>
+              <label class="form-label text-blue-700">Balanced PubMed query</label>
+              <textarea id="search-raw-query" class="form-input font-mono text-xs" rows="12" placeholder="Generated field-tagged PubMed query will appear here"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Stats bar -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500">PubMed Records</span>
+            <span id="stat-total" class="font-bold text-blue-700 text-lg">-</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500">Retrieved</span>
+            <span id="stat-retrieved" class="font-bold text-green-700 text-lg">-</span>
+          </div>
+          <div class="ml-auto flex items-center gap-2 flex-wrap justify-end">
+            <button onclick="exportSearchCSV()"
+              class="text-xs border border-blue-200 hover:bg-blue-50 px-3 py-1 rounded-lg text-blue-700 transition">
+              Export CSV
+            </button>
+            <button onclick="exportSearchJSON()"
+              class="text-xs border border-slate-200 hover:bg-slate-50 px-3 py-1 rounded-lg text-slate-600 transition">
+              Export JSON
+            </button>
+            <a id="query-link" href="#" target="_blank"
+              class="text-xs text-blue-500 hover:underline break-all hidden">Open PubMed query</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Terms chips -->
+      <div id="terms-panel" class="hidden bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-gray-700 text-sm">Generated Search Context</h3>
+          <button onclick="toggleTerms()" id="terms-toggle"
+            class="text-xs text-gray-400 hover:text-gray-600">Collapse</button>
+        </div>
+        <div id="terms-content">
+          <div class="mb-2">
+            <span class="text-xs font-semibold text-blue-700 mr-1">Population</span>
+            <span id="terms-pop"></span>
+          </div>
+          <div>
+            <span class="text-xs font-semibold text-green-700 mr-1">Intervention</span>
+            <span id="terms-int"></span>
+          </div>
+          <div id="terms-out-row" class="hidden mt-2">
+            <span class="text-xs font-semibold text-yellow-700 mr-1">Outcomes</span>
+            <span id="terms-out"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Field-tagged strategy details -->
+      <div id="strategy-panel" class="hidden bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-gray-700 text-sm">PubMed Strategy</h3>
+          <span id="strategy-mode-label" class="text-xs font-semibold text-blue-700"></span>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 mb-1">Executed raw query</div>
+          <pre id="strategy-query" class="text-xs whitespace-pre-wrap bg-slate-50 border border-slate-100 rounded-lg p-3 max-h-56 overflow-auto"></pre>
+        </div>
+      </div>
+
+      <!-- Papers table -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="font-semibold text-gray-700">Candidate Records</h3>
+          <div class="flex items-center gap-3">
+            <input id="paper-search" type="text" placeholder="Search titles..."
+              oninput="filterPapers()"
+              class="text-sm border border-gray-200 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200 w-44" />
+            <span id="paper-count-label" class="text-xs text-gray-400"></span>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <tr>
+                <th class="px-4 py-3 text-left w-6">#</th>
+                <th class="px-4 py-3 text-left w-24">PMID</th>
+                <th class="px-4 py-3 text-left">Title</th>
+                <th class="px-4 py-3 text-left w-16">Year</th>
+                <th class="px-4 py-3 text-left w-36">Journal</th>
+                <th class="px-4 py-3 text-left">Abstract</th>
+              </tr>
+            </thead>
+            <tbody id="papers-tbody"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div id="papers-pagination" class="px-5 py-3 border-t border-gray-100 flex items-center gap-2 flex-wrap"></div>
+      </div>
+    </div>
+
+    <!-- == SCREENING RESULTS PANEL == -->
+    <div id="screen-panel" class="hidden space-y-4">
+      <div class="panel page-header page-screening">
+        <div class="panel-header">
+          <div>
+            <h2 class="section-title">Study Ranking</h2>
+            <p class="section-subtitle">Rank candidate records by lightweight PICO matching. No records are excluded at this stage.</p>
+          </div>
+          <button onclick="runScreen()" class="btn-primary">Run Screening</button>
+        </div>
+      </div>
+
+      <!-- Streaming progress indicator -->
+      <div id="screen-progress" class="hidden bg-blue-50 rounded-lg border border-blue-100 p-4">
+        <div class="flex items-center gap-3">
+          <div class="spinner" style="border-top-color:#2563eb;"></div>
+          <div class="flex-1">
+            <div id="progress-title" class="font-semibold text-blue-700 text-sm"></div>
+            <div id="progress-sub" class="text-xs text-blue-500 mt-0.5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary stats -->
+      <div class="grid grid-cols-4 gap-3">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4 text-center">
+          <div id="sum-total" class="text-3xl font-bold text-gray-700">-</div>
+          <div class="text-xs text-gray-500 mt-1">Total</div>
+        </div>
+        <div class="bg-green-50 rounded-lg shadow-sm border border-green-100 p-4 text-center">
+          <div id="sum-include" class="text-3xl font-bold text-green-700">-</div>
+          <div class="text-xs text-green-600 mt-1">Ranked</div>
+        </div>
+        <div class="bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 p-4 text-center">
+          <div id="sum-exclude" class="text-3xl font-bold text-indigo-700">-</div>
+          <div class="text-xs text-indigo-600 mt-1">Selected</div>
+        </div>
+        <div class="bg-yellow-50 rounded-lg shadow-sm border border-yellow-100 p-4 text-center">
+          <div id="sum-uncertain" class="text-3xl font-bold text-yellow-700">-</div>
+          <div class="text-xs text-yellow-600 mt-1">API Keys</div>
+        </div>
+      </div>
+
+      <!-- Selected studies quick list -->
+      <div id="included-studies-panel" class="hidden bg-white rounded-lg shadow-sm border border-green-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-green-100 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="font-semibold text-gray-700 text-sm">Selected for Extraction</h3>
+            <p class="text-xs text-gray-500 mt-0.5">PMID links open the corresponding PubMed record.</p>
+          </div>
+          <span id="included-studies-count" class="text-xs font-semibold text-green-700 bg-green-50 border border-green-100 rounded-lg px-2 py-1">0 selected</span>
+        </div>
+        <div id="included-studies-list" class="included-list p-4"></div>
+      </div>
+
+      <!-- Ranking rule accordion -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <button onclick="toggleCriteria()"
+          class="w-full px-5 py-3 text-left font-semibold text-gray-700 text-sm flex items-center justify-between hover:bg-gray-50">
+          <span>Ranking Rule</span>
+          <span id="criteria-arrow">Show</span>
+        </button>
+        <div id="criteria-content" class="hidden px-5 pb-4 space-y-3">
+          <div>
+            <div class="text-xs font-semibold text-blue-700 mb-1">PICO Scoring</div>
+            <div id="crit-title" class="space-y-2 text-sm text-gray-600"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-green-700 mb-1">Execution</div>
+            <div id="crit-content" class="space-y-1 text-sm text-gray-600"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div class="border-b border-gray-100 px-4 pt-3 flex items-center gap-1">
+          <button class="screen-tab active-tab px-4 py-2 text-sm font-semibold rounded-t-lg" data-filter="ALL"
+            onclick="filterDecisions('ALL', this)">All Ranked</button>
+          <button class="screen-tab px-4 py-2 text-sm font-semibold rounded-t-lg text-gray-500" data-filter="SELECTED"
+            onclick="filterDecisions('SELECTED', this)">Selected</button>
+          <div class="ml-auto pb-1 flex items-center gap-2 flex-wrap justify-end">
+            <button onclick="selectTopForExtraction(10)"
+              class="text-xs border border-purple-200 hover:bg-purple-50 px-3 py-1 rounded-lg text-purple-700 transition">
+              Select Top 10
+            </button>
+            <button onclick="selectTopForExtraction(50)"
+              class="text-xs border border-purple-200 hover:bg-purple-50 px-3 py-1 rounded-lg text-purple-700 transition">
+              Top 50
+            </button>
+            <button onclick="selectTopForExtraction(100)"
+              class="text-xs border border-purple-200 hover:bg-purple-50 px-3 py-1 rounded-lg text-purple-700 transition">
+              Top 100
+            </button>
+            <button onclick="sendSelectedToExtraction()"
+              class="text-xs border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded-lg text-purple-700 transition font-semibold">
+              Send to Extraction
+            </button>
+            <button onclick="exportCSV()"
+              class="text-xs border border-green-200 hover:bg-green-50 px-3 py-1 rounded-lg text-green-700 transition">
+              Export CSV
+            </button>
+            <button onclick="exportScreenJSON()"
+              class="text-xs border border-slate-200 hover:bg-slate-50 px-3 py-1 rounded-lg text-slate-600 transition">
+              Export JSON
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr id="decisions-header"></tr>
+            </thead>
+            <tbody id="decisions-tbody"></tbody>
+          </table>
+        </div>
+        <div id="decisions-pagination" class="px-5 py-3 border-t border-gray-100 flex items-center gap-2 flex-wrap"></div>
+      </div>
+    </div>
+
+    <!-- == EXTRACTION PANEL == -->
+    <div id="extract-panel" class="hidden space-y-4">
+
+      <div class="panel page-header page-extraction">
+        <div class="panel-header">
+        <div>
+          <h3 class="section-title">Data Extraction</h3>
+          <p class="section-subtitle">Upload full-text PDFs, define extraction fields, and produce structured results.</p>
+        </div>
+        <button onclick="exportExtractionJSON()" class="btn-secondary">
+          Export JSON
+        </button>
+        </div>
+      </div>
+
+      <!-- Screening handoff -->
+      <div id="extraction-handoff-panel" class="hidden bg-white rounded-lg shadow-sm border border-purple-100 p-5">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h3 class="font-semibold text-gray-700 text-sm">Selected Studies from Screening</h3>
+            <p class="text-xs text-gray-500 mt-0.5">PDF filenames should contain the PMID so the system can verify the selected studies before extraction.</p>
+          </div>
+          <span id="extraction-handoff-count" class="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-2 py-1">0 selected</span>
+        </div>
+        <div id="extraction-handoff-list" class="handoff-list"></div>
+      </div>
+
+      <!-- PDF Upload -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-700 text-sm mb-3">Upload PDF Files</h3>
+        <div id="pdf-dropzone" class="dropzone"
+             ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+             onclick="document.getElementById('pdf-upload').click()">
+          <input type="file" id="pdf-upload" multiple accept=".pdf" class="hidden" onchange="updateFileList()" />
+          <div class="text-gray-400 text-sm">
+            Drop PDF files here, or <span class="text-blue-600 font-semibold">browse files</span>
+          </div>
+        </div>
+        <div id="file-list" class="mt-3 space-y-1 text-sm"></div>
+      </div>
+
+      <!-- Field Definitions -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-700 text-sm mb-3">Define Extraction Fields</h3>
+
+        <!-- Characteristics Fields -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-semibold text-blue-700">Study Characteristics</label>
+            <button onclick="addField('char')"
+              class="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 px-2 py-0.5 rounded-lg">+ Add field</button>
+          </div>
+          <div id="char-fields-container">
+            <div class="field-row">
+              <input type="text" placeholder="Field name, e.g. Author" class="char-field-name text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              <input type="text" placeholder="Description (optional), e.g. First author name" class="char-field-desc text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 text-lg px-1">x</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Fields -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-semibold text-green-700">Outcome Results</label>
+            <button onclick="addField('result')"
+              class="text-xs text-green-600 hover:text-green-800 border border-green-200 px-2 py-0.5 rounded-lg">+ Add field</button>
+          </div>
+          <div id="result-fields-container">
+            <div class="field-row">
+              <input type="text" placeholder="Field name, e.g. Effect Size" class="result-field-name text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-200" />
+              <input type="text" placeholder="Description (optional), e.g. Effect estimate" class="result-field-desc text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-200" />
+              <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 text-lg px-1">x</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Start Extraction Button -->
+      <button onclick="runExtraction()"
+        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg shadow transition flex items-center justify-center gap-2">
+        <span>Start Extraction</span>
+      </button>
+
+      <!-- Extraction Progress -->
+      <div id="extract-progress" class="hidden bg-purple-50 rounded-lg border border-purple-100 p-4">
+        <div class="flex items-center gap-3">
+          <div class="spinner" style="border-top-color:#7c3aed;"></div>
+          <div class="flex-1">
+            <div id="extract-progress-title" class="font-semibold text-purple-700 text-sm"></div>
+            <div id="extract-progress-sub" class="text-xs text-purple-500 mt-0.5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Extraction Summary -->
+      <div id="extract-summary" class="hidden grid grid-cols-3 gap-3">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4 text-center">
+          <div id="ext-sum-total" class="text-2xl font-bold text-gray-700">-</div>
+          <div class="text-xs text-gray-500 mt-1">Files</div>
+        </div>
+        <div class="bg-purple-50 rounded-lg shadow-sm border border-purple-100 p-4 text-center">
+          <div id="ext-sum-parsed" class="text-2xl font-bold text-purple-700">-</div>
+          <div class="text-xs text-purple-600 mt-1">Parsed</div>
+        </div>
+        <div class="bg-green-50 rounded-lg shadow-sm border border-green-100 p-4 text-center">
+          <div id="ext-sum-extracted" class="text-2xl font-bold text-green-700">-</div>
+          <div class="text-xs text-green-600 mt-1">Extracted</div>
+        </div>
+      </div>
+
+      <!-- Characteristics Table -->
+      <div id="char-table-panel" class="hidden bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+          <h3 class="font-semibold text-gray-700 text-sm">Study Characteristics</h3>
+          <div class="flex items-center gap-2 flex-wrap justify-end">
+            <button onclick="addExtractionRow('characteristics')"
+              class="text-xs border border-purple-200 hover:bg-purple-50 px-3 py-1 rounded-lg text-purple-700 transition">
+              Add Row
+            </button>
+            <button onclick="deleteSelectedExtractionRows('characteristics')"
+              class="text-xs border border-red-200 hover:bg-red-50 px-3 py-1 rounded-lg text-red-700 transition">
+              Delete Selected
+            </button>
+            <button onclick="exportExtractionCSV('characteristics')"
+              class="text-xs border border-gray-300 hover:bg-gray-100 px-3 py-1 rounded-lg text-gray-600 transition">
+              Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr id="char-table-header"></tr>
+            </thead>
+            <tbody id="char-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <div id="results-table-panel" class="hidden bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+          <h3 class="font-semibold text-gray-700 text-sm">Outcome Results</h3>
+          <div class="flex items-center gap-2 flex-wrap justify-end">
+            <button onclick="addExtractionRow('results')"
+              class="text-xs border border-purple-200 hover:bg-purple-50 px-3 py-1 rounded-lg text-purple-700 transition">
+              Add Row
+            </button>
+            <button onclick="deleteSelectedExtractionRows('results')"
+              class="text-xs border border-red-200 hover:bg-red-50 px-3 py-1 rounded-lg text-red-700 transition">
+              Delete Selected
+            </button>
+            <button onclick="exportExtractionCSV('results')"
+              class="text-xs border border-gray-300 hover:bg-gray-100 px-3 py-1 rounded-lg text-gray-600 transition">
+              Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr id="results-table-header"></tr>
+            </thead>
+            <tbody id="results-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- == META ANALYSIS PANEL == -->
+    <div id="meta-panel" class="hidden space-y-4">
+      <div class="panel page-header page-meta">
+        <div class="panel-header">
+          <div>
+            <h3 class="section-title">Meta Analysis Method Plans</h3>
+            <p class="section-subtitle">The system will generate a reviewable method plan for each dataset.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportMetaPlansText()"
+              class="text-xs border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-slate-600 transition">
+              Export TXT
+            </button>
+            <button onclick="exportMetaPlansJSON()"
+              class="text-xs border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-slate-600 transition">
+              Export JSON
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="meta-extraction-source-panel" class="hidden bg-white rounded-lg shadow-sm border border-indigo-100 p-5">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h3 class="font-semibold text-gray-700 text-sm">Extraction Results for Meta Analysis</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Selected outcome result rows will be converted to an in-memory CSV dataset for method planning.</p>
+          </div>
+          <span id="meta-extraction-source-count" class="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1">0 rows</span>
+        </div>
+        <div id="meta-extraction-source-list" class="space-y-1 text-sm"></div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+        <h3 class="font-semibold text-gray-700 text-sm mb-3">Upload CSV Datasets</h3>
+        <div id="meta-dropzone" class="dropzone"
+             ondrop="handleMetaDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+             onclick="document.getElementById('meta-csv-upload').click()">
+          <input type="file" id="meta-csv-upload" multiple accept=".csv" class="hidden" onchange="updateMetaFileList()" />
+          <div class="text-gray-400 text-sm">
+            Drop CSV files here, or <span class="text-blue-600 font-semibold">browse files</span>
+          </div>
+        </div>
+        <div id="meta-file-list" class="mt-3 space-y-1 text-sm"></div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Method preferences (optional)</label>
+          <textarea id="meta-user-hint" rows="3" placeholder="Optional guidance, e.g. prefer random-effects models."
+            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-200"></textarea>
+        </div>
+        <button onclick="runMetaPlan()"
+          class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 rounded-lg shadow transition flex items-center justify-center gap-2">
+          Generate Method Plans
+        </button>
+      </div>
+
+      <div id="meta-progress" class="hidden bg-slate-100 rounded-lg border border-slate-200 p-4">
+        <div class="flex items-center gap-3">
+          <div class="spinner" style="border-top-color:#0f172a;"></div>
+          <div class="flex-1">
+            <div class="font-semibold text-slate-800 text-sm">Generating meta-analysis method plans...</div>
+            <div id="meta-progress-sub" class="text-xs text-slate-500 mt-0.5"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="meta-plan-list" class="space-y-3"></div>
+    </div>
+
+    <div id="workflow-pager" class="workflow-pager">
+      <button id="workflow-prev" type="button" onclick="goWorkflow(-1)" class="btn-muted">Previous</button>
+      <div id="workflow-page-count" class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Page 1 of 5</div>
+      <button id="workflow-next" type="button" onclick="goWorkflow(1)" class="btn-secondary">Next</button>
+    </div>
+
+  </main>
+</div>
+
+<!-- =================== EVIDENCE MODAL =================== -->
+<div id="evidence-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onclick="closeEvidenceModal(event)">
+  <div class="evidence-modal-card" onclick="event.stopPropagation()">
+    <div class="px-5 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
+      <div>
+        <h3 class="font-bold text-slate-900 text-base">Extraction Evidence</h3>
+        <p class="text-xs text-slate-500 mt-1">Source text supporting the selected extracted value.</p>
+      </div>
+      <button type="button" onclick="closeEvidenceModal()" class="btn-muted">Close</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div id="evidence-meta" class="evidence-meta-grid"></div>
+      <div>
+        <div class="form-label">Evidence text</div>
+        <textarea id="evidence-citation" rows="8" class="form-input evidence-quote"></textarea>
+        <button type="button" onclick="saveEvidenceCitation()" class="btn-secondary mt-3">Save Evidence</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// -------------------------------------------------
+// State
+// -------------------------------------------------
+let allPapers      = [];
+let filteredPapers = [];
+let allDecisions   = [];
+let filteredDecisions = [];
+let allCriteria    = [];
+let currentPico    = {};
+let lastSearchData = null;
+let metaPlans      = [];
+let metaRunFiles   = [];
+let metaRunData    = null;
+let recommendedOutcomes = [];
+let searchTermsDraft = null;
+let selectedForExtraction = new Set();
+let evidenceStore = {};
+let activeEvidenceId = null;
+let evidenceCounter = 0;
+let screenRenderTick = 0;
+
+let paperPage   = 0;
+let decPage     = 0;
+const PAGE_SIZE = 50;
+let currentWorkflowPage = 1;
+const workflowPages = ['welcome','search-panel','screen-panel','extract-panel','meta-panel'];
+
+function showWorkflowPage(n) {
+  currentWorkflowPage = Math.max(1, Math.min(workflowPages.length, n));
+  workflowPages.forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('hidden', idx + 1 !== currentWorkflowPage);
+  });
+  setStep(currentWorkflowPage);
+  updateWorkflowPager();
+  if (currentWorkflowPage === 5) renderMetaExtractionSource();
+}
+
+function goWorkflow(delta) {
+  if (delta > 0) {
+    if (currentWorkflowPage === 1) { prepareSearchTerms(); return; }
+    if (currentWorkflowPage === 2) {
+      if (allPapers.length) { runScreen(); return; }
+      if (searchTermsDraft) { runSearch(); return; }
+    }
+    if (currentWorkflowPage === 3 && allDecisions.length) { sendSelectedToExtraction(); return; }
+    if (currentWorkflowPage === 4) { showMetaPanel(); return; }
+  }
+  showWorkflowPage(currentWorkflowPage + delta);
+}
+
+function updateWorkflowPager() {
+  const prev = document.getElementById('workflow-prev');
+  const next = document.getElementById('workflow-next');
+  const count = document.getElementById('workflow-page-count');
+  if (prev) prev.disabled = currentWorkflowPage === 1;
+  if (next) {
+    next.disabled = currentWorkflowPage === workflowPages.length;
+    const labels = {
+      1: 'Generate PubMed Query',
+      2: allPapers.length ? 'Run Screening' : (searchTermsDraft ? 'Search PubMed' : 'Next'),
+      3: allDecisions.length ? 'Go to Extraction' : 'Next',
+      4: 'Go to Meta Analysis',
+      5: 'Next',
+    };
+    next.textContent = labels[currentWorkflowPage] || 'Next';
+  }
+  if (count) count.textContent = `Step ${currentWorkflowPage} of ${workflowPages.length}`;
+}
+
+function findPaperByPmid(pmid) {
+  return allPapers.find(p => String(p.pmid) === String(pmid)) || {};
+}
+
+function selectedExtractionDecisions() {
+  return allDecisions.filter(d => selectedForExtraction.has(String(d.pmid)));
+}
+
+function pdfBaseName(filename) {
+  return String(filename || '').replace(/\.[^.]+$/, '').toLowerCase();
+}
+
+function pdfMatchesPmid(file, pmid) {
+  return pdfBaseName(file.name).includes(String(pmid).toLowerCase());
+}
+
+function selectedPdfMatchState() {
+  const files = Array.from(document.getElementById('pdf-upload')?.files || []);
+  const selected = selectedExtractionDecisions();
+  const matches = new Map();
+  const missing = [];
+
+  selected.forEach(d => {
+    const file = files.find(f => pdfMatchesPmid(f, d.pmid));
+    if (file) matches.set(String(d.pmid), file.name);
+    else missing.push(d);
+  });
+
+  return { files, selected, matches, missing };
+}
+
+// -------------------------------------------------
+// Utilities
+// -------------------------------------------------
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.classList.remove('hidden');
+}
+function clearError() {
+  document.getElementById('error-box').classList.add('hidden');
+}
+
+let timerInterval = null;
+function showOverlay(title, sub) {
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-sub').textContent   = sub;
+  document.getElementById('overlay-timer').textContent = '0:00';
+  document.getElementById('overlay').classList.remove('hidden');
+  const start = Date.now();
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - start) / 1000);
+    document.getElementById('overlay-timer').textContent =
+      `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  }, 1000);
+}
+function hideOverlay() {
+  document.getElementById('overlay').classList.add('hidden');
+  clearInterval(timerInterval);
+}
+
+function setStep(n) {
+  const labels = ['Protocol','Search','Screening','Extraction','Meta Analysis'];
+  ['step1-badge','step2-badge','step3-badge','step4-badge','step5-badge'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.textContent = labels[i];
+    el.className = 'stage-pill ' +
+      (i+1 < n ? 'step-done' : i+1 === n ? 'step-active' : 'step-inactive');
+  });
+  const current = document.getElementById('current-step-label');
+  if (current) current.textContent = 'Current step: ' + labels[Math.max(0, Math.min(labels.length - 1, n - 1))];
+}
+
+function getPico() {
+  return {
+    P: document.getElementById('pico-p').value.trim(),
+    I: document.getElementById('pico-i').value.trim(),
+    C: document.getElementById('pico-c').value.trim(),
+    O: document.getElementById('pico-o').value.trim(),
+  };
+}
+
+// -------------------------------------------------
+// Protocol drafting
+// -------------------------------------------------
+async function draftProtocol() {
+  clearError();
+  const question = document.getElementById('research-question').value.trim();
+  if (!question || question.length < 10) {
+    showError('Enter a research question before generating PICO.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-draft-protocol');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  showOverlay('Generating PICO...', 'Drafting protocol and recommended outcomes from the research question');
+
+  try {
+    const resp = await fetch('/api/v1/protocol/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ research_question: question }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+    const data = await resp.json();
+    applyProtocolDraft(data);
+  } catch (e) {
+    showError('Protocol generation failed: ' + e.message);
+  } finally {
+    hideOverlay();
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+
+function applyProtocolDraft(data) {
+  const pico = data.pico || {};
+  document.getElementById('pico-p').value = pico.P || '';
+  document.getElementById('pico-i').value = pico.I || '';
+  document.getElementById('pico-c').value = pico.C || '';
+  document.getElementById('pico-o').value = pico.O || '';
+  currentPico = getPico();
+
+  const rationale = document.getElementById('protocol-draft-rationale');
+  if (data.rationale) {
+    rationale.textContent = data.rationale;
+    rationale.classList.remove('hidden');
+  } else {
+    rationale.classList.add('hidden');
+  }
+
+  recommendedOutcomes = (data.recommended_outcomes || []).map(o => ({
+    name: o.name || '',
+    type: o.type || 'secondary',
+    rationale: o.rationale || '',
+  }));
+  renderRecommendedOutcomes();
+}
+
+function renderRecommendedOutcomes() {
+  const panel = document.getElementById('recommended-outcomes-panel');
+  const list = document.getElementById('recommended-outcomes-list');
+  if (!recommendedOutcomes.length) {
+    panel.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  panel.classList.remove('hidden');
+  list.innerHTML = recommendedOutcomes.map((o, i) => `
+    <div class="outcome-item">
+      <input class="form-input outcome-name" value="${escHtml(o.name)}" oninput="updateOutcome(${i}, 'name', this.value)" />
+      <select class="form-input outcome-type" onchange="updateOutcome(${i}, 'type', this.value)">
+        ${['primary','secondary','safety','exploratory'].map(t => `<option value="${t}" ${o.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <div class="flex gap-2">
+        <textarea rows="2" class="form-input outcome-rationale" oninput="updateOutcome(${i}, 'rationale', this.value)">${escHtml(o.rationale)}</textarea>
+        <button type="button" onclick="removeOutcome(${i})" class="btn-muted self-start">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateOutcome(index, key, value) {
+  if (!recommendedOutcomes[index]) return;
+  recommendedOutcomes[index][key] = value;
+}
+
+function addOutcomeRow() {
+  recommendedOutcomes.push({ name: '', type: 'secondary', rationale: '' });
+  renderRecommendedOutcomes();
+}
+
+function removeOutcome(index) {
+  recommendedOutcomes.splice(index, 1);
+  renderRecommendedOutcomes();
+}
+
+function syncOutcomesToPico() {
+  const names = recommendedOutcomes.map(o => o.name.trim()).filter(Boolean);
+  document.getElementById('pico-o').value = names.join('; ');
+}
+
+// -------------------------------------------------
+// fetch_all toggle
+// -------------------------------------------------
+function onFetchAllChange() {
+  const on = document.getElementById('fetch-all').checked;
+  document.getElementById('retmax').disabled = on;
+  document.getElementById('fetch-all-hint').classList.toggle('hidden', !on);
+}
+
+// -------------------------------------------------
+// Search
+// -------------------------------------------------
+function validatePicoForSearch() {
+  const pico = getPico();
+  if (!pico.P || !pico.I || !pico.O) {
+    showError('Please complete Population, Intervention/Exposure, and Outcomes before searching.');
+    return null;
+  }
+  currentPico = pico;
+  return pico;
+}
+
+function getSearchStrategyMode() {
+  return 'field_tagged_balanced';
+}
+
+function searchStrategyLabel(mode) {
+  return ({
+    field_tagged_balanced: 'Field-tagged balanced',
+  })[mode] || 'Field-tagged balanced';
+}
+
+function onSearchStrategyModeChange() {}
+
+async function prepareSearchTerms() {
+  clearError();
+  const pico = validatePicoForSearch();
+  if (!pico) return;
+
+  showOverlay('Generating PubMed query...', 'Preparing an editable field-tagged balanced query from the PICO protocol');
+  setStep(2);
+
+  try {
+    const resp = await fetch('/api/v1/search/strategy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pico }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+    const data = await resp.json();
+    searchTermsDraft = {
+      raw_query: data.raw_query || '',
+      strategy_mode: data.strategy_mode || 'field_tagged_balanced',
+      strategy: data.strategy || null,
+    };
+    renderSearchQueryEditor(searchTermsDraft);
+    showWorkflowPage(2);
+  } catch (e) {
+    showError('PubMed query generation failed: ' + e.message);
+    setStep(1);
+  } finally {
+    hideOverlay();
+  }
+}
+
+function renderSearchQueryEditor(draft) {
+  const panel = document.getElementById('search-review-panel');
+  if (panel) panel.classList.remove('hidden');
+  document.getElementById('search-review-note').textContent = 'The system generates one editable field-tagged balanced PubMed query from PICO to balance recall and candidate-set size.';
+  const queryBox = document.getElementById('search-raw-query');
+  if (queryBox) queryBox.value = (draft && draft.raw_query) || '';
+  updateWorkflowPager();
+}
+
+function collectRawQueryFromEditor() {
+  const queryBox = document.getElementById('search-raw-query');
+  return queryBox ? queryBox.value.trim() : '';
+}
+
+async function runSearch() {
+  clearError();
+  const pico = validatePicoForSearch();
+  if (!pico) return;
+
+  const strategyMode = getSearchStrategyMode();
+  const rawQuery = collectRawQueryFromEditor();
+  if (!rawQuery) {
+    showError('Generate or enter a PubMed query before searching.');
+    return;
+  }
+  searchTermsDraft = {
+    ...(searchTermsDraft || {}),
+    raw_query: rawQuery,
+    strategy_mode: strategyMode,
+  };
+
+  const fetchAll = document.getElementById('fetch-all').checked;
+  const overlayHint = fetchAll
+    ? 'Expanded retrieval uses the largest safe PubMed result window; edit the query if coverage is too broad'
+    : 'Searching PubMed with the reviewed field-tagged balanced query';
+  showOverlay('Searching PubMed...', overlayHint);
+  setStep(2);
+
+  try {
+    const minYearRaw = document.getElementById('min-year').value.trim();
+    const maxYearRaw = document.getElementById('max-year').value.trim();
+    const minYear = minYearRaw ? Number(minYearRaw) : null;
+    const maxYear = maxYearRaw ? Number(maxYearRaw) : null;
+    if (minYearRaw && (!Number.isInteger(minYear) || minYear < 1900 || minYear > 2100)) {
+      throw new Error('Start year must be an integer between 1900 and 2100.');
+    }
+    if (maxYearRaw && (!Number.isInteger(maxYear) || maxYear < 1900 || maxYear > 2100)) {
+      throw new Error('End year must be an integer between 1900 and 2100.');
+    }
+    if (minYear && maxYear && minYear > maxYear) {
+      throw new Error('Start year must be earlier than or equal to end year.');
+    }
+    const body = {
+      pico,
+      strategy_mode: strategyMode,
+      raw_query: rawQuery,
+      retmax: +document.getElementById('retmax').value,
+      fetch_all: fetchAll,
+      ...(minYear ? { min_year: minYear } : {}),
+      ...(maxYear ? { max_year: maxYear } : {}),
+    };
+    const resp = await fetch('/api/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+    const data = await resp.json();
+    hideOverlay();
+    renderSearchResults(data);
+  } catch(e) {
+    hideOverlay();
+    showError('Search failed: ' + e.message);
+    setStep(2);
+  }
+}
+
+function renderSearchResults(data) {
+  lastSearchData = data;
+  showWorkflowPage(2);
+
+  // Stats
+  document.getElementById('stat-total').textContent = data.total_count.toLocaleString();
+  document.getElementById('stat-retrieved').textContent = data.retrieved_count.toLocaleString();
+
+  // Query link
+  const ql = document.getElementById('query-link');
+  if (data.query_url) {
+    ql.href = data.query_url;
+    ql.classList.remove('hidden');
+  } else {
+    ql.classList.add('hidden');
+  }
+
+  // Terms
+  const st = data.search_terms || {};
+  if ((st.populations||[]).length || (st.interventions||[]).length || (st.outcomes||[]).length) {
+    document.getElementById('terms-panel').classList.remove('hidden');
+    renderTags('terms-pop', st.populations  || [], 'tag-pop');
+    renderTags('terms-int', st.interventions || [], 'tag-int');
+    const outcomes = st.outcomes || [];
+    renderTags('terms-out', outcomes, 'tag-out');
+    document.getElementById('terms-out-row').classList.toggle('hidden', outcomes.length === 0);
+  } else {
+    document.getElementById('terms-panel').classList.add('hidden');
+  }
+
+  renderStrategyPanel(data);
+
+  // Papers
+  allPapers = data.papers || [];
+  filteredPapers = [...allPapers];
+  paperPage = 0;
+  renderPapersPage();
+}
+
+function renderStrategyPanel(data) {
+  const panel = document.getElementById('strategy-panel');
+  if (!panel) return;
+  if (!data.raw_query && !data.strategy) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+  document.getElementById('strategy-mode-label').textContent = searchStrategyLabel(data.strategy_mode || 'legacy');
+  document.getElementById('strategy-query').textContent = data.raw_query || '';
+}
+
+function renderTags(containerId, items, cls) {
+  document.getElementById(containerId).innerHTML =
+    items.map(t => `<span class="tag ${cls}">${escHtml(t)}</span>`).join('');
+}
+
+function filterPapers() {
+  const q = document.getElementById('paper-search').value.toLowerCase();
+  filteredPapers = q
+    ? allPapers.filter(p => (p.title||'').toLowerCase().includes(q))
+    : [...allPapers];
+  paperPage = 0;
+  renderPapersPage();
+}
+
+function renderPapersPage() {
+  const start = paperPage * PAGE_SIZE;
+  const page  = filteredPapers.slice(start, start + PAGE_SIZE);
+  const total = filteredPapers.length;
+  document.getElementById('paper-count-label').textContent =
+    `Showing ${start+1}-${Math.min(start+PAGE_SIZE,total)} / ${total} records`;
+
+  const tbody = document.getElementById('papers-tbody');
+  tbody.innerHTML = page.map((p, idx) => {
+    const abs = escHtml(p.abstract || '');
+    const pid = `abs-${start+idx}`;
+    return `<tr class="table-row border-t border-gray-50">
+      <td class="px-4 py-3 text-gray-400 text-xs">${start+idx+1}</td>
+      <td class="px-4 py-3">
+        <a href="https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/" target="_blank"
+           class="text-blue-600 hover:underline font-mono text-xs">${p.pmid}</a>
+      </td>
+      <td class="px-4 py-3 font-medium text-gray-800 leading-snug">${escHtml(p.title||'')}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs">${p.year||''}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs leading-tight">${escHtml((p.journal||'').substring(0,40))}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs max-w-xs">
+        <div id="${pid}" class="abstract-short">${abs.substring(0,180)}...</div>
+        ${abs.length > 180 ? `<button onclick="toggleAbstract('${pid}')" class="text-blue-500 text-xs hover:underline mt-1">Expand</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('papers-pagination', paperPage, Math.ceil(total/PAGE_SIZE), p => { paperPage=p; renderPapersPage(); });
+}
+
+function toggleAbstract(id) {
+  const el = document.getElementById(id);
+  const btn = el.nextElementSibling;
+  if (el.classList.contains('abstract-short')) {
+    el.classList.remove('abstract-short');
+    el.classList.add('abstract-full');
+    el.textContent = el.textContent.replace(/\.\.\.$/, '');
+    if(btn) btn.textContent = 'Collapse';
+  } else {
+    el.classList.add('abstract-short');
+    el.classList.remove('abstract-full');
+    if(btn) btn.textContent = 'Expand';
+  }
+}
+
+// -------------------------------------------------
+// Screening (SSE streaming)
+// -------------------------------------------------
+async function runScreen() {
+  if (!allPapers.length) { showError('Run the literature search before screening.'); return; }
+  clearError();
+  setStep(3);
+
+  // Reset screening state
+  allDecisions = [];
+  filteredDecisions = [];
+  allCriteria = [];
+  selectedForExtraction = new Set();
+  screenRenderTick = 0;
+  decPage = 0;
+
+  // Show panel immediately
+  showWorkflowPage(3);
+  document.getElementById('screen-panel').scrollIntoView({ behavior: 'smooth' });
+
+  // Reset UI
+  document.getElementById('sum-total').textContent     = '...';
+  document.getElementById('sum-include').textContent   = '...';
+  document.getElementById('sum-exclude').textContent   = '...';
+  document.getElementById('sum-uncertain').textContent = '...';
+  document.getElementById('crit-title').innerHTML      = '';
+  document.getElementById('crit-content').innerHTML    = '';
+  document.getElementById('criteria-content').classList.add('hidden');
+  document.getElementById('criteria-arrow').textContent = 'Show';
+  document.getElementById('decisions-header').innerHTML = '';
+  document.getElementById('decisions-tbody').innerHTML  = '';
+  document.getElementById('decisions-pagination').innerHTML = '';
+  document.getElementById('included-studies-panel').classList.add('hidden');
+  document.getElementById('included-studies-list').innerHTML = '';
+  document.getElementById('included-studies-count').textContent = '0 selected';
+
+  // Show progress bar
+  const progTitle = document.getElementById('progress-title');
+  const progSub   = document.getElementById('progress-sub');
+  const screeningMode = 'scored_direct';
+  progTitle.textContent = 'Ranking records against PICO...';
+  progSub.textContent   = `${allPapers.length} records ready for screening`;
+  document.getElementById('screen-progress').classList.remove('hidden');
+
+  const papers = allPapers.map(p => ({
+    pmid: p.pmid, title: p.title, abstract: p.abstract,
+    authors: p.authors, year: p.year, journal: p.journal,
+    publication_type: p.publication_type || null,
+  }));
+
+  try {
+    const resp = await fetch('/api/v1/screen/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pico: currentPico,
+        papers,
+        screening_mode:       'scored_direct',
+        study_design_filter:  'both',
+        max_concurrency:      +document.getElementById('max-concurrency').value,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse complete SSE lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop();  // keep incomplete trailing line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+        try {
+          handleScreenEvent(JSON.parse(json));
+        } catch(e) {
+          console.warn('SSE parse error:', line, e);
+        }
+      }
+    }
+  } catch(e) {
+    document.getElementById('screen-progress').classList.add('hidden');
+    showError('Screening failed: ' + e.message);
+    setStep(2);
+  }
+}
+
+function setupScreeningDecisionHeader(showScore) {
+  document.getElementById('decisions-header').innerHTML = `
+    <th class="px-4 py-3 text-left w-10"><input type="checkbox" onchange="toggleVisibleExtractionSelection(this.checked)" title="Select visible records for extraction" /></th>
+    <th class="px-4 py-3 text-left w-14">Rank</th>
+    <th class="px-4 py-3 text-left w-20">PMID</th>
+    <th class="px-4 py-3 text-left">Title</th>
+    <th class="px-3 py-3 text-center w-12" title="Population">P</th>
+    <th class="px-3 py-3 text-center w-12" title="Intervention">I</th>
+    <th class="px-3 py-3 text-center w-12" title="Comparison">C</th>
+    <th class="px-3 py-3 text-center w-12" title="Outcome">O</th>
+    <th class="px-3 py-3 text-center w-20" title="Weighted score">Score</th>
+    <th class="px-4 py-3 text-left min-w-[220px]">Evidence</th>
+  `;
+}
+
+function handleScreenEvent(event) {
+  const total = allPapers.length;
+
+  if (event.type === 'stage0_done') {
+    const d = event.data;
+    document.getElementById('progress-title').textContent = 'Ranking records against PICO...';
+    document.getElementById('progress-sub').textContent =
+      `${d.kept}/${d.total} records retained for ranking. No rule-based exclusions are applied.`;
+
+  } else if (event.type === 'stage1_done') {
+    const d = event.data;
+    document.getElementById('progress-title').textContent = 'Generating eligibility criteria...';
+    document.getElementById('progress-sub').textContent =
+      `PICOS extraction complete. ${d.kept} records moved into criteria matching (${d.design_excluded} removed by study-design validation)`;
+
+  } else if (event.type === 'scoring_config') {
+    const data = event.data;
+    allCriteria = { scoring_config: data };
+    const weights = data.weights || {};
+    document.getElementById('crit-title').innerHTML = `
+      <div class="mb-2">
+        <div class="text-xs font-semibold text-blue-700">PICO ranking</div>
+        <div class="text-xs text-gray-600 ml-2">
+          <div><span class="font-semibold">Score values: </span>match = 1, uncertain = 0, mismatch = -1</div>
+          <div><span class="font-semibold">Weights: </span>${Object.entries(weights).map(([k,v]) => `${k}=${v}`).join(', ')}</div>
+        </div>
+      </div>`;
+    document.getElementById('crit-content').innerHTML = `
+      <div class="text-xs text-gray-600">${escHtml(data.rule || '')}</div>
+      <div class="text-xs text-gray-500 mt-1">Screening uses the configured OpenAI-compatible model.</div>`;
+    document.getElementById('criteria-content').classList.remove('hidden');
+    document.getElementById('criteria-arrow').textContent = 'Hide';
+    setupScreeningDecisionHeader(true);
+    document.getElementById('progress-title').textContent = 'Ranking records against PICO...';
+    document.getElementById('progress-sub').textContent = 'Evaluating P/I/C/O dimensions with equal weights...';
+
+  } else if (event.type === 'paper_decided') {
+    const d = event.data;
+    allDecisions.push(d);
+    screenRenderTick += 1;
+
+    document.getElementById('progress-sub').textContent =
+      `Ranked ${allDecisions.length} / ${total} records`;
+
+    // Show provisional ranking while the stream is still running, so long
+    // screening jobs do not look stalled in the browser.
+    if (screenRenderTick === 1 || screenRenderTick % 10 === 0 || allDecisions.length === total) {
+      allDecisions = sortRankedDecisions(allDecisions);
+      filteredDecisions = [...allDecisions];
+      renderDecisionsPage();
+      document.getElementById('sum-total').textContent = total;
+      document.getElementById('sum-include').textContent = allDecisions.length;
+      document.getElementById('sum-exclude').textContent = selectedForExtraction.size;
+    }
+
+  } else if (event.type === 'summary') {
+    const s = event.data;
+    document.getElementById('sum-total').textContent     = s.total;
+    document.getElementById('sum-include').textContent   = s.final_included;
+    document.getElementById('sum-exclude').textContent   = selectedForExtraction.size;
+
+  } else if (event.type === 'done') {
+    document.getElementById('screen-progress').classList.add('hidden');
+    allDecisions = sortRankedDecisions(allDecisions);
+    selectedForExtraction = new Set();
+    filteredDecisions = [...allDecisions];
+    decPage = 0;
+    renderIncludedStudies();
+    renderDecisionsPage();
+    renderExtractionHandoff();
+
+  } else if (event.type === 'error') {
+    document.getElementById('screen-progress').classList.add('hidden');
+    showError('Screening error: ' + event.data);
+  }
+}
+
+function filterDecisions(filter, btn) {
+  document.querySelectorAll('.screen-tab').forEach(b => b.classList.remove('active-tab'));
+  btn.classList.add('active-tab');
+  filteredDecisions = filter === 'SELECTED'
+    ? allDecisions.filter(d => selectedForExtraction.has(String(d.pmid)))
+    : [...allDecisions];
+  decPage = 0;
+  renderDecisionsPage();
+}
+
+function _dimBadge(val) {
+  if (val === 'MATCH')     return '<span class="eval-yes" title="MATCH">M</span>';
+  if (val === 'MISMATCH')  return '<span class="eval-no" title="MISMATCH">X</span>';
+  if (val === 'UNCERTAIN') return '<span class="eval-uncertain" title="UNCERTAIN">?</span>';
+  return '<span class="text-gray-300" title="N/A">-</span>';
+}
+
+function _stageLabel(stage, decision = null) {
+  if (stage === 'ranking' || (decision && decision.score_result)) return 'Ranking';
+  const map = {stage0:'Precheck', stage1:'Extraction', stage2:'Matching', stage3:'Review'};
+  return map[stage] || stage;
+}
+
+function rankingScore(decision) {
+  return decision && decision.score_result ? Number(decision.score_result.weighted_score) : -999;
+}
+
+function rankingConfidence(decision) {
+  const conf = decision && decision.score_result && decision.score_result.confidence;
+  if (!conf) return 0;
+  const values = ['P','I','C','O'].map(k => Number(conf[k] || 0));
+  return values.reduce((a,b) => a + b, 0) / values.length;
+}
+
+function sortRankedDecisions(decisions) {
+  return [...decisions].sort((a, b) => {
+    const scoreDiff = rankingScore(b) - rankingScore(a);
+    if (scoreDiff) return scoreDiff;
+    const confDiff = rankingConfidence(b) - rankingConfidence(a);
+    if (confDiff) return confDiff;
+    return String(a.pmid || '').localeCompare(String(b.pmid || ''));
+  });
+}
+
+function toggleExtractionSelection(pmid, checked) {
+  const key = String(pmid);
+  if (checked) selectedForExtraction.add(key);
+  else selectedForExtraction.delete(key);
+  renderIncludedStudies();
+  renderDecisionsPage();
+  renderExtractionHandoff();
+}
+
+function toggleVisibleExtractionSelection(checked) {
+  const start = decPage * PAGE_SIZE;
+  const page = filteredDecisions.slice(start, start + PAGE_SIZE);
+  page.forEach(d => {
+    const key = String(d.pmid);
+    if (checked) selectedForExtraction.add(key);
+    else selectedForExtraction.delete(key);
+  });
+  renderIncludedStudies();
+  renderDecisionsPage();
+  renderExtractionHandoff();
+}
+
+function selectTopForExtraction(n) {
+  const ranked = sortRankedDecisions(allDecisions).slice(0, n);
+  selectedForExtraction = new Set(ranked.map(d => String(d.pmid)));
+  filteredDecisions = [...sortRankedDecisions(allDecisions)];
+  document.getElementById('sum-exclude').textContent = selectedForExtraction.size;
+  renderIncludedStudies();
+  renderDecisionsPage();
+  renderExtractionHandoff();
+}
+
+function sendSelectedToExtraction(options = {}) {
+  if (!selectedForExtraction.size && !options.silent) {
+    showError('Select at least one screened study before sending to extraction.');
+    return;
+  }
+  clearError();
+  showExtractionPanel();
+  renderExtractionHandoff();
+}
+
+function renderIncludedStudies() {
+  const panel = document.getElementById('included-studies-panel');
+  const list = document.getElementById('included-studies-list');
+  const count = document.getElementById('included-studies-count');
+  const included = allDecisions.filter(d => selectedForExtraction.has(String(d.pmid)));
+  if (count) count.textContent = `${included.length} selected`;
+  document.getElementById('sum-exclude').textContent = selectedForExtraction.size;
+  if (!included.length) {
+    panel.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  panel.classList.remove('hidden');
+  list.innerHTML = included.map(d => {
+    const paper = allPapers.find(p => String(p.pmid) === String(d.pmid)) || {};
+    const meta = [paper.year, paper.journal].filter(Boolean).join(' - ');
+    const checked = selectedForExtraction.has(String(d.pmid)) ? 'checked' : '';
+    return `<div class="included-study">
+      <input type="checkbox" ${checked} onchange="toggleExtractionSelection('${escHtml(d.pmid)}', this.checked)" title="Send this study to extraction" />
+      <a href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(d.pmid)}/" target="_blank" rel="noopener noreferrer"
+         class="text-blue-600 hover:underline font-mono text-xs">${escHtml(d.pmid)}</a>
+      <div>
+        <div class="included-study-title">${escHtml(d.title || paper.title || '')}</div>
+        ${meta ? `<div class="included-study-meta">${escHtml(meta)}</div>` : ''}
+      </div>
+      <span class="tag badge-include font-semibold">Selected</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDecisionsPage() {
+  const start = decPage * PAGE_SIZE;
+  const page  = filteredDecisions.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('decisions-tbody');
+  tbody.innerHTML = page.map((d, idx) => {
+    const selected = selectedForExtraction.has(String(d.pmid)) ? 'checked' : '';
+    const dims = (d.dimension_result && d.dimension_result.dimensions) || {};
+    const evidence = (d.score_result && d.score_result.evidence) || {};
+    const dimCells = ['P','I','C','O'].map(k =>
+      `<td class="px-3 py-3 text-center" title="${escHtml(evidence[k] || '')}">${_dimBadge(dims[k])}</td>`
+    ).join('');
+    const score = d.score_result;
+    const scoreCell = score ? `<td class="px-3 py-3 text-center font-mono text-xs text-slate-700" title="${escHtml(score.threshold_rule || '')}">${score.weighted_score}/${score.max_score}</td>` : '<td class="px-3 py-3 text-center text-slate-300">-</td>';
+    const evidenceText = ['P','I','C','O']
+      .map(k => evidence[k] ? `${k}: ${evidence[k]}` : '')
+      .filter(Boolean)
+      .join(' | ');
+    const globalRank = allDecisions.findIndex(item => String(item.pmid) === String(d.pmid)) + 1;
+
+    return `<tr class="table-row border-t border-gray-50">
+      <td class="px-4 py-3"><input type="checkbox" ${selected} onchange="toggleExtractionSelection('${escHtml(d.pmid)}', this.checked)" title="Send this study to extraction" /></td>
+      <td class="px-4 py-3 text-xs font-mono text-slate-500">${globalRank || start + idx + 1}</td>
+      <td class="px-4 py-3">
+        <a href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(d.pmid)}/" target="_blank" rel="noopener noreferrer"
+           class="text-blue-600 hover:underline font-mono text-xs">${escHtml(d.pmid)}</a>
+      </td>
+      <td class="px-4 py-3 text-sm text-gray-700 leading-snug">${escHtml(d.title||'')}</td>
+      ${dimCells}
+      ${scoreCell}
+      <td class="px-4 py-3 text-xs text-gray-500 leading-snug max-w-md">${escHtml(evidenceText || (d.score_result && d.score_result.reasoning) || '')}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('decisions-pagination', decPage, Math.ceil(filteredDecisions.length/PAGE_SIZE),
+    p => { decPage=p; renderDecisionsPage(); });
+}
+
+// -------------------------------------------------
+// Pagination
+// -------------------------------------------------
+function renderPagination(containerId, current, totalPages, onPage) {
+  const el = document.getElementById(containerId);
+  if (totalPages <= 1) { el.innerHTML=''; return; }
+  let html = `<button class="page-btn" ${current===0?'disabled':''} onclick="(${onPage.toString()})(${current-1})">Previous</button>`;
+  for (let i=0; i<totalPages; i++) {
+    if (totalPages <= 7 || Math.abs(i-current) <= 2 || i===0 || i===totalPages-1) {
+      html += `<button class="page-btn ${i===current?'active':''}" onclick="(${onPage.toString()})(${i})">${i+1}</button>`;
+    } else if (Math.abs(i-current)===3) {
+      html += `<span class="text-gray-400 px-1">...</span>`;
+    }
+  }
+  html += `<button class="page-btn" ${current===totalPages-1?'disabled':''} onclick="(${onPage.toString()})(${current+1})">Next</button>`;
+  html += `<span class="text-xs text-gray-400 ml-2">${totalPages} pages</span>`;
+  el.innerHTML = html;
+}
+
+// -------------------------------------------------
+// UI toggles
+// -------------------------------------------------
+function toggleTerms() {
+  const c = document.getElementById('terms-content');
+  const b = document.getElementById('terms-toggle');
+  const hidden = c.classList.toggle('hidden');
+  b.textContent = hidden ? 'Expand' : 'Collapse';
+}
+function toggleCriteria() {
+  const c = document.getElementById('criteria-content');
+  const a = document.getElementById('criteria-arrow');
+  const hidden = c.classList.toggle('hidden');
+  a.textContent = hidden ? 'Show' : 'Hide';
+}
+
+// -------------------------------------------------
+// Reset
+// -------------------------------------------------
+function resetAll() {
+  allPapers=[];filteredPapers=[];allDecisions=[];filteredDecisions=[];allCriteria=[];currentPico={};
+  lastSearchData=null;metaPlans=[];metaRunFiles=[];metaRunData=null;recommendedOutcomes=[];searchTermsDraft=null;selectedForExtraction=new Set();
+  extractionData={characteristics:[],results:[]};
+  selectedExtractionRows = { characteristics: new Set(), results: new Set() };
+  ['pico-p','pico-i','pico-c','pico-o'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('research-question').value='';
+  document.getElementById('protocol-draft-rationale').classList.add('hidden');
+  renderRecommendedOutcomes();
+  document.getElementById('min-year').value='';
+  document.getElementById('max-year').value='';
+  document.getElementById('fetch-all').checked=false;
+  onFetchAllChange();
+  document.getElementById('screen-progress').classList.add('hidden');
+  document.getElementById('search-review-panel').classList.add('hidden');
+  document.getElementById('strategy-panel').classList.add('hidden');
+  const rawQueryEl = document.getElementById('search-raw-query');
+  if (rawQueryEl) rawQueryEl.value='';
+  document.getElementById('meta-plan-list').innerHTML='';
+  renderExtractionHandoff();
+  showWorkflowPage(1);
+  clearError();
+}
+
+// -------------------------------------------------
+// Download helpers
+// -------------------------------------------------
+function downloadText(filename, content, mime='text/plain;charset=utf-8') {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function csvCell(value) {
+  const s = String(value ?? '');
+  return `"${s.replace(/"/g,'""')}"`;
+}
+
+async function exportSearchFile(format) {
+  if (!lastSearchData) return;
+  try {
+    const resp = await fetch('/api/v1/search/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format, result: lastSearchData }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+    const blob = await resp.blob();
+    const disposition = resp.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = match ? match[1] : `autometa_search_results.${format}`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    showError('Search export failed: ' + e.message);
+  }
+}
+
+function exportSearchCSV() {
+  exportSearchFile('csv');
+}
+
+function exportSearchJSON() {
+  exportSearchFile('json');
+}
+
+function exportScreenJSON() {
+  if (!allDecisions.length) return;
+  const payload = {
+    pico: currentPico,
+    criteria: allCriteria,
+    screening_mode: 'pico_ranking',
+    decisions: allDecisions,
+  };
+  downloadText('autometa_screening_results.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+}
+
+// -------------------------------------------------
+// CSV Export
+// -------------------------------------------------
+function exportCSV() {
+  if (!allDecisions.length) return;
+  const cols = ['Rank','PMID','Title','P','I','C','O','Weighted_Score','Max_Score','P_Evidence','I_Evidence','C_Evidence','O_Evidence','Selected_For_Extraction'];
+  const rows = allDecisions.map((d, index) => {
+    const dims = (d.dimension_result && d.dimension_result.dimensions) || {};
+    const evidence = (d.score_result && d.score_result.evidence) || {};
+    return [
+      index + 1,
+      d.pmid,
+      d.title || '',
+      dims.P||'', dims.I||'', dims.C||'', dims.O||'',
+      d.score_result ? d.score_result.weighted_score : '',
+      d.score_result ? d.score_result.max_score : '',
+      evidence.P || '', evidence.I || '', evidence.C || '', evidence.O || '',
+      selectedForExtraction.has(String(d.pmid)) ? 'yes' : 'no',
+    ].map(csvCell).join(',');
+  });
+  const csv = [cols.join(','), ...rows].join('\\n');
+  downloadText('autometa_screening_v2_results.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
+}
+
+// -------------------------------------------------
+// Escape HTML
+// -------------------------------------------------
+function escHtml(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeEvidenceModal();
+});
+
+// -------------------------------------------------
+// Extraction
+// -------------------------------------------------
+let extractionData = { characteristics: [], results: [] };
+let selectedExtractionRows = { characteristics: new Set(), results: new Set() };
+
+function showExtractionPanel() {
+  clearError();
+  showWorkflowPage(4);
+  document.getElementById('extract-panel').scrollIntoView({ behavior: 'smooth' });
+
+  // Pre-fill PICO if already entered
+  const pico = getPico();
+  if (pico.P || pico.I) currentPico = pico;
+  renderExtractionHandoff();
+}
+
+function showMetaPanel() {
+  clearError();
+  showWorkflowPage(5);
+  document.getElementById('meta-panel').scrollIntoView({ behavior: 'smooth' });
+
+  const pico = getPico();
+  if (pico.P || pico.I || pico.O) currentPico = pico;
+  renderMetaExtractionSource();
+}
+
+// --- File upload helpers ---
+function handleDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('dragover');
+}
+function handleDragLeave(e) {
+  e.currentTarget.classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const input = document.getElementById('pdf-upload');
+  input.files = e.dataTransfer.files;
+  updateFileList();
+}
+function updateFileList() {
+  const files = document.getElementById('pdf-upload').files;
+  const listEl = document.getElementById('file-list');
+  if (!files.length) {
+    listEl.innerHTML = '';
+    renderExtractionHandoff();
+    return;
+  }
+  const selectedPmids = new Set(selectedExtractionDecisions().map(d => String(d.pmid)));
+  listEl.innerHTML = Array.from(files).map((f, i) => {
+    const matched = Array.from(selectedPmids).find(pmid => pdfMatchesPmid(f, pmid));
+    const cls = matched ? 'pdf-match-ok' : 'pdf-match-extra';
+    const note = matched ? `Matched PMID ${matched}` : 'Extra PDF';
+    return `<div class="flex items-center gap-2 text-gray-600">
+      <span class="flex-1 truncate">${escHtml(f.name)}</span>
+      <span class="tag ${cls} border text-xs font-semibold">${escHtml(note)}</span>
+      <span class="text-xs text-gray-400">${(f.size/1024/1024).toFixed(1)} MB</span>
+    </div>`;
+  }).join('');
+  renderExtractionHandoff();
+}
+
+
+function renderExtractionHandoff() {
+  const panel = document.getElementById('extraction-handoff-panel');
+  const list = document.getElementById('extraction-handoff-list');
+  const count = document.getElementById('extraction-handoff-count');
+  if (!panel || !list || !count) return;
+
+  const { selected, matches } = selectedPdfMatchState();
+  count.textContent = `${selected.length} selected`;
+  if (!selected.length) {
+    panel.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  list.innerHTML = selected.map(d => {
+    const paper = findPaperByPmid(d.pmid);
+    const matchedFile = matches.get(String(d.pmid));
+    const badgeCls = matchedFile ? 'pdf-match-ok' : 'pdf-match-missing';
+    const badgeText = matchedFile ? `PDF: ${matchedFile}` : 'PDF missing';
+    return `<div class="handoff-item">
+      <input type="checkbox" checked onchange="toggleExtractionSelection('${escHtml(d.pmid)}', this.checked)" title="Include this study in extraction" />
+      <div>
+        <div class="text-xs text-purple-600 font-mono mb-1">PMID ${escHtml(d.pmid)}</div>
+        <div class="handoff-title">${escHtml(d.title || paper.title || '')}</div>
+      </div>
+      <span class="tag ${badgeCls} border text-xs font-semibold max-w-xs truncate" title="${escHtml(badgeText)}">${escHtml(badgeText)}</span>
+    </div>`;
+  }).join('');
+}
+
+function validateSelectedPdfsForExtraction() {
+  const { selected, missing } = selectedPdfMatchState();
+  if (!selected.length) return true;
+  if (!missing.length) return true;
+
+  const labels = missing.slice(0, 8).map(d => d.pmid).join(', ');
+  const suffix = missing.length > 8 ? ` and ${missing.length - 8} more` : '';
+  showError(`Missing PDFs for selected studies: ${labels}${suffix}. Upload PDF files whose filenames include the PMID, or unselect those studies.`);
+  renderExtractionHandoff();
+  return false;
+}
+
+// --- Field management ---
+function addField(type) {
+  const container = document.getElementById(type === 'char' ? 'char-fields-container' : 'result-fields-container');
+  const cls = type === 'char' ? 'char' : 'result';
+  const colorCls = type === 'char' ? 'blue' : 'green';
+  const row = document.createElement('div');
+  row.className = 'field-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Field name" class="${cls}-field-name text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-${colorCls}-200" />
+    <input type="text" placeholder="Description (optional)" class="${cls}-field-desc text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-${colorCls}-200" />
+    <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 text-lg px-1">x</button>
+  `;
+  container.appendChild(row);
+}
+
+function collectFields(type) {
+  const nameEls = document.querySelectorAll(`.${type}-field-name`);
+  const descEls = document.querySelectorAll(`.${type}-field-desc`);
+  const fields = [];
+  nameEls.forEach((el, i) => {
+    const name = el.value.trim();
+    if (name) {
+      fields.push({ name, description: descEls[i] ? descEls[i].value.trim() : '' });
+    }
+  });
+  return fields;
+}
+
+// --- Run Extraction ---
+async function runExtraction() {
+  clearError();
+  const files = document.getElementById('pdf-upload').files;
+  if (!files.length) { showError('Upload at least one PDF file.'); return; }
+  if (!validateSelectedPdfsForExtraction()) return;
+
+  const pico = getPico();
+  if (!pico.P && !pico.I && !pico.O) {
+    showError('Complete at least one PICO field to provide extraction context.');
+    return;
+  }
+  currentPico = pico;
+
+  const charFields = collectFields('char');
+  const resultFields = collectFields('result');
+  if (!charFields.length && !resultFields.length) {
+    showError('Define at least one extraction field.');
+    return;
+  }
+
+  // Reset extraction state
+  extractionData = { characteristics: [], results: [] };
+  selectedExtractionRows = { characteristics: new Set(), results: new Set() };
+  document.getElementById('extract-summary').classList.add('hidden');
+  document.getElementById('char-table-panel').classList.add('hidden');
+  document.getElementById('results-table-panel').classList.add('hidden');
+
+  // Build FormData
+  const metadata = JSON.stringify({
+    pico: currentPico,
+    study_characteristics_fields: charFields,
+    study_results_fields: resultFields,
+    top_k: 15,
+    max_concurrency: 10,
+  });
+  const formData = new FormData();
+  for (const file of files) formData.append('files', file);
+  formData.append('metadata', metadata);
+
+  // Show progress
+  const progTitle = document.getElementById('extract-progress-title');
+  const progSub = document.getElementById('extract-progress-sub');
+  progTitle.textContent = 'Parsing PDF files...';
+  const selectedCount = selectedExtractionDecisions().length;
+  progSub.textContent = selectedCount ? `${files.length} files, ${selectedCount} selected studies verified` : `${files.length} files`;
+  document.getElementById('extract-progress').classList.remove('hidden');
+
+  try {
+    const resp = await fetch('/api/v1/extract/stream', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      let errMsg = resp.statusText;
+      try { const err = await resp.json(); errMsg = err.detail || errMsg; } catch(e) {}
+      throw new Error(errMsg);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+        try {
+          handleExtractEvent(JSON.parse(json));
+        } catch(e) {
+          console.warn('SSE parse error:', line, e);
+        }
+      }
+    }
+  } catch(e) {
+    document.getElementById('extract-progress').classList.add('hidden');
+    showError('Data extraction failed: ' + e.message);
+  }
+}
+
+function handleExtractEvent(event) {
+  const progTitle = document.getElementById('extract-progress-title');
+  const progSub = document.getElementById('extract-progress-sub');
+
+  if (event.type === 'parsing_start') {
+    const d = event.data;
+    const prefix = d.total ? `${d.index}/${d.total} ` : '';
+    progTitle.textContent = 'Parsing PDF files...';
+    progSub.textContent = `${prefix}${d.filename}`;
+
+  } else if (event.type === 'parsing') {
+    const d = event.data;
+    const status = d.status === 'ok' ? 'OK' : 'Failed';
+    const prefix = d.total ? `${d.index}/${d.total} ` : '';
+    const pages = d.pages ? `, ${d.pages} pages` : '';
+    progSub.textContent = `${prefix}${status} ${d.filename}${pages}`;
+
+  } else if (event.type === 'parsing_done') {
+    progTitle.textContent = 'Preparing semantic context...';
+    progSub.textContent = `${event.data.parsed}/${event.data.total} files parsed`;
+
+  } else if (event.type === 'ocr_fallback') {
+    const d = event.data || {};
+    const count = d.count || 0;
+    const files = (d.files || []).slice(0, 3).join(', ');
+    const suffix = (d.files || []).length > 3 ? ' ...' : '';
+    progTitle.textContent = 'Preparing semantic context...';
+    progSub.textContent = `OCR fallback used (${count} files): ${files}${suffix}`;
+
+  } else if (event.type === 'chunking_done') {
+    progTitle.textContent = 'Preparing extraction plan...';
+    progSub.textContent = 'Context is ready';
+
+  } else if (event.type === 'result_targets_start') {
+    progTitle.textContent = 'Planning outcome rows...';
+    progSub.textContent = 'Identifying outcome, timepoint, subgroup, and comparison targets';
+
+  } else if (event.type === 'result_targets_done') {
+    const d = event.data || {};
+    const perFile = d.per_file || [];
+    const preview = perFile.slice(0, 3).map(item => `${item.filename}: ${item.targets}`).join(', ');
+    const suffix = perFile.length > 3 ? ' ...' : '';
+    progTitle.textContent = 'Extracting data...';
+    progSub.textContent = `${d.total_targets || 0} planned result rows${preview ? ` (${preview}${suffix})` : ''}`;
+
+  } else if (event.type === 'extraction_start') {
+    const kind = event.data.kind === 'characteristics' ? 'study characteristics' : 'outcome results';
+    progTitle.textContent = `Extracting ${kind}...`;
+    progSub.textContent = 'LLM reasoning in progress';
+
+  } else if (event.type === 'paper_extracted') {
+    const d = event.data;
+    if (d.characteristics) extractionData.characteristics.push(d.characteristics);
+    if (d.results) extractionData.results.push(...d.results);
+    progSub.textContent = `Completed ${d.filename}`;
+
+  } else if (event.type === 'summary') {
+    const s = event.data;
+    document.getElementById('ext-sum-total').textContent = s.total_papers;
+    document.getElementById('ext-sum-parsed').textContent = s.papers_parsed;
+    document.getElementById('ext-sum-extracted').textContent = s.papers_extracted;
+    document.getElementById('extract-summary').classList.remove('hidden');
+
+  } else if (event.type === 'done') {
+    document.getElementById('extract-progress').classList.add('hidden');
+    if (event.data) {
+      extractionData = event.data;
+    }
+    renderExtractionResults();
+
+  } else if (event.type === 'error') {
+    document.getElementById('extract-progress').classList.add('hidden');
+    showError('Extraction error: ' + event.data);
+  }
+}
+
+function evidenceIdFor(payload) {
+  const id = `ev-${++evidenceCounter}`;
+  evidenceStore[id] = payload;
+  return id;
+}
+
+function renderEvidenceCell(extraction, context) {
+  const evidenceId = evidenceIdFor({ ...context, extraction });
+  const value = extraction.value || 'NOT FOUND';
+  const confCls = value === 'NOT FOUND' ? 'conf-notfound'
+    : extraction.confidence === 'HIGH' ? 'conf-high'
+    : extraction.confidence === 'MEDIUM' ? 'conf-medium' : 'conf-low';
+  const hasCitation = Boolean((extraction.citation || '').trim());
+  return `<button type="button" class="evidence-cell ${confCls}" onclick="openEvidenceModal('${evidenceId}')" title="Open evidence text">
+    <span class="evidence-dot" style="background:${hasCitation ? '#7c3aed' : '#cbd5e1'}"></span>
+    <span>${escHtml(value)}</span>
+  </button>`;
+}
+
+function openEvidenceModal(id) {
+  const payload = evidenceStore[id];
+  if (!payload) return;
+  activeEvidenceId = id;
+  const ext = payload.extraction || {};
+  const rows = [
+    ['File', payload.filename || ''],
+    ['Outcome', payload.outcome_label || 'Study characteristics'],
+    ['Field', ext.field_name || ''],
+    ['Value', ext.value || 'NOT FOUND'],
+    ['Confidence', ext.confidence || 'LOW'],
+  ];
+  document.getElementById('evidence-meta').innerHTML = rows.map(([k, v]) => `
+    <div class="font-semibold text-slate-500">${escHtml(k)}</div>
+    <div class="text-slate-800">${escHtml(v)}</div>
+  `).join('');
+  const citation = (ext.citation || '').trim();
+  document.getElementById('evidence-citation').value = citation;
+  document.getElementById('evidence-modal').classList.remove('hidden');
+}
+
+function saveEvidenceCitation() {
+  const payload = evidenceStore[activeEvidenceId];
+  if (!payload) return;
+  const citation = document.getElementById('evidence-citation').value;
+  const ext = payload.extraction || {};
+  if (payload.type && Number.isInteger(payload.rowIndex) && ext.field_name) {
+    updateExtractionCitation(payload.type, payload.rowIndex, ext.field_name, citation);
+  } else {
+    ext.citation = citation;
+  }
+  renderExtractionResults();
+  closeEvidenceModal();
+}
+
+function closeEvidenceModal(event) {
+  if (event && event.target !== document.getElementById('evidence-modal')) return;
+  document.getElementById('evidence-modal').classList.add('hidden');
+  activeEvidenceId = null;
+}
+
+function rowKey(type, index) {
+  return `${type}-${index}`;
+}
+
+function extractionFields(type) {
+  const rows = type === 'characteristics'
+    ? (extractionData.characteristics || [])
+    : (extractionData.results || []);
+  const first = rows.find(row => (row.extractions || []).length);
+  if (first) return first.extractions.map(e => e.field_name);
+  return collectFields(type === 'characteristics' ? 'char' : 'result').map(f => f.name);
+}
+
+function ensureRowExtractions(row, fields) {
+  row.extractions = Array.isArray(row.extractions) ? row.extractions : [];
+  const lookup = new Map(row.extractions.map(e => [e.field_name, e]));
+  row.extractions = fields.map(field => lookup.get(field) || {
+    field_name: field,
+    value: '',
+    citation: '',
+    confidence: 'LOW',
+  });
+}
+
+function renderEditableExtractionCell(type, rowIndex, fieldIndex, extraction, context) {
+  const inputId = `${type}-${rowIndex}-${fieldIndex}`;
+  const evidenceId = evidenceIdFor({ ...context, type, rowIndex, extraction });
+  const value = extraction.value || '';
+  return `<div class="flex items-center gap-2 min-w-[220px]">
+    <input id="${inputId}" class="extraction-edit-input" value="${escHtml(value)}"
+      oninput="updateExtractionValue('${type}', ${rowIndex}, ${fieldIndex}, this.value)" />
+    <button type="button" class="evidence-cell"
+      onclick="openEvidenceModal('${evidenceId}')" title="Open or edit evidence text">
+      <span class="evidence-dot" style="background:${(extraction.citation || '').trim() ? '#7c3aed' : '#cbd5e1'}"></span>
+      <span>Evidence</span>
+    </button>
+  </div>`;
+}
+
+function renderExtractionResults() {
+  evidenceStore = {};
+  evidenceCounter = 0;
+
+  const chars = extractionData.characteristics || [];
+  const charFields = extractionFields('characteristics');
+  if (chars.length || charFields.length) {
+    const fields = charFields;
+    chars.forEach(row => ensureRowExtractions(row, fields));
+    document.getElementById('char-table-header').innerHTML =
+      `<th class="px-4 py-3 text-left w-10"><input type="checkbox" onchange="toggleAllExtractionRows('characteristics', this.checked)" /></th>` +
+      `<th class="px-4 py-3 text-left min-w-[180px]">File</th>` +
+      fields.map(f => `<th class="px-4 py-3 text-left min-w-[220px]">${escHtml(f)}</th>`).join('');
+
+    document.getElementById('char-table-body').innerHTML = chars.map((row, rowIndex) => {
+      const key = rowKey('characteristics', rowIndex);
+      const checked = selectedExtractionRows.characteristics.has(key) ? 'checked' : '';
+      const selectedCls = checked ? 'extraction-row-selected' : '';
+      return `<tr class="table-row border-t border-gray-50 ${selectedCls}">
+        <td class="px-4 py-3"><input type="checkbox" ${checked} onchange="toggleExtractionRow('characteristics', ${rowIndex}, this.checked)" /></td>
+        <td class="px-4 py-3">
+          <input class="extraction-edit-input text-xs font-medium text-gray-700" value="${escHtml(row.filename || '')}"
+            oninput="updateExtractionFilename('characteristics', ${rowIndex}, this.value)" />
+        </td>
+        ${row.extractions.map((e, fieldIndex) => `<td class="px-4 py-3 text-sm">${renderEditableExtractionCell('characteristics', rowIndex, fieldIndex, e, {
+          filename: row.filename,
+          outcome_label: 'Study characteristics',
+        })}</td>`).join('')}
+      </tr>`;
+    }).join('');
+
+    document.getElementById('char-table-panel').classList.remove('hidden');
+  } else {
+    document.getElementById('char-table-panel').classList.add('hidden');
+  }
+
+  const results = extractionData.results || [];
+  const resultFields = extractionFields('results');
+  if (results.length || resultFields.length) {
+    const fields = resultFields;
+    results.forEach(row => ensureRowExtractions(row, fields));
+    document.getElementById('results-table-header').innerHTML =
+      `<th class="px-4 py-3 text-left w-10"><input type="checkbox" onchange="toggleAllExtractionRows('results', this.checked)" /></th>` +
+      `<th class="px-4 py-3 text-left min-w-[180px]">File</th>` +
+      `<th class="px-4 py-3 text-left min-w-[220px]">Outcome</th>` +
+      fields.map(f => `<th class="px-4 py-3 text-left min-w-[220px]">${escHtml(f)}</th>`).join('');
+
+    document.getElementById('results-table-body').innerHTML = results.map((row, rowIndex) => {
+      const key = rowKey('results', rowIndex);
+      const checked = selectedExtractionRows.results.has(key) ? 'checked' : '';
+      const selectedCls = checked ? 'extraction-row-selected' : '';
+      return `<tr class="table-row border-t border-gray-50 ${selectedCls}">
+        <td class="px-4 py-3"><input type="checkbox" ${checked} onchange="toggleExtractionRow('results', ${rowIndex}, this.checked)" /></td>
+        <td class="px-4 py-3">
+          <input class="extraction-edit-input text-xs font-medium text-gray-700" value="${escHtml(row.filename || '')}"
+            oninput="updateExtractionFilename('results', ${rowIndex}, this.value)" />
+        </td>
+        <td class="px-4 py-3">
+          <input class="extraction-edit-input text-xs font-medium text-purple-700" value="${escHtml(row.outcome_label || '')}"
+            oninput="updateExtractionOutcome(${rowIndex}, this.value)" />
+        </td>
+        ${row.extractions.map((e, fieldIndex) => `<td class="px-4 py-3 text-sm">${renderEditableExtractionCell('results', rowIndex, fieldIndex, e, {
+          filename: row.filename,
+          outcome_label: row.outcome_label || '',
+        })}</td>`).join('')}
+      </tr>`;
+    }).join('');
+
+    document.getElementById('results-table-panel').classList.remove('hidden');
+  } else {
+    document.getElementById('results-table-panel').classList.add('hidden');
+  }
+}
+
+function toggleExtractionRow(type, index, checked) {
+  const key = rowKey(type, index);
+  if (checked) selectedExtractionRows[type].add(key);
+  else selectedExtractionRows[type].delete(key);
+  renderExtractionResults();
+  renderMetaExtractionSource();
+}
+
+function toggleAllExtractionRows(type, checked) {
+  const rows = type === 'characteristics'
+    ? (extractionData.characteristics || [])
+    : (extractionData.results || []);
+  selectedExtractionRows[type] = new Set();
+  if (checked) rows.forEach((_, index) => selectedExtractionRows[type].add(rowKey(type, index)));
+  renderExtractionResults();
+  renderMetaExtractionSource();
+}
+
+function updateExtractionFilename(type, rowIndex, value) {
+  const rows = type === 'characteristics' ? extractionData.characteristics : extractionData.results;
+  if (rows && rows[rowIndex]) rows[rowIndex].filename = value;
+  renderMetaExtractionSource();
+}
+
+function updateExtractionOutcome(rowIndex, value) {
+  if (extractionData.results && extractionData.results[rowIndex]) {
+    extractionData.results[rowIndex].outcome_label = value;
+  }
+  renderMetaExtractionSource();
+}
+
+function updateExtractionValue(type, rowIndex, fieldIndex, value) {
+  const rows = type === 'characteristics' ? extractionData.characteristics : extractionData.results;
+  if (!rows || !rows[rowIndex] || !rows[rowIndex].extractions || !rows[rowIndex].extractions[fieldIndex]) return;
+  rows[rowIndex].extractions[fieldIndex].value = value;
+  if (value && rows[rowIndex].extractions[fieldIndex].confidence === 'LOW') {
+    rows[rowIndex].extractions[fieldIndex].confidence = 'MEDIUM';
+  }
+  renderMetaExtractionSource();
+}
+
+function updateExtractionCitation(type, rowIndex, fieldName, value) {
+  const rows = type === 'characteristics' ? extractionData.characteristics : extractionData.results;
+  const row = rows && rows[rowIndex];
+  if (!row) return;
+  const ext = (row.extractions || []).find(e => e.field_name === fieldName);
+  if (ext) ext.citation = value;
+}
+
+function addExtractionRow(type) {
+  const fields = extractionFields(type);
+  if (!fields.length) {
+    showError('Define at least one extraction field before adding a row.');
+    return;
+  }
+  clearError();
+  const row = {
+    filename: '',
+    extractions: fields.map(field => ({ field_name: field, value: '', citation: '', confidence: 'LOW' })),
+  };
+  if (type === 'results') row.outcome_label = '';
+  if (type === 'characteristics') extractionData.characteristics.push(row);
+  else extractionData.results.push(row);
+  renderExtractionResults();
+  renderMetaExtractionSource();
+}
+
+function deleteSelectedExtractionRows(type) {
+  const rows = type === 'characteristics' ? extractionData.characteristics : extractionData.results;
+  if (!rows || !rows.length || !selectedExtractionRows[type].size) return;
+  const kept = rows.filter((_, index) => !selectedExtractionRows[type].has(rowKey(type, index)));
+  if (type === 'characteristics') extractionData.characteristics = kept;
+  else extractionData.results = kept;
+  selectedExtractionRows[type] = new Set();
+  renderExtractionResults();
+  renderMetaExtractionSource();
+}
+
+
+
+function extractionRowsForMeta() {
+  const rows = extractionData.results || [];
+  if (!rows.length) return [];
+  if (!selectedExtractionRows.results.size) return [...rows];
+  return rows.filter((_, index) => selectedExtractionRows.results.has(rowKey('results', index)));
+}
+
+function extractionResultsToCsv(rows) {
+  if (!rows.length) return '';
+  const fields = extractionFields('results');
+  const header = ['Filename', 'Outcome', ...fields];
+  const body = rows.map(row => {
+    ensureRowExtractions(row, fields);
+    const lookup = new Map((row.extractions || []).map(e => [e.field_name, e.value || '']));
+    return [row.filename || '', row.outcome_label || '', ...fields.map(field => lookup.get(field) || '')]
+      .map(csvCell)
+      .join(',');
+  });
+  return [header.map(csvCell).join(','), ...body].join('\n');
+}
+
+function extractionMetaCsvFiles() {
+  const rows = extractionRowsForMeta();
+  if (!rows.length) return [];
+  const csv = extractionResultsToCsv(rows);
+  if (!csv) return [];
+  return [new File(['\uFEFF' + csv], 'autometa_extraction_results_for_meta.csv', { type: 'text/csv;charset=utf-8' })];
+}
+
+function renderMetaExtractionSource() {
+  const panel = document.getElementById('meta-extraction-source-panel');
+  const count = document.getElementById('meta-extraction-source-count');
+  const list = document.getElementById('meta-extraction-source-list');
+  if (!panel || !count || !list) return;
+
+  const allRows = extractionData.results || [];
+  const rows = extractionRowsForMeta();
+  if (!allRows.length) {
+    panel.classList.add('hidden');
+    count.textContent = '0 rows';
+    list.innerHTML = '';
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  const mode = selectedExtractionRows.results.size ? 'selected' : 'all';
+  count.textContent = `${rows.length} ${mode} row${rows.length === 1 ? '' : 's'}`;
+  const preview = rows.slice(0, 6).map(row => {
+    const label = [row.filename || 'Untitled file', row.outcome_label || 'No outcome label'].join(' - ');
+    return `<div class="flex items-center gap-2 text-gray-600">
+      <span class="tag pdf-match-ok border text-xs font-semibold">CSV</span>
+      <span class="flex-1 truncate">${escHtml(label)}</span>
+    </div>`;
+  }).join('');
+  const suffix = rows.length > 6
+    ? `<div class="text-xs text-slate-400">${rows.length - 6} more rows will be included.</div>`
+    : '';
+  list.innerHTML = preview + suffix;
+}
+
+// --- Extraction CSV Export ---
+function exportExtractionCSV(type) {
+  let csv = '';
+  if (type === 'characteristics') {
+    const chars = extractionData.characteristics || [];
+    if (!chars.length) return;
+    const fields = chars[0].extractions.map(e => e.field_name);
+    csv = ['Filename,' + fields.join(','),
+      ...chars.map(row =>
+        `"${row.filename}",` + row.extractions.map(e => `"${(e.value||'').replace(/"/g,'""')}"`).join(',')
+      )
+    ].join('\\n');
+  } else {
+    const results = extractionData.results || [];
+    if (!results.length) return;
+    const fields = results[0].extractions.map(e => e.field_name);
+    csv = ['Filename,Outcome,' + fields.join(','),
+      ...results.map(row =>
+        `"${row.filename}","${(row.outcome_label||'').replace(/"/g,'""')}",` +
+        row.extractions.map(e => `"${(e.value||'').replace(/"/g,'""')}"`).join(',')
+      )
+    ].join('\\n');
+  }
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = `autometa_${type}.csv`;
+  a.click();
+}
+
+function exportExtractionJSON() {
+  const hasData = (extractionData.characteristics || []).length || (extractionData.results || []).length;
+  if (!hasData) return;
+  downloadText('autometa_extraction_results.json', JSON.stringify(extractionData, null, 2), 'application/json;charset=utf-8');
+}
+
+// -------------------------------------------------
+// Meta-analysis planning
+// -------------------------------------------------
+function handleMetaDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const input = document.getElementById('meta-csv-upload');
+  input.files = e.dataTransfer.files;
+  updateMetaFileList();
+}
+
+function updateMetaFileList() {
+  const files = document.getElementById('meta-csv-upload').files;
+  const listEl = document.getElementById('meta-file-list');
+  if (!files.length) { listEl.innerHTML = ''; return; }
+  listEl.innerHTML = Array.from(files).map(f =>
+    `<div class="flex items-center gap-2 text-gray-600">
+      <span class="tag pdf-match-extra border text-xs font-semibold">Upload</span>
+      <span class="flex-1 truncate">${escHtml(f.name)}</span>
+      <span class="text-xs text-gray-400">${(f.size/1024).toFixed(1)} KB</span>
+    </div>`
+  ).join('');
+}
+
+async function runMetaPlan() {
+  clearError();
+  const uploadedFiles = Array.from(document.getElementById('meta-csv-upload').files || []);
+  const generatedFiles = extractionMetaCsvFiles();
+  const files = [...generatedFiles, ...uploadedFiles];
+  if (!files.length) { showError('Select extraction result rows or upload at least one CSV dataset.'); return; }
+
+  const pico = getPico();
+  if (!pico.P && !pico.I && !pico.O) {
+    showError('Complete at least one PICO field to provide meta-analysis context.');
+    return;
+  }
+  currentPico = pico;
+  metaPlans = [];
+  metaRunData = null;
+  metaRunFiles = files;
+  document.getElementById('meta-plan-list').innerHTML = '';
+
+  const metadata = JSON.stringify({
+    pico: currentPico,
+    user_hint: document.getElementById('meta-user-hint').value.trim(),
+    sample_rows: 5,
+    max_concurrency: 1,
+  });
+  const formData = new FormData();
+  for (const file of files) formData.append('files', file);
+  formData.append('metadata', metadata);
+
+  const generatedLabel = generatedFiles.length ? `${generatedFiles.length} from extraction` : '';
+  const uploadedLabel = uploadedFiles.length ? `${uploadedFiles.length} uploaded` : '';
+  document.getElementById('meta-progress-sub').textContent = [generatedLabel, uploadedLabel].filter(Boolean).join(', ');
+  document.getElementById('meta-progress').classList.remove('hidden');
+
+  try {
+    const resp = await fetch('/api/v1/meta/plan', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      let errMsg = resp.statusText;
+      try { const err = await resp.json(); errMsg = err.detail || errMsg; } catch(e) {}
+      throw new Error(errMsg);
+    }
+    const data = await resp.json();
+    metaPlans = data.plans || [];
+    renderMetaPlans();
+  } catch(e) {
+    showError('Meta-analysis method plan generation failed: ' + e.message);
+  } finally {
+    document.getElementById('meta-progress').classList.add('hidden');
+  }
+}
+
+function renderMetaPlans() {
+  const list = document.getElementById('meta-plan-list');
+  if (!metaPlans.length) {
+    list.innerHTML = '<div class="panel p-5 text-sm text-slate-500">No method plans were generated.</div>';
+    return;
+  }
+  const plansHtml = metaPlans.map((plan, i) => `
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div>
+          <div class="text-xs text-slate-400 font-mono">Plan ${i + 1}</div>
+          <h3 class="font-semibold text-gray-800 text-sm">${escHtml(plan.outcome_name || plan.csv_file || 'Meta-analysis dataset')}</h3>
+        </div>
+        <span class="text-xs text-slate-500 truncate max-w-xs">${escHtml(plan.csv_file || '')}</span>
+      </div>
+      <div class="p-5 text-sm text-gray-700 leading-7 whitespace-pre-wrap">${escHtml(plan.method_text || '')}</div>
+    </div>
+  `).join('');
+
+  const runHtml = `
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h3 class="font-semibold text-gray-800 text-sm">Meta-analysis Calculations</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Run the confirmed plans against the selected CSV datasets.</p>
+        </div>
+        <button onclick="runMetaCalculations()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Run Calculations</button>
+      </div>
+      <div id="meta-results" class="space-y-3">${renderMetaResults()}</div>
+    </div>`;
+  list.innerHTML = plansHtml + runHtml;
+}
+
+function renderMetaResults() {
+  if (!metaRunData) return '<div class="text-sm text-slate-500">No calculations have been run yet.</div>';
+  const results = metaRunData.results || [];
+  const codeMap = metaRunData.generated_code || {};
+  return results.map((result, i) => {
+    const pooled = result.pooled_effect;
+    const het = result.heterogeneity || {};
+    const warnings = result.warnings || [];
+    const studies = result.study_effects || [];
+    const pooledHtml = pooled ? `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+        <div class="bg-slate-50 border border-slate-100 rounded-lg p-2"><div class="text-slate-400">Model</div><div class="font-semibold">${escHtml(pooled.model_used || '')}</div></div>
+        <div class="bg-slate-50 border border-slate-100 rounded-lg p-2"><div class="text-slate-400">Effect</div><div class="font-semibold">${fmtNum(pooled.effect)}</div></div>
+        <div class="bg-slate-50 border border-slate-100 rounded-lg p-2"><div class="text-slate-400">95% CI</div><div class="font-semibold">${fmtNum(pooled.ci_lower)} to ${fmtNum(pooled.ci_upper)}</div></div>
+        <div class="bg-slate-50 border border-slate-100 rounded-lg p-2"><div class="text-slate-400">I2</div><div class="font-semibold">${fmtNum(het.i2_percent)}%</div></div>
+      </div>` : '<div class="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">No pooled effect was calculated.</div>';
+    const warningHtml = warnings.length ? `<div class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">${warnings.map(escHtml).join('<br>')}</div>` : '';
+    const studyRows = studies.slice(0, 8).map(st => `
+      <tr class="border-t border-slate-100">
+        <td class="px-3 py-2">${escHtml(st.study_label || '')}</td>
+        <td class="px-3 py-2 text-right">${fmtNum(st.effect)}</td>
+        <td class="px-3 py-2 text-right">${fmtNum(st.ci_lower)} to ${fmtNum(st.ci_upper)}</td>
+        <td class="px-3 py-2 text-right">${fmtNum(st.weight_percent)}%</td>
+      </tr>`).join('');
+    const tableHtml = studies.length ? `
+      <div class="overflow-x-auto border border-slate-100 rounded-lg">
+        <table class="min-w-full text-xs">
+          <thead class="bg-slate-50 text-slate-500"><tr><th class="px-3 py-2 text-left">Study</th><th class="px-3 py-2 text-right">Effect</th><th class="px-3 py-2 text-right">95% CI</th><th class="px-3 py-2 text-right">Weight</th></tr></thead>
+          <tbody>${studyRows}</tbody>
+        </table>
+      </div>` : '';
+    return `
+      <div class="border border-slate-200 rounded-lg p-4 space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-xs text-slate-400 font-mono">Result ${i + 1}</div>
+            <h4 class="font-semibold text-sm text-slate-800">${escHtml(result.outcome_name || result.csv_file || 'Dataset')}</h4>
+          </div>
+          <button onclick="downloadGeneratedMetaCode('${escAttr(result.csv_file || '')}')" class="text-xs border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-slate-600 transition">Download Code</button>
+        </div>
+        ${pooledHtml}
+        ${warningHtml}
+        ${tableHtml}
+        <textarea class="hidden" id="meta-code-${i}">${escHtml(codeMap[result.csv_file] || '')}</textarea>
+      </div>`;
+  }).join('');
+}
+
+async function runMetaCalculations() {
+  if (!metaPlans.length) return;
+  clearError();
+  document.getElementById('meta-progress-sub').textContent = 'Running confirmed method plans';
+  document.getElementById('meta-progress').classList.remove('hidden');
+
+  const formData = new FormData();
+  for (const file of metaRunFiles) formData.append('files', file);
+  formData.append('metadata', JSON.stringify({ pico: currentPico, plans: metaPlans }));
+
+  try {
+    const resp = await fetch('/api/v1/meta/run', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      let errMsg = resp.statusText;
+      try { const err = await resp.json(); errMsg = err.detail || errMsg; } catch(e) {}
+      throw new Error(errMsg);
+    }
+    metaRunData = await resp.json();
+    renderMetaPlans();
+  } catch(e) {
+    showError('Meta-analysis calculation failed: ' + e.message);
+  } finally {
+    document.getElementById('meta-progress').classList.add('hidden');
+  }
+}
+
+function fmtNum(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '-';
+  return Math.abs(n) >= 100 ? n.toFixed(1) : n.toFixed(3);
+}
+
+function escAttr(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function downloadGeneratedMetaCode(csvFile) {
+  if (!metaRunData || !metaRunData.generated_code) return;
+  const code = metaRunData.generated_code[csvFile] || '';
+  if (!code) return;
+  const safe = (csvFile || 'meta_analysis').replace(/[^a-z0-9_-]+/gi, '_');
+  downloadText(`autometa_${safe}_calculation.py`, code, 'text/x-python;charset=utf-8');
+}
+
+function exportMetaPlansText() {
+  if (!metaPlans.length) return;
+  const text = metaPlans.map((plan, i) => {
+    const title = plan.outcome_name || plan.csv_file || `Plan ${i + 1}`;
+    return `# ${title}
+File: ${plan.csv_file || ''}
+
+${plan.method_text || ''}`;
+  }).join('\n\n---\n\n');
+  downloadText('autometa_meta_method_plans.txt', text, 'text/plain;charset=utf-8');
+}
+
+function exportMetaPlansJSON() {
+  if (!metaPlans.length) return;
+  downloadText('autometa_meta_method_plans.json', JSON.stringify({ pico: currentPico, plans: metaPlans }, null, 2), 'application/json;charset=utf-8');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  showWorkflowPage(1);
+});
+
+</script>
+</body>
+</html>
