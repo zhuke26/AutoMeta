@@ -5,12 +5,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from sqlalchemy import Engine, create_engine, event, inspect, text, update
+from sqlalchemy import Engine, create_engine, event, inspect, select, text, update
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session, sessionmaker
 
 from autometa.config import Settings
-from autometa.persistence.models import Base, Job, JobState
+from autometa.persistence.models import Base, Job, JobState, StageRun
 
 
 class Database:
@@ -64,6 +64,17 @@ class Database:
 
     def mark_running_jobs_interrupted(self) -> int:
         with self.session() as session:
+            active_job_ids = select(Job.id).where(
+                Job.state.in_((JobState.QUEUED, JobState.RUNNING))
+            )
+            session.execute(
+                update(StageRun)
+                .where(
+                    StageRun.job_id.in_(active_job_ids),
+                    StageRun.status.in_(("queued", "running")),
+                )
+                .values(status=JobState.INTERRUPTED.value)
+            )
             result = session.execute(
                 update(Job)
                 .where(Job.state.in_((JobState.QUEUED, JobState.RUNNING)))

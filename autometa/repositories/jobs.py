@@ -108,6 +108,20 @@ class JobRepository:
             )
             return list(session.scalars(statement))
 
+    def list_for_review(
+        self,
+        review_id: str,
+        *,
+        stage: str | None = None,
+        limit: int = 20,
+    ) -> list[Job]:
+        with self.database.session() as session:
+            statement = select(Job).where(Job.review_id == review_id)
+            if stage is not None:
+                statement = statement.where(Job.stage == stage)
+            statement = statement.order_by(Job.created_at.desc(), Job.id.desc()).limit(limit)
+            return list(session.scalars(statement))
+
     @staticmethod
     def _append_event(
         session,

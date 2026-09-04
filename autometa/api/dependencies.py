@@ -6,6 +6,7 @@ from autometa.config import Settings
 from autometa.services.artifacts import ArtifactService
 from autometa.services.reviews import ReviewService
 from autometa.services.files import FileStorage
+from autometa.services.workflows import WorkflowCoordinator
 
 
 def get_database(request: Request) -> Database:
@@ -41,6 +42,13 @@ def get_job_manager(request: Request) -> JobManager:
     if manager is None:
         raise RuntimeError("AutoMeta job manager is not initialized")
     return manager
+
+
+def get_workflow_coordinator(request: Request) -> WorkflowCoordinator:
+    coordinator = getattr(request.app.state, "workflow_coordinator", None)
+    if coordinator is None:
+        raise RuntimeError("AutoMeta workflow coordinator is not initialized")
+    return coordinator
 
 
 def get_app_settings(request: Request) -> Settings:

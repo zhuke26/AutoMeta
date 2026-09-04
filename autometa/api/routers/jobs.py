@@ -6,19 +6,39 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from autometa.api.dependencies import get_job_manager
+from autometa.api.dependencies import get_job_manager, get_review_service
 from autometa.jobs.manager import JobManager, JobNotFound
 from autometa.persistence.models import JobState
 from autometa.schemas.jobs import JobView
+from autometa.services.reviews import ReviewNotFound, ReviewService
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+review_router = APIRouter(prefix="/reviews/{review_id}/jobs", tags=["jobs"])
 TERMINAL_STATES = {
     JobState.SUCCEEDED,
     JobState.FAILED,
     JobState.INTERRUPTED,
     JobState.CANCELLED,
 }
+
+
+@review_router.get("", response_model=list[JobView])
+def list_review_jobs(
+    review_id: str,
+    stage: str | None = Query(default=None, min_length=1, max_length=32),
+    limit: int = Query(default=20, ge=1, le=100),
+    manager: JobManager = Depends(get_job_manager),
+    reviews: ReviewService = Depends(get_review_service),
+) -> list[JobView]:
+    try:
+        reviews.get(review_id)
+    except ReviewNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Review not found: {review_id}",
+        ) from exc
+    return manager.list_for_review(review_id, stage=stage, limit=limit)
 
 
 @router.get("/{job_id}", response_model=JobView)

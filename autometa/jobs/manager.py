@@ -33,6 +33,8 @@ class JobContext:
 
 
 JobOperation = Callable[[JobContext], dict | None]
+JobCreatedHook = Callable[[JobView], None]
+JobStateHook = Callable[[str, JobState], None]
 
 
 class JobManager:
@@ -51,7 +53,15 @@ class JobManager:
     def closed(self) -> bool:
         return self._closed
 
-    def submit(self, review_id: str, stage: str, operation: JobOperation) -> JobView:
+    def submit(
+        self,
+        review_id: str,
+        stage: str,
+        operation: JobOperation,
+        *,
+        on_created: JobCreatedHook | None = None,
+        on_state_change: JobStateHook | None = None,
+    ) -> JobView:
         with self._lock:
             if self._closed:
                 raise JobConflict("Job manager is shut down")
@@ -59,6 +69,17 @@ class JobManager:
                 job = self.repository.create(review_id, stage)
             except RuntimeError as exc:
                 raise JobConflict(str(exc)) from exc
+            job_view = JobView.model_validate(job)
+            if on_created is not None:
+                try:
+                    on_created(job_view)
+                except Exception as exc:
+                    self.repository.transition(
+                        job.id,
+                        JobState.FAILED,
+                        error=self._safe_error(exc),
+                    )
+                    raise
             cancellation = Event()
             self._cancellations[job.id] = cancellation
             self._futures[job.id] = self._executor.submit(
@@ -66,8 +87,9 @@ class JobManager:
                 job.id,
                 operation,
                 cancellation,
+                on_state_change,
             )
-            return JobView.model_validate(job)
+            return job_view
 
     def get(self, job_id: str) -> JobView:
         job = self.repository.get(job_id)
@@ -81,6 +103,22 @@ class JobManager:
         return [
             JobEventView.model_validate(event)
             for event in self.repository.events(job_id, after_sequence)
+        ]
+
+    def list_for_review(
+        self,
+        review_id: str,
+        *,
+        stage: str | None = None,
+        limit: int = 20,
+    ) -> list[JobView]:
+        return [
+            JobView.model_validate(job)
+            for job in self.repository.list_for_review(
+                review_id,
+                stage=stage,
+                limit=limit,
+            )
         ]
 
     def cancel_review(self, review_id: str) -> int:
@@ -120,20 +158,28 @@ class JobManager:
         job_id: str,
         operation: JobOperation,
         cancellation: Event,
+        on_state_change: JobStateHook | None,
     ) -> None:
         try:
             self.repository.transition(job_id, JobState.RUNNING)
+            self._notify_state(on_state_change, job_id, JobState.RUNNING)
             context = JobContext(self, job_id, cancellation)
             result = operation(context)
             if cancellation.is_set():
+                self._notify_state(on_state_change, job_id, JobState.CANCELLED)
                 self.repository.transition(job_id, JobState.CANCELLED)
             else:
+                self._notify_state(on_state_change, job_id, JobState.SUCCEEDED)
                 self.repository.transition(
                     job_id,
                     JobState.SUCCEEDED,
                     result_reference=self._sanitize_payload(result or {}),
                 )
         except Exception as exc:
+            try:
+                self._notify_state(on_state_change, job_id, JobState.FAILED)
+            except Exception:
+                pass
             self.repository.transition(
                 job_id,
                 JobState.FAILED,
@@ -143,6 +189,15 @@ class JobManager:
             with self._lock:
                 self._futures.pop(job_id, None)
                 self._cancellations.pop(job_id, None)
+
+    @staticmethod
+    def _notify_state(
+        hook: JobStateHook | None,
+        job_id: str,
+        state: JobState,
+    ) -> None:
+        if hook is not None:
+            hook(job_id, state)
 
     def _emit(self, job_id: str, event_type: str, payload: dict) -> JobEventView:
         with self._lock:

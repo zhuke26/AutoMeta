@@ -31,9 +31,11 @@ from autometa.persistence.database import Database
 from autometa.repositories.artifacts import ArtifactRepository
 from autometa.repositories.jobs import JobRepository
 from autometa.repositories.reviews import ReviewRepository
+from autometa.repositories.stage_runs import StageRunRepository
 from autometa.services.artifacts import ArtifactService
 from autometa.services.files import FileStorage
 from autometa.services.reviews import ReviewService
+from autometa.services.workflows import WorkflowCoordinator
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -70,8 +72,14 @@ def create_app(
         application.state.settings = resolved_settings
         application.state.job_manager = active_manager
         application.state.file_storage = file_storage
-        application.state.artifact_service = ArtifactService(
+        artifact_service = ArtifactService(
             ArtifactRepository(active_database)
+        )
+        application.state.artifact_service = artifact_service
+        application.state.workflow_coordinator = WorkflowCoordinator(
+            active_manager,
+            StageRunRepository(active_database),
+            artifact_service,
         )
         application.state.review_service = ReviewService(
             ReviewRepository(active_database),
@@ -130,6 +138,7 @@ def create_app(
         files.router,
         artifacts.router,
         jobs.router,
+        jobs.review_router,
         system.router,
     ):
         application.include_router(router, prefix=API_PREFIX)
