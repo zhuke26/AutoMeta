@@ -1,9 +1,13 @@
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
 
 from autometa.agents.protocol_agent import ProtocolAgent
 from autometa.agents.search_agent import SearchAgent
 from autometa.agents.screening_agent_v2 import ScreeningAgentV2
 from autometa.agents.extraction_agent import ExtractionAgent
+from autometa.agents.meta_analysis_planner_agent import MetaAnalysisPlannerAgent
+from autometa.agents.meta_analysis_runner_agent import MetaAnalysisRunnerAgent
 from autometa.api.dependencies import (
     get_file_storage,
     get_local_settings,
@@ -15,9 +19,12 @@ from autometa.schemas.jobs import JobView
 from autometa.schemas.artifacts import ArtifactView
 from autometa.schemas.extraction_models import ExtractionFieldDefinition
 from autometa.schemas.models import PICODefinition, Paper, StudyDesignFilter
+from autometa.schemas.meta_models import CSVSummary, MetaAnalysisMethodPlan
 from autometa.schemas.workflows import (
-    ProtocolWorkflowRequest,
     ExtractionWorkflowRequest,
+    MetaPlanWorkflowRequest,
+    MetaRunWorkflowRequest,
+    ProtocolWorkflowRequest,
     ScreeningRecordsImportRequest,
     ScreeningRunWorkflowRequest,
     SearchQueryWorkflowRequest,
@@ -384,6 +391,182 @@ def run_extraction(
         coordinator,
         review_id,
         "extraction",
+        inputs,
+        operation,
+    )
+
+
+def _review_datasets(
+    review_id: str,
+    file_ids: list[str],
+    storage: FileStorage,
+):
+    records = []
+    for file_id in file_ids:
+        try:
+            record = storage.get(file_id)
+        except StoredFileNotFound as exc:
+            raise WorkflowInputConflict(f"Dataset not found: {file_id}") from exc
+        if record.review_id != review_id:
+            raise WorkflowInputConflict("Dataset does not belong to this Review")
+        if record.kind != "csv":
+            raise WorkflowInputConflict("Meta-analysis accepts CSV datasets only")
+        records.append(record)
+    return records
+
+
+@router.post("/meta/plan", response_model=JobView, status_code=202)
+def plan_meta_analysis(
+    review_id: str,
+    request: MetaPlanWorkflowRequest,
+    coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
+    reviews: ReviewService = Depends(get_review_service),
+    storage: FileStorage = Depends(get_file_storage),
+) -> JobView:
+    _require_review(review_id, reviews)
+    try:
+        inputs = coordinator.require_approved(review_id, ("question_pico",))
+        pico = PICODefinition.model_validate(inputs[0].payload.get("pico"))
+        records = _review_datasets(review_id, request.file_ids, storage)
+    except WorkflowInputConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Approved Meta-analysis inputs are invalid",
+        ) from exc
+
+    def operation(context: JobContext) -> dict:
+        context.emit("planning", {"message": "Validating CSV datasets"})
+        summaries: list[CSVSummary] = []
+        for record in records:
+            frame = pd.read_csv(storage.resolve(record), encoding="utf-8-sig")
+            if frame.empty:
+                raise ValueError(f"CSV dataset has no data rows: {record.original_name}")
+            head = frame.head(request.sample_rows)
+            sample = head.astype(object).where(pd.notnull(head), None)
+            summaries.append(CSVSummary(
+                csv_file=record.original_name,
+                columns=[str(column) for column in frame.columns],
+                row_count=int(len(frame)),
+                sample_rows=sample.to_dict(orient="records"),
+            ))
+        response = MetaAnalysisPlannerAgent().run(
+            pico=pico,
+            csv_summaries=summaries,
+            user_hint=request.user_hint,
+            max_concurrency=request.max_concurrency,
+        )
+        raw = response.model_dump()
+        plans = [
+            MetaAnalysisMethodPlan.model_validate(plan)
+            for plan in raw.get("plans", [])
+        ]
+        expected = {record.original_name for record in records}
+        actual = {plan.csv_file for plan in plans}
+        if actual != expected:
+            raise ValueError("Planner must return exactly one plan for each CSV dataset")
+        artifact = coordinator.artifacts.save_draft(
+            review_id,
+            "plan",
+            jsonable_encoder({
+                "file_ids": [record.id for record in records],
+                "user_hint": request.user_hint,
+                "csv_summaries": [summary.model_dump() for summary in summaries],
+                "plans": [plan.model_dump() for plan in plans],
+            }),
+        )
+        result = {
+            "artifact_id": artifact.artifact_id,
+            "kind": artifact.kind,
+            "version": artifact.version,
+        }
+        context.emit("artifact_saved", result)
+        return result
+
+    return _submit_or_conflict(
+        coordinator,
+        review_id,
+        "meta_analysis",
+        inputs,
+        operation,
+    )
+
+
+@router.post("/meta/run", response_model=JobView, status_code=202)
+def run_meta_analysis(
+    review_id: str,
+    _request: MetaRunWorkflowRequest,
+    coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
+    reviews: ReviewService = Depends(get_review_service),
+    storage: FileStorage = Depends(get_file_storage),
+) -> JobView:
+    _require_review(review_id, reviews)
+    try:
+        inputs = coordinator.require_approved(review_id, ("plan",))
+        plan_payload = inputs[0].payload
+        raw_file_ids = plan_payload.get("file_ids")
+        raw_plans = plan_payload.get("plans")
+        if not isinstance(raw_file_ids, list) or not isinstance(raw_plans, list):
+            raise WorkflowInputConflict("Approved Plan is missing datasets or methods")
+        records = _review_datasets(
+            review_id,
+            [str(file_id) for file_id in raw_file_ids],
+            storage,
+        )
+        plans = [MetaAnalysisMethodPlan.model_validate(plan) for plan in raw_plans]
+        available = {record.original_name for record in records}
+        if {plan.csv_file for plan in plans} != available:
+            raise WorkflowInputConflict(
+                "Approved Plan does not match the stored CSV datasets"
+            )
+    except WorkflowInputConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail="Approved Plan is invalid") from exc
+
+    def operation(context: JobContext) -> dict:
+        context.emit(
+            "analyzing",
+            {"message": "Validating and fitting meta-analysis models"},
+        )
+        frames = {
+            record.original_name: pd.read_csv(
+                storage.resolve(record),
+                encoding="utf-8-sig",
+            )
+            for record in records
+        }
+        response = MetaAnalysisRunnerAgent().run(plans=plans, csv_frames=frames)
+        raw = jsonable_encoder(response.model_dump())
+        results = raw.get("results", [])
+        if len(results) != len(plans):
+            raise ValueError("Meta-analysis did not return one result per approved plan")
+        for plan, result in zip(plans, results):
+            if plan.output.include_pooled_effect and result.get("pooled_effect") is None:
+                details = "; ".join(result.get("warnings", []))
+                raise ValueError(
+                    f"Analysis failed for {plan.csv_file}: "
+                    f"{details or 'pooled effect unavailable'}"
+                )
+        saved = coordinator.artifacts.save_drafts(
+            review_id,
+            {
+                "code": {"generated_code": raw.get("generated_code", {})},
+                "result": {"results": results},
+            },
+        )
+        result_reference = {
+            "code_artifact_id": saved["code"].artifact_id,
+            "result_artifact_id": saved["result"].artifact_id,
+        }
+        context.emit("artifact_saved", result_reference)
+        return result_reference
+
+    return _submit_or_conflict(
+        coordinator,
+        review_id,
+        "meta_analysis",
         inputs,
         operation,
     )

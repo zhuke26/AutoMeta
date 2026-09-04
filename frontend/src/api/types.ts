@@ -73,6 +73,7 @@ export interface FileView {
   id: string;
   review_id: string;
   original_name: string;
+  kind: "pdf" | "csv";
   mime_type: string;
   size_bytes: number;
   parse_status: string;

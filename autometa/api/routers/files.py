@@ -36,7 +36,10 @@ def list_review_files(
     storage: FileStorage = Depends(get_file_storage),
 ) -> list[FileView]:
     try:
-        return [FileView.model_validate(item) for item in storage.list_for_review(review_id)]
+        return [
+            FileView.model_validate(item)
+            for item in storage.list_for_review(review_id, kind="pdf")
+        ]
     except StoredFileNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -51,4 +54,40 @@ def read_file(
         path = storage.resolve(record)
     except StoredFileNotFound as exc:
         raise HTTPException(status_code=404, detail=f"File not found: {file_id}") from exc
-    return FileResponse(path, media_type="application/pdf", filename=record.original_name)
+    return FileResponse(path, media_type=record.mime_type, filename=record.original_name)
+
+
+@router.post(
+    "/reviews/{review_id}/datasets",
+    response_model=list[FileView],
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_review_datasets(
+    review_id: str,
+    files: list[UploadFile] = File(...),
+    storage: FileStorage = Depends(get_file_storage),
+) -> list[FileView]:
+    try:
+        records = [
+            await storage.save_dataset_upload(review_id, upload)
+            for upload in files
+        ]
+    except StoredFileNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except InvalidUpload as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return [FileView.model_validate(record) for record in records]
+
+
+@router.get("/reviews/{review_id}/datasets", response_model=list[FileView])
+def list_review_datasets(
+    review_id: str,
+    storage: FileStorage = Depends(get_file_storage),
+) -> list[FileView]:
+    try:
+        return [
+            FileView.model_validate(item)
+            for item in storage.list_for_review(review_id, kind="csv")
+        ]
+    except StoredFileNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

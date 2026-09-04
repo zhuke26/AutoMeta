@@ -107,6 +107,10 @@ class FileRecord(TimestampMixin, Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     parse_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
 
+    @property
+    def kind(self) -> str:
+        return "csv" if self.mime_type == "text/csv" else "pdf"
+
 
 class Job(TimestampMixin, Base):
     __tablename__ = "jobs"

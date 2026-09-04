@@ -1261,6 +1261,116 @@ a {
   font-weight: 700;
 }
 
+.meta-page {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.meta-plan-list,
+.meta-results {
+  display: grid;
+  gap: 16px;
+}
+
+.meta-plan-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+
+.meta-plan-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.meta-plan-card h3 {
+  margin: 0;
+  color: var(--navy);
+}
+
+.meta-plan-selects,
+.column-mapping,
+.meta-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.column-mapping {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.column-mapping legend {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plan-notes {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.plan-notes--warning {
+  color: var(--warning);
+}
+
+.meta-result-card {
+  overflow: hidden;
+}
+
+.meta-stat-grid {
+  margin: 0;
+  padding: 20px;
+}
+
+.meta-stat-grid div {
+  display: grid;
+  gap: 4px;
+}
+
+.meta-stat-grid dt {
+  color: var(--ink-4);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.meta-stat-grid dd {
+  margin: 0;
+  color: var(--navy);
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.meta-result-card .plan-notes,
+.meta-result-card details {
+  margin: 0 20px 20px;
+}
+
+.code-block {
+  overflow: auto;
+  max-height: 420px;
+  border-radius: var(--radius-sm);
+  background: var(--navy);
+  color: #e7ecf4;
+  padding: 16px;
+  font: 11px/1.55 var(--mono);
+}
+
+.result-export {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 1200px) {
   .brand__descriptor,
   .stage-card__tool {

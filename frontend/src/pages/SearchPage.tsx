@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { artifactKeys } from "../api/artifacts";
+import { artifactKeys, currentArtifact } from "../api/artifacts";
 import { useStartWorkflowJob } from "../api/workflows";
 import type { ArtifactView } from "../api/types";
 import { ArtifactApprovalBar } from "../components/ArtifactApprovalBar";
@@ -97,7 +97,7 @@ export function SearchPage() {
     queryPayload,
     queryChanged && Boolean(queryArtifact),
   );
-  const effectiveQuery = autosave.artifact ?? queryArtifact;
+  const effectiveQuery = currentArtifact(queryArtifact, autosave.artifact);
   const papers = recordsFrom(recordsArtifact);
 
   useEffect(() => {

@@ -51,12 +51,7 @@ class MetaAnalysisRunnerAgent(BaseAgent):
         for plan in plans:
             df = csv_frames.get(plan.csv_file)
             if df is None:
-                results.append(MetaAnalysisDatasetResult(
-                    csv_file=plan.csv_file,
-                    outcome_name=plan.outcome_name,
-                    warnings=[f"CSV file was not uploaded: {plan.csv_file}"],
-                ))
-                continue
+                raise ValueError(f"CSV file was not uploaded: {plan.csv_file}")
 
             generated_code[plan.csv_file] = self.generate_code(plan)
             results.append(self._run_one(plan, df))
@@ -118,12 +113,7 @@ def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
         try:
             effects = self._derive_study_effects(plan, df, warnings)
             if not effects:
-                return MetaAnalysisDatasetResult(
-                    csv_file=plan.csv_file,
-                    outcome_name=plan.outcome_name,
-                    logs=logs,
-                    warnings=warnings + ["No analyzable study rows were found."],
-                )
+                raise ValueError("No analyzable study rows were found")
 
             pooled, heterogeneity, weights = self._pool_effects(plan, effects)
             weight_total = sum(weights) if weights else 0.0
@@ -195,12 +185,9 @@ def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
                 warnings=warnings,
             )
         except Exception as exc:
-            return MetaAnalysisDatasetResult(
-                csv_file=plan.csv_file,
-                outcome_name=plan.outcome_name,
-                logs=logs,
-                warnings=warnings + [f"Calculation failed: {exc}"],
-            )
+            raise ValueError(
+                f"Calculation failed for {plan.csv_file}: {exc}"
+            ) from exc
 
     def _derive_study_effects(
         self,
@@ -238,7 +225,7 @@ def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
                     "variance": se * se,
                 })
             except Exception as exc:
-                warnings.append(f"Skipped row {idx + 1}: {exc}")
+                raise ValueError(f"Invalid data in row {idx + 1}: {exc}") from exc
         return rows
 
     def _effect_from_reported_ci(self, plan: MetaAnalysisMethodPlan, row: pd.Series) -> Tuple[float, float]:

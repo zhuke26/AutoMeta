@@ -58,46 +58,25 @@ class ArtifactService:
 
     def save_draft(self, review_id: str, kind: str, payload: dict) -> ArtifactView:
         self._validate_kind(kind)
-        canonical = json.dumps(
-            payload,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        content_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
         with self.repository.database.session() as session:
             if session.get(Review, review_id) is None:
                 raise ArtifactNotFound(f"Review not found: {review_id}")
-            artifact = self.repository.find(session, review_id, kind)
-            if artifact is None:
-                artifact = Artifact(
-                    review_id=review_id,
-                    stage=ARTIFACT_STAGE[kind],
-                    kind=kind,
-                )
-                session.add(artifact)
-                session.flush()
+            return self._save_draft(session, review_id, kind, payload)
 
-            latest = session.scalar(
-                select(func.max(ArtifactVersion.version)).where(
-                    ArtifactVersion.artifact_id == artifact.id
-                )
-            )
-            version = ArtifactVersion(
-                artifact_id=artifact.id,
-                version=int(latest or 0) + 1,
-                payload=payload,
-                content_hash=content_hash,
-            )
-            session.add(version)
-            session.flush()
-            artifact.current_version_id = version.id
-            artifact.state = ArtifactState.DRAFT
-            self._revoke_approvals(session, artifact.id)
-            self._mark_downstream_stale(session, review_id, kind)
-            session.flush()
-            return self._view(artifact, version, approved=False)
+    def save_drafts(
+        self,
+        review_id: str,
+        payloads: dict[str, dict],
+    ) -> dict[str, ArtifactView]:
+        for kind in payloads:
+            self._validate_kind(kind)
+        with self.repository.database.session() as session:
+            if session.get(Review, review_id) is None:
+                raise ArtifactNotFound(f"Review not found: {review_id}")
+            return {
+                kind: self._save_draft(session, review_id, kind, payload)
+                for kind, payload in payloads.items()
+            }
 
     def approve(self, review_id: str, artifact_id: str, version: int) -> ArtifactView:
         with self.repository.database.session() as session:
@@ -209,6 +188,44 @@ class ArtifactService:
             created_at=version.created_at,
             approved=approved,
         )
+
+    def _save_draft(self, session, review_id: str, kind: str, payload: dict) -> ArtifactView:
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        content_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        artifact = self.repository.find(session, review_id, kind)
+        if artifact is None:
+            artifact = Artifact(
+                review_id=review_id,
+                stage=ARTIFACT_STAGE[kind],
+                kind=kind,
+            )
+            session.add(artifact)
+            session.flush()
+
+        latest = session.scalar(
+            select(func.max(ArtifactVersion.version)).where(
+                ArtifactVersion.artifact_id == artifact.id
+            )
+        )
+        version = ArtifactVersion(
+            artifact_id=artifact.id,
+            version=int(latest or 0) + 1,
+            payload=payload,
+            content_hash=content_hash,
+        )
+        session.add(version)
+        session.flush()
+        artifact.current_version_id = version.id
+        artifact.state = ArtifactState.DRAFT
+        self._revoke_approvals(session, artifact.id)
+        self._mark_downstream_stale(session, review_id, kind)
+        session.flush()
+        return self._view(artifact, version, approved=False)
 
     @staticmethod
     def _validate_kind(kind: str) -> None:

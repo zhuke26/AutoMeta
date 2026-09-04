@@ -51,6 +51,18 @@ export function revokeArtifact(reviewId: string, kind: ArtifactKind): Promise<Ar
 }
 
 
+export function currentArtifact(
+  serverArtifact: ArtifactView | undefined,
+  locallySavedArtifact: ArtifactView | undefined,
+) {
+  if (!locallySavedArtifact) return serverArtifact;
+  if (!serverArtifact) return locallySavedArtifact;
+  return serverArtifact.version >= locallySavedArtifact.version
+    ? serverArtifact
+    : locallySavedArtifact;
+}
+
+
 function updateArtifactCache(
   queryClient: ReturnType<typeof useQueryClient>,
   artifact: ArtifactView,

@@ -61,3 +61,14 @@ class ExtractionWorkflowRequest(BaseModel):
         if not self.study_characteristics_fields and not self.study_results_fields:
             raise ValueError("At least one extraction field must be defined")
         return self
+
+
+class MetaPlanWorkflowRequest(BaseModel):
+    file_ids: list[str] = Field(min_length=1)
+    user_hint: str = Field(default="", max_length=4000)
+    sample_rows: int = Field(default=5, ge=1, le=20)
+    max_concurrency: int = Field(default=1, ge=1, le=5)
+
+
+class MetaRunWorkflowRequest(BaseModel):
+    confirm_strict_execution: Literal[True] = True

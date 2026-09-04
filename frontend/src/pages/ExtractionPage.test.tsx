@@ -18,7 +18,7 @@ const pico: ArtifactView = {
   content_hash: "hash", created_at: "2026-09-05T09:00:00Z", approved: true,
 };
 const pdf: FileView = {
-  id: "pdf-1", review_id: review.id, original_name: "study.pdf", mime_type: "application/pdf",
+  id: "pdf-1", review_id: review.id, original_name: "study.pdf", kind: "pdf", mime_type: "application/pdf",
   size_bytes: 1200, parse_status: "pending", created_at: "2026-09-05T09:00:00Z",
 };
 const sources: ArtifactView = {

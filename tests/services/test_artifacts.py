@@ -82,3 +82,29 @@ def test_stale_artifact_cannot_be_reapproved_without_regeneration(
 
     with pytest.raises(ArtifactConflict, match="stale"):
         service.approve(review.id, records.artifact_id, records.version)
+
+
+def test_save_drafts_is_atomic_when_any_kind_is_invalid(artifact_service, review) -> None:
+    _, service = artifact_service
+
+    with pytest.raises(ValueError, match="Unsupported artifact kind"):
+        service.save_drafts(
+            review.id,
+            {"code": {"generated_code": {}}, "not-real": {"results": []}},
+        )
+
+    with pytest.raises(Exception):
+        service.get_current(review.id, "code")
+
+
+def test_save_drafts_commits_code_and_result_together(artifact_service, review) -> None:
+    _, service = artifact_service
+
+    saved = service.save_drafts(
+        review.id,
+        {"code": {"generated_code": {"data.csv": "print(1)"}}, "result": {"results": []}},
+    )
+
+    assert set(saved) == {"code", "result"}
+    assert service.get_current(review.id, "code").version == 1
+    assert service.get_current(review.id, "result").version == 1

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { LibraryPage } from "./pages/LibraryPage";
+import { MetaAnalysisPage } from "./pages/MetaAnalysisPage";
 import { NewReviewPage } from "./pages/NewReviewPage";
 import { ExtractionPage } from "./pages/ExtractionPage";
 import { ReviewSetupPage } from "./pages/ReviewSetupPage";
@@ -24,7 +25,7 @@ export function App() {
         <Route path="search" element={<SearchPage />} />
         <Route path="screening" element={<ScreeningPage />} />
         <Route path="extraction" element={<ExtractionPage />} />
-        <Route path="meta-analysis" element={<StagePendingPage stage="meta_analysis" />} />
+        <Route path="meta-analysis" element={<MetaAnalysisPage />} />
         <Route path="*" element={<ReviewEntryRedirect />} />
       </Route>
     </Routes>

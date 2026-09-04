@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import csv
+import io
 import os
 import shutil
 import tempfile
@@ -40,16 +42,54 @@ class FileStorage:
     ) -> FileRecord:
         if self.reviews.get(review_id) is None:
             raise StoredFileNotFound(f"Review not found: {review_id}")
-        self._validate(filename, mime_type, content)
+        self._validate_pdf(filename, mime_type, content)
+        return self._save_validated(
+            review_id,
+            filename,
+            "application/pdf",
+            content,
+            directory="uploads",
+            suffix=".pdf",
+        )
+
+    def save_dataset_bytes(
+        self,
+        review_id: str,
+        filename: str,
+        mime_type: str,
+        content: bytes,
+    ) -> FileRecord:
+        if self.reviews.get(review_id) is None:
+            raise StoredFileNotFound(f"Review not found: {review_id}")
+        self._validate_csv(filename, mime_type, content)
+        return self._save_validated(
+            review_id,
+            filename,
+            "text/csv",
+            content,
+            directory="datasets",
+            suffix=".csv",
+        )
+
+    def _save_validated(
+        self,
+        review_id: str,
+        filename: str,
+        normalized_mime_type: str,
+        content: bytes,
+        *,
+        directory: str,
+        suffix: str,
+    ) -> FileRecord:
         digest = hashlib.sha256(content).hexdigest()
         existing = self.repository.find_by_hash(review_id, digest)
         if existing is not None:
             return existing
 
         record_id = uuid4().hex
-        upload_dir = self.review_directory(review_id) / "uploads"
+        upload_dir = self.review_directory(review_id) / directory
         upload_dir.mkdir(parents=True, exist_ok=True)
-        destination = upload_dir / f"{record_id}.pdf"
+        destination = upload_dir / f"{record_id}{suffix}"
         descriptor, temporary_name = tempfile.mkstemp(
             dir=upload_dir,
             prefix=".upload-",
@@ -68,7 +108,7 @@ class FileStorage:
                 stored_name=destination.name,
                 relative_path=destination.relative_to(self.data_dir).as_posix(),
                 sha256=digest,
-                mime_type="application/pdf",
+                mime_type=normalized_mime_type,
                 size_bytes=len(content),
             )
             try:
@@ -80,26 +120,44 @@ class FileStorage:
             Path(temporary_name).unlink(missing_ok=True)
 
     async def save_upload(self, review_id: str, upload: UploadFile) -> FileRecord:
+        content = await self._read_upload(upload, "PDF")
+        return self.save_bytes(
+            review_id,
+            upload.filename or "",
+            upload.content_type or "",
+            content,
+        )
+
+    async def save_dataset_upload(
+        self,
+        review_id: str,
+        upload: UploadFile,
+    ) -> FileRecord:
+        content = await self._read_upload(upload, "CSV")
+        return self.save_dataset_bytes(
+            review_id,
+            upload.filename or "",
+            upload.content_type or "",
+            content,
+        )
+
+    async def _read_upload(self, upload: UploadFile, label: str) -> bytes:
         chunks: list[bytes] = []
         size = 0
         while chunk := await upload.read(1024 * 1024):
             size += len(chunk)
             if size > self.max_bytes:
                 raise InvalidUpload(
-                    f"PDF exceeds the {self.database.settings.autometa_max_upload_mb} MB size limit"
+                    f"{label} exceeds the {self.database.settings.autometa_max_upload_mb} MB size limit"
                 )
             chunks.append(chunk)
-        return self.save_bytes(
-            review_id,
-            upload.filename or "",
-            upload.content_type or "",
-            b"".join(chunks),
-        )
+        return b"".join(chunks)
 
-    def list_for_review(self, review_id: str) -> list[FileRecord]:
+    def list_for_review(self, review_id: str, kind: str | None = None) -> list[FileRecord]:
         if self.reviews.get(review_id) is None:
             raise StoredFileNotFound(f"Review not found: {review_id}")
-        return self.repository.list_for_review(review_id)
+        records = self.repository.list_for_review(review_id)
+        return [record for record in records if kind is None or record.kind == kind]
 
     def get(self, file_id: str) -> FileRecord:
         record = self.repository.get(file_id)
@@ -138,9 +196,12 @@ class FileStorage:
         if staged is not None:
             shutil.rmtree(staged, ignore_errors=False)
 
-    def _validate(self, filename: str, mime_type: str, content: bytes) -> None:
+    def _validate_filename(self, filename: str, label: str) -> None:
         if not filename or Path(filename).name != filename or "/" in filename or "\\" in filename:
-            raise InvalidUpload("PDF filename must not contain path separators")
+            raise InvalidUpload(f"{label} filename must not contain path separators")
+
+    def _validate_pdf(self, filename: str, mime_type: str, content: bytes) -> None:
+        self._validate_filename(filename, "PDF")
         if Path(filename).suffix.lower() != ".pdf":
             raise InvalidUpload("Only .pdf files are accepted")
         if mime_type.lower() != "application/pdf":
@@ -151,3 +212,27 @@ class FileStorage:
             raise InvalidUpload(
                 f"PDF exceeds the {self.database.settings.autometa_max_upload_mb} MB size limit"
             )
+
+    def _validate_csv(self, filename: str, mime_type: str, content: bytes) -> None:
+        self._validate_filename(filename, "CSV")
+        if Path(filename).suffix.lower() != ".csv":
+            raise InvalidUpload("Only .csv dataset files are accepted")
+        if mime_type.lower() not in {
+            "text/csv",
+            "application/csv",
+            "application/vnd.ms-excel",
+        }:
+            raise InvalidUpload("Only CSV dataset uploads are accepted")
+        if not content:
+            raise InvalidUpload("CSV dataset is empty")
+        if len(content) > self.max_bytes:
+            raise InvalidUpload(
+                f"CSV exceeds the {self.database.settings.autometa_max_upload_mb} MB size limit"
+            )
+        try:
+            text = content.decode("utf-8-sig")
+            header = next(csv.reader(io.StringIO(text)))
+        except (UnicodeDecodeError, StopIteration, csv.Error) as exc:
+            raise InvalidUpload("CSV dataset must be valid UTF-8 CSV") from exc
+        if not any(column.strip() for column in header):
+            raise InvalidUpload("CSV dataset must contain a header row")

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { artifactKeys } from "../api/artifacts";
+import { artifactKeys, currentArtifact } from "../api/artifacts";
 import { useStartWorkflowJob } from "../api/workflows";
 import { useRenameReview } from "../api/reviews";
 import type { ArtifactView, ReviewEntryMode } from "../api/types";
@@ -92,7 +92,7 @@ export function ReviewSetupPage() {
     payload,
     draftChanged,
   );
-  const effectiveArtifact = autosave.artifact ?? picoArtifact;
+  const effectiveArtifact = currentArtifact(picoArtifact, autosave.artifact);
   const picoComplete = Object.values(draft.pico).every((value) => value.trim());
 
   useEffect(() => setName(review.name), [review.name]);

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { artifactKeys } from "../api/artifacts";
+import { artifactKeys, currentArtifact } from "../api/artifacts";
 import {
   useImportScreeningRecords,
   useStartWorkflowJob,
@@ -125,7 +125,7 @@ export function ScreeningPage() {
     selectionPayload,
     selectionChanged && Boolean(selectedArtifact),
   );
-  const effectiveSelected = autosave.artifact ?? selectedArtifact;
+  const effectiveSelected = currentArtifact(selectedArtifact, autosave.artifact);
 
   useEffect(() => {
     if (selectedArtifact && selectedArtifact.version !== hydratedVersion.current) {

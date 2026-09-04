@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { artifactKeys } from "../api/artifacts";
+import { artifactKeys, currentArtifact } from "../api/artifacts";
 import { fileKeys, useReviewFiles, useUploadReviewFiles } from "../api/files";
 import { usePdfDisclosure, useSetPdfDisclosure } from "../api/settings";
 import { useStartWorkflowJob } from "../api/workflows";
@@ -151,7 +151,7 @@ export function ExtractionPage() {
   const [resultsChanged, setResultsChanged] = useState(false);
   const hydratedVersion = useRef(existingSources?.version);
   const autosave = useAutosavedArtifact(review.id, "sources", draft, resultsChanged);
-  const effectiveSources = autosave.artifact ?? existingSources;
+  const effectiveSources = currentArtifact(existingSources, autosave.artifact);
 
   useEffect(() => {
     if (existingSources && existingSources.version !== hydratedVersion.current) {
