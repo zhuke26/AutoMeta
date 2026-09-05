@@ -83,6 +83,14 @@ Every Review uses versioned local artifacts and explicit approval gates:
 5. **Meta-analysis** creates an editable method plan from manually uploaded CSV
    files and runs it only after explicit Plan approval.
 
+Search offers two explicit generation paths. **Generate query** creates a fast
+PICO-based draft. **Generate with retrieval feedback** first retrieves a bounded
+PubMed seed set, uses those real records to expand the strategy, and displays
+the seed/expanded queries, term changes, and PubMed result-count change. You may
+optionally enter known-study PMIDs to display transparent query coverage; this
+is user-supplied diagnostic context, not benchmark recall. Both paths save an
+editable draft, and only the approved final query is executed downstream.
+
 Editable content is autosaved as a draft. Approving a draft allows downstream
 use. Editing an approved upstream artifact revokes its approval and marks every
 downstream artifact stale, so outdated results cannot be consumed silently.

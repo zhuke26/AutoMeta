@@ -145,17 +145,17 @@ SearchAgent.expand_with_retrieval_feedback(
 - Produces a locally mergeable Phase 2B branch and leaves PDF evidence navigation
   and expanded statistics for their dedicated plans.
 
-- [ ] Add an integration test proving seed and expanded strategies are versioned,
+- [x] Add an integration test proving seed and expanded strategies are versioned,
   an approved edited final query is the only query executed, and rerun lineage
   points to the exact historical PICO version.
-- [ ] Document fast generation versus retrieval-informed generation, PubMed network
+- [x] Document fast generation versus retrieval-informed generation, PubMed network
   requirements, known-study coverage semantics, and privacy boundaries.
-- [ ] Run all Python tests, Ruff, all frontend tests, typecheck, two deterministic
+- [x] Run all Python tests, Ruff, all frontend tests, typecheck, two deterministic
   builds, production-content scans, and package build/install smoke tests.
-- [ ] Start Uvicorn with temporary data and browser-test both generation choices,
+- [x] Start Uvicorn with temporary data and browser-test both generation choices,
   comparison rendering, edit/approve flow, and 1024/1280/1440/1920 layouts using
   controlled fake HTTP dependencies where external credentials are unavailable.
-- [ ] Record exact results, verify no remote is configured, commit locally, use
+- [x] Record exact results, verify no remote is configured, commit locally, use
   `verification-before-completion`, and merge locally with
   `finishing-a-development-branch`. Never push.
 
@@ -170,3 +170,14 @@ SearchAgent.expand_with_retrieval_feedback(
   rerun using the exact PICO version and request.
 - The UI shows no benchmark language, fabricated metric, credential, or enabled
   dead control, and remains usable at all supported widths.
+
+## Verification Record (2026-09-05)
+
+- `.venv/bin/python -m pytest tests -q`: 133 tests passed.
+- `.venv/bin/ruff check .`: passed.
+- `npm test -- --run`: 17 files and 59 tests passed.
+- `npm run typecheck` and two deterministic `npm run build` executions passed.
+- Focused API tests verified approved-PICO gating, durable `search.expand`,
+  persisted comparison data, provenance operation metadata, and historical rerun.
+- A temporary Uvicorn runtime rendered persisted seed/expanded feedback at 1024,
+  1280, 1440, and 1920 px with no horizontal overflow or console warnings/errors.
