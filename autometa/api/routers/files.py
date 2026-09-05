@@ -43,17 +43,27 @@ def list_review_files(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/files/{file_id}/content", response_class=FileResponse)
-def read_file(
+@router.get(
+    "/reviews/{review_id}/files/{file_id}/content",
+    response_class=FileResponse,
+)
+def read_review_pdf(
+    review_id: str,
     file_id: str,
     storage: FileStorage = Depends(get_file_storage),
 ) -> FileResponse:
     try:
-        record = storage.get(file_id)
+        record = storage.get_review_file(review_id, file_id, kind="pdf")
         path = storage.resolve(record)
     except StoredFileNotFound as exc:
         raise HTTPException(status_code=404, detail=f"File not found: {file_id}") from exc
-    return FileResponse(path, media_type=record.mime_type, filename=record.original_name)
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=record.original_name,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.post(

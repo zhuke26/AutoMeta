@@ -115,15 +115,15 @@
   `application/pdf`, inline disposition, byte-range support, and private no-store
   caching.
 
-- [ ] Write failing tests for Review ownership, PDF-only restriction, missing
+- [x] Write failing tests for Review ownership, PDF-only restriction, missing
   files, path traversal resistance, full response, valid/invalid byte ranges,
   content length/range headers, and absence of absolute paths.
-- [ ] Verify RED before adding the endpoint.
-- [ ] Resolve only through `FileStorage`, validate ownership/kind, and stream the
+- [x] Verify RED before adding the endpoint.
+- [x] Resolve only through `FileStorage`, validate ownership/kind, and stream the
   validated file without loading the complete PDF into memory.
-- [ ] Implement single-range `bytes=start-end` responses (`206`) and `416` for
+- [x] Implement single-range `bytes=start-end` responses (`206`) and `416` for
   malformed/out-of-range requests so PDF.js can seek.
-- [ ] Run focused/full tests and Ruff; commit as `feat: serve Review PDF content`.
+- [x] Run focused/full tests and Ruff; commit as `feat: serve Review PDF content`.
 
 ### Task 5: Build the local PDF.js evidence reader
 

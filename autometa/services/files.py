@@ -165,6 +165,18 @@ class FileStorage:
             raise StoredFileNotFound(file_id)
         return record
 
+    def get_review_file(
+        self,
+        review_id: str,
+        file_id: str,
+        *,
+        kind: str | None = None,
+    ) -> FileRecord:
+        record = self.get(file_id)
+        if record.review_id != review_id or (kind is not None and record.kind != kind):
+            raise StoredFileNotFound(file_id)
+        return record
+
     def resolve(self, record: FileRecord) -> Path:
         path = (self.data_dir / record.relative_path).resolve()
         try:
