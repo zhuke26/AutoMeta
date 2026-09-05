@@ -1,188 +1,144 @@
-"""
-Text chunking and BM25-based semantic filtering for extraction.
-Splits parsed PDF text into overlapping chunks and retrieves
-the most relevant chunks for each extraction context.
-"""
+"""Text chunking and BM25 retrieval with source provenance."""
 
-import logging
-import re
-from typing import List, Tuple
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+from autometa.schemas.extraction_models import ParsedPDF, SourceLocator, TextChunk
 
-
-# ---------------------------------------------------------------------------
-# Chunking
-# ---------------------------------------------------------------------------
 
 def chunk_text(
     text: str,
     chunk_size: int = 1000,
     overlap: int = 200,
     source: str = "body",
-) -> List[dict]:
-    """
-    Split text into overlapping chunks with sentence-boundary awareness.
-
-    Returns list of dicts: {"text", "source", "start_char", "end_char"}
-    """
+    *,
+    source_id: str = "source",
+    locator: SourceLocator | None = None,
+) -> list[TextChunk]:
     if not text or not text.strip():
         return []
-
     chunks = []
     start = 0
-    text_len = len(text)
-
-    while start < text_len:
-        end = min(start + chunk_size, text_len)
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
         chunk_str = text[start:end]
-
-        # Try to break at a sentence boundary within the last 20% of the chunk
-        if end < text_len:
+        if end < len(text):
             boundary_start = int(chunk_size * 0.8)
-            boundary_zone = chunk_str[boundary_start:]
-            match = re.search(r"[.!?]\s", boundary_zone)
+            boundary = chunk_str[boundary_start:]
+            import re
+
+            match = re.search(r"[.!?]\s", boundary)
             if match:
                 end = start + boundary_start + match.end()
                 chunk_str = text[start:end]
-
         stripped = chunk_str.strip()
         if stripped:
-            chunks.append({
-                "text": stripped,
-                "source": source,
-                "start_char": start,
-                "end_char": end,
-            })
-
-        # Ensure forward progress: advance by at least 1 character
+            chunk_id = f"{source_id}:{len(chunks)}"
+            chunk_locator = locator.model_copy(update={
+                "source_id": chunk_id,
+                "text_start": start,
+                "text_end": end,
+            }) if locator else None
+            chunks.append(TextChunk(
+                text=stripped,
+                source=source,
+                start_char=start,
+                end_char=end,
+                source_id=chunk_id,
+                locator=chunk_locator,
+            ))
         next_start = end - overlap
-        if next_start <= start:
-            next_start = end
-        start = next_start
-        if start >= text_len:
-            break
-
+        start = end if next_start <= start else next_start
     return chunks
 
 
 def chunk_document(
-    markdown_text: str,
-    tables: List[str],
+    document: ParsedPDF | str,
+    tables: list[str] | None = None,
     chunk_size: int = 1000,
     overlap: int = 200,
-) -> Tuple[List[dict], List[dict]]:
-    """
-    Chunk a full parsed document into body chunks and table chunks.
-
-    Returns:
-        (body_chunks, table_chunks)
-    Body chunks are from the main text; table chunks are standalone (one per table).
-    """
-    body_chunks = chunk_text(markdown_text, chunk_size, overlap, source="body")
-
-    table_chunks = []
-    for table_md in tables:
-        stripped = table_md.strip()
-        if stripped:
-            table_chunks.append({
-                "text": stripped,
-                "source": "table",
-                "start_char": 0,
-                "end_char": len(stripped),
-            })
-
+) -> tuple[list[TextChunk], list[TextChunk]]:
+    if isinstance(document, ParsedPDF):
+        body_chunks: list[TextChunk] = []
+        table_chunks: list[TextChunk] = []
+        elements = document.elements
+        if not elements and document.markdown_text:
+            return chunk_document(document.markdown_text, document.tables, chunk_size, overlap)
+        for element in elements:
+            if element.locator.element_type == "table":
+                table_chunks.append(TextChunk(
+                    text=element.text,
+                    source="table",
+                    start_char=0,
+                    end_char=len(element.text),
+                    source_id=element.source_id,
+                    locator=element.locator,
+                ))
+            else:
+                body_chunks.extend(chunk_text(
+                    element.text,
+                    chunk_size,
+                    overlap,
+                    source="body",
+                    source_id=element.source_id,
+                    locator=element.locator,
+                ))
+        return body_chunks, table_chunks
+    body_chunks = chunk_text(document, chunk_size, overlap, source="body")
+    table_chunks = [
+        TextChunk(
+            text=value.strip(),
+            source="table",
+            start_char=0,
+            end_char=len(value.strip()),
+            source_id=f"table-{index}",
+        )
+        for index, value in enumerate(tables or [])
+        if value.strip()
+    ]
     return body_chunks, table_chunks
 
 
-# ---------------------------------------------------------------------------
-# BM25 retrieval
-# ---------------------------------------------------------------------------
-
 def retrieve_relevant_chunks(
-    body_chunks: List[dict],
+    body_chunks: list[TextChunk],
     query: str,
     top_k: int = 15,
-) -> List[dict]:
-    """
-    Use BM25 to retrieve the top-k most relevant body-text chunks for a query.
-    """
+) -> list[TextChunk]:
     from rank_bm25 import BM25Okapi
 
     if not body_chunks:
         return []
-
-    corpus = [c["text"].lower().split() for c in body_chunks]
-    query_tokens = query.lower().split()
-
-    bm25 = BM25Okapi(corpus)
-    scores = bm25.get_scores(query_tokens)
-
-    scored_indices = sorted(
-        range(len(scores)),
-        key=lambda i: scores[i],
-        reverse=True,
-    )[:top_k]
-
-    return [body_chunks[i] for i in scored_indices]
+    corpus = [chunk.text.lower().split() for chunk in body_chunks]
+    scores = BM25Okapi(corpus).get_scores(query.lower().split())
+    indices = sorted(range(len(scores)), key=lambda index: scores[index], reverse=True)[:top_k]
+    return [body_chunks[index] for index in indices]
 
 
 def build_context_chunks(
-    body_chunks: List[dict],
-    table_chunks: List[dict],
-    field_names_and_descs: List[Tuple[str, str]],
+    body_chunks: list[TextChunk],
+    table_chunks: list[TextChunk],
+    field_names_and_descs: list[tuple[str, str]],
     top_k: int = 15,
-) -> List[dict]:
-    """
-    Build the final context chunk list for an extraction call:
-    1. Combine all field names+descriptions into a single BM25 query
-    2. Retrieve top-k body chunks by relevance
-    3. Always include ALL table chunks
-    4. Deduplicate by text content
-
-    Returns: deduplicated list of chunk dicts.
-    """
-    # Build combined query
-    query_parts = []
-    for name, desc in field_names_and_descs:
-        query_parts.append(name)
-        if desc:
-            query_parts.append(desc)
-    query = " ".join(query_parts)
-
-    # BM25 on body chunks
-    relevant_body = retrieve_relevant_chunks(body_chunks, query, top_k=top_k)
-
-    # Merge with all table chunks, deduplicate
-    seen = set()
+) -> list[TextChunk]:
+    query = " ".join(
+        part
+        for name, description in field_names_and_descs
+        for part in (name, description)
+        if part
+    )
+    selected = retrieve_relevant_chunks(body_chunks, query, top_k=top_k)
+    seen: set[str] = set()
     merged = []
-    for chunk in relevant_body + table_chunks:
-        text_hash = hash(chunk["text"])
-        if text_hash not in seen:
-            seen.add(text_hash)
+    for chunk in selected + table_chunks:
+        if chunk.text not in seen:
+            seen.add(chunk.text)
             merged.append(chunk)
-
     return merged
 
 
-# ---------------------------------------------------------------------------
-# Formatting
-# ---------------------------------------------------------------------------
-
-def format_chunks_with_citations(chunks: List[dict]) -> str:
-    """
-    Format chunks as numbered XML citation blocks for LLM consumption.
-
-    Example output:
-        <source id="1"><content>Some text from the paper...</content></source>
-        <source id="2"><content>A table from the paper...</content></source>
-    """
+def format_chunks_with_citations(chunks: list[TextChunk]) -> str:
     if not chunks:
         return "(No relevant content found)"
-
-    parts = []
-    for i, chunk in enumerate(chunks, start=1):
-        parts.append(
-            f'<source id="{i}"><content>{chunk["text"]}</content></source>'
-        )
-    return "\n\n".join(parts)
+    return "\n\n".join(
+        f'<source id="{chunk.source_id}"><content>{chunk.text}</content></source>'
+        for chunk in chunks
+    )

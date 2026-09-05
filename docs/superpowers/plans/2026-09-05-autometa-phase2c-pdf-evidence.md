@@ -64,15 +64,15 @@
 - `chunk_document(document)` returns `TextChunk` objects with stable source IDs
   and inherited locators.
 
-- [ ] Write failing adapter tests using minimal fake Docling documents and a
+- [x] Write failing adapter tests using minimal fake Docling documents and a
   generated two-page PDF fallback fixture.
-- [ ] Verify RED before changing parser/chunker production code.
-- [ ] Convert Docling text/table items and their `prov` records into elements.
+- [x] Verify RED before changing parser/chunker production code.
+- [x] Convert Docling text/table items and their `prov` records into elements.
   Preserve exact page numbers, page sizes, bounding boxes, table indices, and
   parser version. Ignore malformed provenance instead of guessing.
-- [ ] Make pypdfium2 fallback emit one body element per page with page number and
+- [x] Make pypdfium2 fallback emit one body element per page with page number and
   dimensions but no bbox/table coordinates.
-- [ ] Preserve element locators through overlap chunking, BM25 selection,
+- [x] Preserve element locators through overlap chunking, BM25 selection,
   deduplication, and `<source id="...">` formatting; run focused/full tests and
   commit as `feat: preserve PDF parser provenance`.
 

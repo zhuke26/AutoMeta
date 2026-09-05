@@ -275,9 +275,7 @@ async def review_uncertain_papers_stream(
                 parsed_list = parse_pdfs([tmp_path])
                 if parsed_list:
                     parsed = parsed_list[0]
-                    md_text = parsed[1] if isinstance(parsed, tuple) else parsed.text
-                    tables = parsed[2] if isinstance(parsed, tuple) else parsed.tables
-                    body_chunks, table_chunks = chunk_document(md_text, tables)
+                    body_chunks, table_chunks = chunk_document(parsed)
                     pico_queries = [
                         ("Population", body.pico.P),
                         ("Intervention", body.pico.I),

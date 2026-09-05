@@ -312,15 +312,7 @@ class ExtractionAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _parse_pdfs(self, file_paths: List[str]) -> List[ParsedPDF]:
-        raw_results = parse_pdfs(file_paths)
-        docs = []
-        for filename, md, tables, pages in raw_results:
-            docs.append(ParsedPDF(
-                filename=filename,
-                markdown_text=md,
-                tables=tables,
-                num_pages=pages,
-            ))
+        docs = parse_pdfs(file_paths)
         logger.info(
             "[ExtractionAgent] Parsed %d/%d PDFs successfully",
             sum(1 for d in docs if d.markdown_text), len(file_paths),
@@ -358,9 +350,7 @@ class ExtractionAgent(BaseAgent):
                 result_contexts.append("(PDF parsing failed — no content available)")
                 continue
 
-            body_chunks, table_chunks = chunk_document(
-                doc.markdown_text, doc.tables,
-            )
+            body_chunks, table_chunks = chunk_document(doc)
 
             # Characteristics context
             if char_field_tuples:
@@ -653,26 +643,23 @@ class ExtractionAgent(BaseAgent):
                 "data": {"filename": filename, "index": index, "total": len(file_paths)},
             }
             try:
-                md, tables, pages = parse_pdf(file_path)
+                doc = parse_pdf(file_path)
                 logger.info(
                     "[ExtractionAgent] Parsed %s: %d chars, %d tables, %d pages",
-                    filename, len(md), len(tables), pages,
-                )
-                doc = ParsedPDF(
-                    filename=filename,
-                    markdown_text=md,
-                    tables=tables,
-                    num_pages=pages,
+                    filename,
+                    len(doc.markdown_text),
+                    len(doc.tables),
+                    doc.num_pages,
                 )
                 parsed_docs.append(doc)
                 yield {
                     "type": "parsing",
                     "data": {
                         "filename": filename,
-                        "status": "ok" if md else "failed",
+                        "status": "ok" if doc.markdown_text else "failed",
                         "index": index,
                         "total": len(file_paths),
-                        "pages": pages,
+                        "pages": doc.num_pages,
                     },
                 }
             except Exception as exc:
