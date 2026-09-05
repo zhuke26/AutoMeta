@@ -266,8 +266,8 @@ type ApproveArtifactInput = { artifact_id: string; version: number };
 - [x] Run the complete Python suite, Ruff, wheel/sdist build, wheel-content inspection, and a clean virtual-environment smoke install.
 - [x] Start real Uvicorn with a temporary data directory and browser-test Guided plus each independent entry path at 1024, 1280, 1440, and 1920 px.
 - [x] Verify no console errors, remote font/CDN requests, API key/browser storage, fabricated results, benchmark content, or enabled dead controls.
-- [ ] Confirm `git remote -v` is empty and all changes are committed locally.
-- [ ] Use `verification-before-completion`, then `finishing-a-development-branch`; merge locally into `main` only after all checks pass, never push.
+- [x] Confirm `git remote -v` is empty and all changes are committed locally.
+- [x] Use `verification-before-completion`, then `finishing-a-development-branch`; merge locally into `main` only after all checks pass, never push.
 
 ## Verification Record (2026-09-05)
 
