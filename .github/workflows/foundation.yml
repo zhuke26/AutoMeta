@@ -62,3 +62,26 @@ jobs:
           python -m build
       - name: Verify wheel install and CLI
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', '--no-deps', glob.glob('dist/*.whl')[0]]); subprocess.check_call([sys.executable, '-m', 'autometa', '--help'])"
+
+  docker:
+    name: Docker / Linux CPU
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build CPU image
+        run: docker build --tag autometa:test .
+      - name: Start container
+        run: docker run --detach --name autometa-test --publish 127.0.0.1:8016:8016 autometa:test
+      - name: Verify health endpoint
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8016/api/v1/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs autometa-test
+          exit 1
+      - name: Stop container
+        if: always()
+        run: docker rm --force autometa-test

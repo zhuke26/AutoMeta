@@ -1,3 +1,4 @@
+from autometa.stats.analysis import run_analysis
 from autometa.stats.effects import (
     continuous_effect,
     dichotomous_effect,
@@ -12,4 +13,5 @@ __all__ = [
     "dichotomous_effect",
     "pool_effects",
     "reported_effect",
+    "run_analysis",
 ]

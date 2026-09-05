@@ -169,17 +169,40 @@
 - Modify: `README.md`
 - Modify: `docs/superpowers/plans/2026-09-05-autometa-phase2d-statistics.md` only to check boxes and record evidence.
 
-- [ ] Add an end-to-end test from CSV upload and approved plan through result,
+- [x] Add an end-to-end test from CSV upload and approved plan through result,
   diagnostics, three plot files, audit export, and Review deletion.
-- [ ] Document supported methods, exact assumptions, non-convergence behavior,
+- [x] Document supported methods, exact assumptions, non-convergence behavior,
   output files, and the R-free end-user runtime.
-- [ ] Run all Python/frontend/Ruff/typecheck/deterministic-build/wheel/sdist and
+- [x] Run all Python/frontend/Ruff/typecheck/deterministic-build/wheel/sdist and
   clean-install gates on the supported local Python version.
-- [ ] Render every plot format and browser-test Meta-analysis at
+- [x] Render every plot format and browser-test Meta-analysis at
   1024/1280/1440/1920 with no clipping, console errors, remote assets, or dead
   controls.
 - [ ] Verify reference fixture values field by field, scan for credentials and
   manuscript/benchmark data, confirm no remote, and merge locally without push.
+
+## Verification Record (2026-09-05)
+
+- `.venv/bin/python -m pytest tests -q`: 170 tests passed, including the
+  `metafor` reference fields, executable generated code, migrations, the public
+  repository policy, and the full statistics/figure/delete API workflow.
+- `.venv/bin/ruff check .`: passed.
+- `npm test -- --run`: 20 files and 64 tests passed; `npm run typecheck` passed.
+- Two consecutive production builds produced identical hashes for every
+  committed static asset.
+- `uv build` produced both sdist and wheel; the wheel and its complete runtime
+  dependency set installed into a clean Python 3.12 environment, where the CLI,
+  FastAPI app, shared statistics engine, and plot renderer imported successfully.
+- Windows Python 3.12 dependency resolution succeeded, and CI covers Windows
+  3.11/3.12 plus a Linux CPU Docker build/start health check. Docker is not
+  installed on the local macOS host, so the container itself was not run here.
+- SVG, PNG, and PDF plots were rendered; PNG and Poppler-rendered PDF inspection
+  showed no clipping. The PDF is a single page without JavaScript or timestamps.
+- A real local Review rendered prediction intervals, leave-one-out and subgroup
+  tables, an SVG preview, and three download controls at 1024/1280/1440/1920 px
+  with no document overflow or browser console warnings/errors.
+- Credential-shape, private-path, runtime-content, remote-asset, browser-storage,
+  English-interface, and legacy-identity checks passed; no Git remote is set.
 
 ## Completion Criteria
 

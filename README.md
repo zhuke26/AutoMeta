@@ -50,6 +50,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
+python -m alembic upgrade head
 ```
 
 On Windows PowerShell, activate the environment with:
@@ -59,6 +60,7 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
+python -m alembic upgrade head
 ```
 
 Copy `.env.example` to `.env` and configure the OpenAI-compatible endpoint,
@@ -67,6 +69,26 @@ API key, and model before starting the server.
 Open <http://127.0.0.1:8016> and create a Review. The Library, uploaded files,
 drafts, approvals, generated code, and results persist under the configured
 local data directory.
+
+## Docker on Linux
+
+The image uses Python 3.12, the committed frontend assets, and CPU-only runtime
+dependencies; Node.js is not installed in the image. From the repository root:
+
+```bash
+docker build -t autometa:local .
+docker run --rm --name autometa \
+  --publish 127.0.0.1:8016:8016 \
+  --volume autometa-data:/data \
+  --env-file .env \
+  --env AUTOMETA_DATA_DIR=/data \
+  --env AUTOMETA_HOST=0.0.0.0 \
+  autometa:local
+```
+
+The host-side port remains bound to `127.0.0.1`. The container applies pending
+SQLite migrations before starting AutoMeta and exposes a local health check at
+`/api/v1/health`.
 
 ## Review workflow
 
@@ -99,6 +121,40 @@ Background work is persisted in SQLite and continues if the browser closes
 while Uvicorn remains running. Reopening the Review restores its latest job.
 After a server restart, unfinished jobs are marked `interrupted`; review the
 saved inputs and run the stage again.
+
+## Statistical methods and figures
+
+AutoMeta derives mean differences (MD), standardized mean differences (SMD),
+Hedges' g, odds ratios (OR), risk ratios (RR), and risk differences (RD) from
+declared arm-level columns. It can also use a reported effect with a 95% CI,
+standard error, or variance. Ratio measures are analyzed on the log scale and
+back-transformed for presentation. Zero-cell continuity correction is used only
+when it is explicitly present in the approved method plan.
+
+Pooling choices are fixed inverse variance, DerSimonian-Laird random effects,
+and restricted maximum likelihood (REML) random effects. Results report the
+pooled 95% normal-theory CI, Cochran's Q and p-value, I², tau², and tau. A
+normal-reference prediction interval is reported for random-effects analyses
+with at least three studies. Leave-one-out estimates and subgroup pools call the
+same engine with the approved effect scale and model; subgroup analysis requires
+a populated subgroup column with at least two groups.
+
+Invalid inputs or REML non-convergence stop the analysis with an explicit error.
+AutoMeta never silently changes the effect measure, source columns, pooling
+model, heterogeneity estimator, continuity correction, or subgroup field.
+
+Each successful analysis stores deterministic Review-owned forest plots in SVG,
+PNG, and PDF under `data/reviews/<review-id>/figures/`. The result artifact keeps
+only file IDs, names, and media types; the files are served through Review-scoped
+local endpoints and are included by metadata and hash in the audit export.
+End-user calculation and figure generation require Python only. R is not a
+runtime dependency; the repository records constructed `metafor` reference
+values solely for numeric cross-checking in the test suite.
+
+The generated calculation script reads the corresponding CSV from its own
+directory and calls the same `autometa.stats.run_analysis` function used by the
+server, so its JSON result can be compared directly with the persisted result
+artifact.
 
 ## Provenance and reruns
 

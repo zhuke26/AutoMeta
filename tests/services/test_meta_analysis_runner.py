@@ -1,3 +1,7 @@
+import json
+import subprocess
+import sys
+
 import pandas as pd
 import pytest
 
@@ -81,3 +85,24 @@ def test_runner_returns_reml_prediction_influence_and_subgroups() -> None:
     assert len(result.leave_one_out) == 4
     assert [group.label for group in result.subgroup_analysis.groups] == ["Early", "Late"]
     assert "from autometa.stats import" in response.generated_code["effects.csv"]
+
+
+def test_generated_script_reproduces_the_server_result(tmp_path) -> None:
+    frame = pd.DataFrame([
+        {"study": "A", "mean_t": 5, "sd_t": 1, "n_t": 20, "mean_c": 3, "sd_c": 1, "n_c": 20},
+        {"study": "B", "mean_t": 6, "sd_t": 2, "n_t": 30, "mean_c": 4, "sd_c": 2, "n_c": 30},
+    ])
+    frame.to_csv(tmp_path / "effects.csv", index=False)
+    response = MetaAnalysisRunnerAgent().run([_plan()], {"effects.csv": frame})
+    script = tmp_path / "analysis.py"
+    script.write_text(response.generated_code["effects.csv"], encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert json.loads(completed.stdout) == response.results[0].model_dump(mode="json")
