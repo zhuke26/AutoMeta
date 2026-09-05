@@ -278,6 +278,7 @@ class WorkflowOperationRegistry:
         )
         result = ExtractionAgent().run(
             file_paths=paths,
+            file_ids=[record.id for record in records],
             pico=pico,
             char_fields=characteristic_fields,
             result_fields=result_fields,

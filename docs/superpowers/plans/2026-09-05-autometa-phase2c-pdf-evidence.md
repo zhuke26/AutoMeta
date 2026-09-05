@@ -90,16 +90,16 @@
 - `ExtractionAgent.run(..., file_ids: list[str] | None = None)` writes
   `FieldExtraction.source` only after deterministic validation.
 
-- [ ] Write failing tests for accepted source IDs, unique quotation fallback,
+- [x] Write failing tests for accepted source IDs, unique quotation fallback,
   rejected mismatches/ambiguity, file-ID association, researcher edits retaining
   the original locator, and no locator on `NOT FOUND`.
-- [ ] Verify RED with agent and extraction workflow tests.
-- [ ] Include stable source IDs in model context and function schemas. Map each
+- [x] Verify RED with agent and extraction workflow tests.
+- [x] Include stable source IDs in model context and function schemas. Map each
   output citation back to the exact chunks supplied for that file; never ask the
   model to invent page/table/bbox fields.
-- [ ] Store locators in the Sources artifact and provenance/audit export while
+- [x] Store locators in the Sources artifact and provenance/audit export while
   keeping raw PDF text out of events.
-- [ ] Run focused/full backend tests and Ruff; commit as
+- [x] Run focused/full backend tests and Ruff; commit as
   `feat: attach verified extraction sources`.
 
 ### Task 4: Serve Review-owned PDFs safely for local viewing

@@ -13,10 +13,11 @@ Four-step pipeline:
 import json
 import logging
 from pathlib import Path
-from typing import Generator, List, Tuple
+from typing import Generator, List
 
 from autometa.agents.base_agent import BaseAgent
 from autometa.config import AgentStage, get_settings
+from autometa.extraction import validate_source_reference
 from autometa.prompts.extraction import (
     RESULT_TARGET_PLANNING,
     RESULT_TARGET_PLANNING_TOOL,
@@ -31,6 +32,7 @@ from autometa.schemas.extraction_models import (
     FieldExtraction,
     ParsedPDF,
     ResultsRow,
+    TextChunk,
 )
 from autometa.schemas.models import PICODefinition
 from autometa.tools.chunker import (
@@ -74,6 +76,7 @@ def _build_characteristics_tool(field_names: List[str]) -> dict:
                                 "field_name": {"type": "string"},
                                 "value": {"type": "string", "description": "Extracted value or 'NOT FOUND'"},
                                 "citation": {"type": "string", "description": "Verbatim quote from the paper"},
+                                "source_id": {"type": "string", "description": "ID of the supplied source block containing the citation"},
                                 "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
                             },
                             "required": ["field_name", "value", "confidence"],
@@ -118,6 +121,7 @@ def _build_results_tool(field_names: List[str]) -> dict:
                                             "field_name": {"type": "string"},
                                             "value": {"type": "string"},
                                             "citation": {"type": "string"},
+                                            "source_id": {"type": "string", "description": "ID of the supplied source block containing the citation"},
                                             "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
                                         },
                                         "required": ["field_name", "value", "confidence"],
@@ -254,6 +258,7 @@ class ExtractionAgent(BaseAgent):
         pico: PICODefinition,
         char_fields: List[ExtractionFieldDefinition],
         result_fields: List[ExtractionFieldDefinition],
+        file_ids: List[str] | None = None,
         top_k: int = 15,
         max_concurrency: int = 10,
     ) -> ExtractionOutput:
@@ -266,11 +271,11 @@ class ExtractionAgent(BaseAgent):
 
         # Step 1: Parse PDFs
         parsed_docs = self._run_step(
-            "parse_pdfs", self._parse_pdfs, file_paths,
+            "parse_pdfs", self._parse_pdfs, file_paths, file_ids,
         )
 
         # Step 2: Chunk + semantic filtering
-        char_contexts, result_contexts = self._run_step(
+        char_contexts, result_contexts, char_sources, result_sources = self._run_step(
             "chunk_and_retrieve",
             self._chunk_and_retrieve,
             parsed_docs, char_fields, result_fields, top_k, pico.O,
@@ -282,7 +287,7 @@ class ExtractionAgent(BaseAgent):
             characteristics = self._run_step(
                 "extract_characteristics",
                 self._extract_characteristics,
-                parsed_docs, char_contexts, pico_dict, char_fields, max_concurrency,
+                parsed_docs, char_contexts, char_sources, pico_dict, char_fields, max_concurrency,
             )
 
         # Step 3b: Extract results
@@ -296,7 +301,7 @@ class ExtractionAgent(BaseAgent):
             results = self._run_step(
                 "extract_results",
                 self._extract_results,
-                parsed_docs, result_contexts, pico_dict, result_fields, max_concurrency, planned_targets,
+                parsed_docs, result_contexts, result_sources, pico_dict, result_fields, max_concurrency, planned_targets,
             )
 
         output = ExtractionOutput(characteristics=characteristics, results=results)
@@ -311,8 +316,12 @@ class ExtractionAgent(BaseAgent):
     # Step 1: PDF Parsing
     # ------------------------------------------------------------------
 
-    def _parse_pdfs(self, file_paths: List[str]) -> List[ParsedPDF]:
-        docs = parse_pdfs(file_paths)
+    def _parse_pdfs(
+        self,
+        file_paths: List[str],
+        file_ids: List[str] | None = None,
+    ) -> List[ParsedPDF]:
+        docs = parse_pdfs(file_paths, file_ids=file_ids)
         logger.info(
             "[ExtractionAgent] Parsed %d/%d PDFs successfully",
             sum(1 for d in docs if d.markdown_text), len(file_paths),
@@ -330,7 +339,7 @@ class ExtractionAgent(BaseAgent):
         result_fields: List[ExtractionFieldDefinition],
         top_k: int,
         pico_outcome: str = "",
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[List[str], List[str], List[List[TextChunk]], List[List[TextChunk]]]:
         """
         For each document, chunk body text and retrieve relevant context.
 
@@ -343,11 +352,15 @@ class ExtractionAgent(BaseAgent):
 
         char_contexts = []
         result_contexts = []
+        char_sources: List[List[TextChunk]] = []
+        result_sources: List[List[TextChunk]] = []
 
         for doc in docs:
             if not doc.markdown_text:
                 char_contexts.append("(PDF parsing failed — no content available)")
                 result_contexts.append("(PDF parsing failed — no content available)")
+                char_sources.append([])
+                result_sources.append([])
                 continue
 
             body_chunks, table_chunks = chunk_document(doc)
@@ -358,8 +371,10 @@ class ExtractionAgent(BaseAgent):
                     body_chunks, table_chunks, char_field_tuples, top_k=top_k,
                 )
                 char_contexts.append(format_chunks_with_citations(char_chunks))
+                char_sources.append(char_chunks)
             else:
                 char_contexts.append("")
+                char_sources.append([])
 
             # Results context: include PICO outcome and common statistical terms
             # so retrieval is not driven only by user field labels such as "OR".
@@ -372,13 +387,15 @@ class ExtractionAgent(BaseAgent):
                     body_chunks, table_chunks, result_queries, top_k=top_k,
                 )
                 result_contexts.append(format_chunks_with_citations(result_chunks))
+                result_sources.append(result_chunks)
             else:
                 result_contexts.append("")
+                result_sources.append([])
 
         logger.info(
             "[ExtractionAgent] Chunked %d documents, contexts ready", len(docs),
         )
-        return char_contexts, result_contexts
+        return char_contexts, result_contexts, char_sources, result_sources
 
     # ------------------------------------------------------------------
     # Step 3a: Extract Characteristics
@@ -388,6 +405,7 @@ class ExtractionAgent(BaseAgent):
         self,
         docs: List[ParsedPDF],
         char_contexts: List[str],
+        char_sources: List[List[TextChunk]],
         pico_dict: dict,
         char_fields: List[ExtractionFieldDefinition],
         max_concurrency: int,
@@ -427,13 +445,16 @@ class ExtractionAgent(BaseAgent):
         rows = []
         for i, doc in enumerate(docs):
             raw = result_map.get(i, {})
-            extractions = self._parse_characteristics(raw, field_names)
+            extractions = self._parse_characteristics(raw, field_names, char_sources[i])
             rows.append(CharacteristicsRow(filename=doc.filename, extractions=extractions))
 
         return rows
 
     def _parse_characteristics(
-        self, raw: dict, field_names: List[str],
+        self,
+        raw: dict,
+        field_names: List[str],
+        chunks: List[TextChunk] | None = None,
     ) -> List[FieldExtraction]:
         raw_extractions = raw.get("extractions", [])
 
@@ -447,11 +468,19 @@ class ExtractionAgent(BaseAgent):
         result = []
         for fn in field_names:
             ext = lookup.get(fn, {})
+            value = ext.get("value", "NOT FOUND")
+            citation = ext.get("citation", "")
             result.append(FieldExtraction(
                 field_name=fn,
-                value=ext.get("value", "NOT FOUND"),
-                citation=ext.get("citation", ""),
-                confidence=ext.get("confidence", "LOW") if ext.get("value", "NOT FOUND") != "NOT FOUND" else "LOW",
+                value=value,
+                citation=citation,
+                confidence=ext.get("confidence", "LOW") if value != "NOT FOUND" else "LOW",
+                source_id=ext.get("source_id") or None,
+                source=validate_source_reference(
+                    citation if value != "NOT FOUND" else "",
+                    ext.get("source_id"),
+                    chunks or [],
+                ),
             ))
         return result
 
@@ -513,6 +542,7 @@ class ExtractionAgent(BaseAgent):
         self,
         docs: List[ParsedPDF],
         result_contexts: List[str],
+        result_sources: List[List[TextChunk]],
         pico_dict: dict,
         result_fields: List[ExtractionFieldDefinition],
         max_concurrency: int,
@@ -553,13 +583,22 @@ class ExtractionAgent(BaseAgent):
         all_rows = []
         for idx, raw in zip(valid_indices, raw_results):
             doc = docs[idx]
-            rows = self._parse_results(raw, doc.filename, field_names)
+            rows = self._parse_results(
+                raw,
+                doc.filename,
+                field_names,
+                result_sources[idx],
+            )
             all_rows.extend(rows)
 
         return all_rows
 
     def _parse_results(
-        self, raw: dict, filename: str, field_names: List[str],
+        self,
+        raw: dict,
+        filename: str,
+        field_names: List[str],
+        chunks: List[TextChunk] | None = None,
     ) -> List[ResultsRow]:
         raw_rows = raw.get("rows", [])
         if not raw_rows:
@@ -582,11 +621,19 @@ class ExtractionAgent(BaseAgent):
             extractions = []
             for fn in field_names:
                 ext = lookup.get(fn, {})
+                value = ext.get("value", "NOT FOUND")
+                citation = ext.get("citation", "")
                 extractions.append(FieldExtraction(
                     field_name=fn,
-                    value=ext.get("value", "NOT FOUND"),
-                    citation=ext.get("citation", ""),
-                    confidence=ext.get("confidence", "LOW") if ext.get("value", "NOT FOUND") != "NOT FOUND" else "LOW",
+                    value=value,
+                    citation=citation,
+                    confidence=ext.get("confidence", "LOW") if value != "NOT FOUND" else "LOW",
+                    source_id=ext.get("source_id") or None,
+                    source=validate_source_reference(
+                        citation if value != "NOT FOUND" else "",
+                        ext.get("source_id"),
+                        chunks or [],
+                    ),
                 ))
 
             result_rows.append(ResultsRow(
@@ -697,7 +744,7 @@ class ExtractionAgent(BaseAgent):
 
         # Step 2: Chunk + retrieve
         try:
-            char_contexts, result_contexts = self._chunk_and_retrieve(
+            char_contexts, result_contexts, char_sources, result_sources = self._chunk_and_retrieve(
                 parsed_docs, char_fields, result_fields, top_k, pico.O,
             )
             yield {"type": "chunking_done", "data": {"total_documents": len(parsed_docs)}}
@@ -712,7 +759,7 @@ class ExtractionAgent(BaseAgent):
             try:
                 yield {"type": "extraction_start", "data": {"kind": "characteristics"}}
                 characteristics = self._extract_characteristics(
-                    parsed_docs, char_contexts, pico_dict, char_fields, max_concurrency,
+                    parsed_docs, char_contexts, char_sources, pico_dict, char_fields, max_concurrency,
                 )
             except Exception as exc:
                 logger.exception("run_stream: characteristics extraction failed")
@@ -739,7 +786,7 @@ class ExtractionAgent(BaseAgent):
                 }
                 yield {"type": "extraction_start", "data": {"kind": "results"}}
                 results = self._extract_results(
-                    parsed_docs, result_contexts, pico_dict, result_fields, max_concurrency, planned_targets,
+                    parsed_docs, result_contexts, result_sources, pico_dict, result_fields, max_concurrency, planned_targets,
                 )
             except Exception as exc:
                 logger.exception("run_stream: results extraction failed")

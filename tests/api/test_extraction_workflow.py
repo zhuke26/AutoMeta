@@ -51,8 +51,9 @@ def _wait_for_terminal(manager, job_id: str):
 
 
 class SuccessfulExtractionAgent:
-    def run(self, *, file_paths, pico, char_fields, result_fields, top_k, max_concurrency):
+    def run(self, *, file_paths, file_ids, pico, char_fields, result_fields, top_k, max_concurrency):
         assert len(file_paths) == 1
+        assert len(file_ids) == 1
         assert file_paths[0].endswith(".pdf")
         assert pico.P == "Adults"
         assert [field.name for field in char_fields] == ["Sample size"]
