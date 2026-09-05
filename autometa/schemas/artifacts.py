@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from autometa.persistence.models import ArtifactState
+from autometa.schemas.provenance import Producer
+
+
+@dataclass(frozen=True)
+class ArtifactWriteContext:
+    producer: Producer = Producer.RESEARCHER
+    stage_run_id: str | None = None
+    job_id: str | None = None
+    input_version_ids: tuple[str, ...] = ()
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ArtifactDraftRequest(BaseModel):

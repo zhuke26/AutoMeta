@@ -7,7 +7,9 @@ from threading import Event, RLock
 
 from autometa.persistence.models import JobState
 from autometa.repositories.jobs import JobRepository
+from autometa.schemas.artifacts import ArtifactWriteContext
 from autometa.schemas.jobs import JobEventView, JobView
+from autometa.schemas.provenance import Producer
 from autometa.security import SecretRedactor
 
 
@@ -20,10 +22,22 @@ class JobConflict(RuntimeError):
 
 
 class JobContext:
-    def __init__(self, manager: "JobManager", job_id: str, cancellation: Event):
+    def __init__(
+        self,
+        manager: "JobManager",
+        job_id: str,
+        cancellation: Event,
+        *,
+        stage_run_id: str | None = None,
+        input_version_ids: tuple[str, ...] = (),
+        metadata: dict | None = None,
+    ):
         self._manager = manager
         self.job_id = job_id
         self._cancellation = cancellation
+        self.stage_run_id = stage_run_id
+        self.input_version_ids = input_version_ids
+        self.metadata = dict(metadata or {})
 
     @property
     def cancelled(self) -> bool:
@@ -32,9 +46,18 @@ class JobContext:
     def emit(self, event_type: str, payload: dict) -> JobEventView:
         return self._manager._emit(self.job_id, event_type, payload)
 
+    def artifact_context(self) -> ArtifactWriteContext:
+        return ArtifactWriteContext(
+            producer=Producer.AGENT,
+            stage_run_id=self.stage_run_id,
+            job_id=self.job_id,
+            input_version_ids=self.input_version_ids,
+            metadata=self.metadata,
+        )
+
 
 JobOperation = Callable[[JobContext], dict | None]
-JobCreatedHook = Callable[[JobView], None]
+JobCreatedHook = Callable[[JobView], str | None]
 JobStateHook = Callable[[str, JobState], None]
 
 
@@ -63,6 +86,8 @@ class JobManager:
         *,
         on_created: JobCreatedHook | None = None,
         on_state_change: JobStateHook | None = None,
+        input_version_ids: tuple[str, ...] = (),
+        metadata: dict | None = None,
     ) -> JobView:
         with self._lock:
             if self._closed:
@@ -72,9 +97,10 @@ class JobManager:
             except RuntimeError as exc:
                 raise JobConflict(str(exc)) from exc
             job_view = JobView.model_validate(job)
+            stage_run_id = None
             if on_created is not None:
                 try:
-                    on_created(job_view)
+                    stage_run_id = on_created(job_view)
                 except Exception as exc:
                     self.repository.transition(
                         job.id,
@@ -90,6 +116,9 @@ class JobManager:
                 operation,
                 cancellation,
                 on_state_change,
+                stage_run_id,
+                input_version_ids,
+                metadata or {},
             )
             return job_view
 
@@ -161,11 +190,21 @@ class JobManager:
         operation: JobOperation,
         cancellation: Event,
         on_state_change: JobStateHook | None,
+        stage_run_id: str | None,
+        input_version_ids: tuple[str, ...],
+        metadata: dict,
     ) -> None:
         try:
             self.repository.transition(job_id, JobState.RUNNING)
             self._notify_state(on_state_change, job_id, JobState.RUNNING)
-            context = JobContext(self, job_id, cancellation)
+            context = JobContext(
+                self,
+                job_id,
+                cancellation,
+                stage_run_id=stage_run_id,
+                input_version_ids=input_version_ids,
+                metadata=metadata,
+            )
             result = operation(context)
             if cancellation.is_set():
                 self._notify_state(on_state_change, job_id, JobState.CANCELLED)

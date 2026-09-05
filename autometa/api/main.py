@@ -43,11 +43,13 @@ from autometa.jobs.manager import JobManager
 from autometa.persistence.database import Database
 from autometa.repositories.artifacts import ArtifactRepository
 from autometa.repositories.jobs import JobRepository
+from autometa.repositories.provenance import ProvenanceRepository
 from autometa.repositories.reviews import ReviewRepository
 from autometa.repositories.settings import LocalSettingsRepository
 from autometa.repositories.stage_runs import StageRunRepository
 from autometa.services.artifacts import ArtifactService
 from autometa.services.files import FileStorage
+from autometa.services.provenance import ProvenanceService
 from autometa.services.reviews import ReviewService
 from autometa.services.settings import LocalSettingsService
 from autometa.services.workflows import WorkflowCoordinator
@@ -90,14 +92,18 @@ def create_app(
         application.state.local_settings = LocalSettingsService(
             LocalSettingsRepository(active_database)
         )
+        provenance_service = ProvenanceService(ProvenanceRepository(active_database))
         artifact_service = ArtifactService(
-            ArtifactRepository(active_database)
+            ArtifactRepository(active_database),
+            provenance_service,
         )
+        application.state.provenance_service = provenance_service
         application.state.artifact_service = artifact_service
         application.state.workflow_coordinator = WorkflowCoordinator(
             active_manager,
             StageRunRepository(active_database),
             artifact_service,
+            provenance_service,
         )
         application.state.review_service = ReviewService(
             ReviewRepository(active_database),

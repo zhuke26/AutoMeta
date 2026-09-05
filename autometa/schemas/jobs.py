@@ -30,3 +30,20 @@ class JobEventView(BaseModel):
     event_type: str
     payload: dict
     created_at: datetime
+
+
+class StageRunView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    review_id: str
+    stage: str
+    job_id: str | None
+    status: str
+    input_artifact_ids: list[str]
+    operation_kind: str | None
+    request_payload: dict
+    input_artifact_version_ids: list[str]
+    output_artifact_version_ids: list[str]
+    created_at: datetime
+    updated_at: datetime

@@ -54,9 +54,19 @@ def _submit_or_conflict(
     stage: str,
     inputs,
     operation,
+    *,
+    operation_kind: str,
+    request_payload: dict,
 ) -> JobView:
     try:
-        return coordinator.submit(review_id, stage, inputs, operation)
+        return coordinator.submit(
+            review_id,
+            stage,
+            inputs,
+            operation,
+            operation_kind=operation_kind,
+            request_payload=request_payload,
+        )
     except (JobConflict, WorkflowInputConflict) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -83,6 +93,7 @@ def draft_protocol(
             review_id,
             "question_pico",
             payload,
+            context=context.artifact_context(),
         )
         result = {
             "artifact_id": artifact.artifact_id,
@@ -98,6 +109,8 @@ def draft_protocol(
         "protocol",
         [],
         operation,
+        operation_kind="protocol.draft",
+        request_payload=request.model_dump(mode="json"),
     )
 
 
@@ -169,6 +182,7 @@ def run_screening(
             review_id,
             "selected_studies",
             output,
+            context=context.artifact_context(),
         )
         result = {
             "artifact_id": artifact.artifact_id,
@@ -184,6 +198,8 @@ def run_screening(
         "screening",
         inputs,
         operation,
+        operation_kind="screening.run",
+        request_payload=request.model_dump(mode="json"),
     )
 
 
@@ -221,6 +237,7 @@ def generate_search_query(
                 "raw_query": raw_query,
                 "strategy": strategy.model_dump(),
             },
+            context=context.artifact_context(),
         )
         result = {
             "artifact_id": artifact.artifact_id,
@@ -236,6 +253,8 @@ def generate_search_query(
         "search",
         inputs,
         operation,
+        operation_kind="search.query",
+        request_payload=request.model_dump(mode="json"),
     )
 
 
@@ -285,6 +304,7 @@ def run_search(
                 "strategy_mode": "field_tagged_balanced",
                 "raw_query": raw_query,
             },
+            context=context.artifact_context(),
         )
         saved = {
             "artifact_id": artifact.artifact_id,
@@ -300,6 +320,8 @@ def run_search(
         "search",
         inputs,
         operation,
+        operation_kind="search.run",
+        request_payload=request.model_dump(mode="json"),
     )
 
 
@@ -377,6 +399,7 @@ def run_extraction(
                 ],
                 "study_results_fields": [field.model_dump() for field in result_fields],
             },
+            context=context.artifact_context(),
         )
         result = {
             "artifact_id": artifact.artifact_id,
@@ -392,6 +415,8 @@ def run_extraction(
         "extraction",
         inputs,
         operation,
+        operation_kind="extraction.run",
+        request_payload=request.model_dump(mode="json"),
     )
 
 
@@ -474,6 +499,7 @@ def plan_meta_analysis(
                 "csv_summaries": [summary.model_dump() for summary in summaries],
                 "plans": [plan.model_dump() for plan in plans],
             }),
+            context=context.artifact_context(),
         )
         result = {
             "artifact_id": artifact.artifact_id,
@@ -489,13 +515,15 @@ def plan_meta_analysis(
         "meta_analysis",
         inputs,
         operation,
+        operation_kind="meta.plan",
+        request_payload=request.model_dump(mode="json"),
     )
 
 
 @router.post("/meta/run", response_model=JobView, status_code=202)
 def run_meta_analysis(
     review_id: str,
-    _request: MetaRunWorkflowRequest,
+    request: MetaRunWorkflowRequest,
     coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
     reviews: ReviewService = Depends(get_review_service),
     storage: FileStorage = Depends(get_file_storage),
@@ -554,6 +582,7 @@ def run_meta_analysis(
                 "code": {"generated_code": raw.get("generated_code", {})},
                 "result": {"results": results},
             },
+            context=context.artifact_context(),
         )
         result_reference = {
             "code_artifact_id": saved["code"].artifact_id,
@@ -568,4 +597,6 @@ def run_meta_analysis(
         "meta_analysis",
         inputs,
         operation,
+        operation_kind="meta.run",
+        request_payload=request.model_dump(mode="json"),
     )

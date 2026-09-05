@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
 
 from sqlalchemy import func, select
 
@@ -24,6 +22,7 @@ from autometa.schemas.artifacts import (
     ArtifactDiffView,
     ArtifactVersionView,
     ArtifactView,
+    ArtifactWriteContext,
 )
 from autometa.schemas.provenance import Producer
 from autometa.services.provenance import ProvenanceService
@@ -49,15 +48,6 @@ ARTIFACT_STAGE = {
     "code": "meta_analysis",
     "result": "meta_analysis",
 }
-
-
-@dataclass(frozen=True)
-class ArtifactWriteContext:
-    producer: Producer = Producer.RESEARCHER
-    stage_run_id: str | None = None
-    job_id: str | None = None
-    input_version_ids: tuple[str, ...] = ()
-    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ArtifactNotFound(LookupError):
@@ -392,6 +382,14 @@ class ArtifactService:
                 source_version_id=source_version_id,
                 target_version_id=version.id,
             )
+        if context.stage_run_id is not None:
+            stage_run = session.get(StageRun, context.stage_run_id)
+            if stage_run is None or stage_run.review_id != review_id:
+                raise ArtifactConflict("Stage run does not belong to this Review")
+            output_ids = list(stage_run.output_artifact_version_ids)
+            if version.id not in output_ids:
+                output_ids.append(version.id)
+                stage_run.output_artifact_version_ids = output_ids
         self.provenance.record_in_session(
             session,
             review_id,

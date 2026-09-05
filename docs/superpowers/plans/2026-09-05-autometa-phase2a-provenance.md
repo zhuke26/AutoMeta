@@ -308,18 +308,18 @@ coordinator.submit(
 - Adds `JobContext.stage_run_id`, `JobContext.artifact_context(...)`, and
   `StageRunView` fields for request, exact inputs, exact outputs, and duration.
 
-- [ ] **Step 1: Write failing coordinator tests**
+- [x] **Step 1: Write failing coordinator tests**
 
 Assert that requests are persisted after secret redaction, exact input version
 IDs are stored, output version IDs are attached on success, failures create a
 `stage.failed` event, and model metadata contains only sanitized provider origin,
 resolved model, application version, and operation kind.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `.venv/bin/python -m pytest tests/services/test_workflow_provenance.py -q`
 
-- [ ] **Step 3: Extend coordinator/job context and update all workflow routes**
+- [x] **Step 3: Extend coordinator/job context and update all workflow routes**
 
 Every agent-generated `save_draft` or `save_drafts` call must use the context
 returned by `JobContext.artifact_context(producer="agent", metadata=...)`.
@@ -327,12 +327,12 @@ Every workflow route must persist its Pydantic request using JSON mode. Do not
 store PDF/CSV bytes, parsed PDF text, PubMed abstracts, or credentials in the
 request or metadata fields.
 
-- [ ] **Step 4: Verify exact graph edges and failure events**
+- [x] **Step 4: Verify exact graph edges and failure events**
 
 Run all five workflow API test modules and assert each successful output version
 has edges from the exact input version IDs recorded on its StageRun.
 
-- [ ] **Step 5: Run the full backend gate and commit**
+- [x] **Step 5: Run the full backend gate and commit**
 
 Run `.venv/bin/python -m pytest tests -q && .venv/bin/ruff check .` and commit as
 `feat: capture workflow provenance`.

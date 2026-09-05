@@ -14,6 +14,10 @@ class StageRunRepository:
         stage: str,
         job_id: str,
         input_artifact_ids: list[str],
+        *,
+        operation_kind: str | None = None,
+        request_payload: dict | None = None,
+        input_artifact_version_ids: list[str] | None = None,
     ) -> StageRun:
         with self.database.session() as session:
             stage_run = StageRun(
@@ -22,8 +26,24 @@ class StageRunRepository:
                 job_id=job_id,
                 status=JobState.QUEUED.value,
                 input_artifact_ids=list(input_artifact_ids),
+                operation_kind=operation_kind,
+                request_payload=dict(request_payload or {}),
+                input_artifact_version_ids=list(input_artifact_version_ids or []),
+                output_artifact_version_ids=[],
             )
             session.add(stage_run)
+            session.flush()
+            return stage_run
+
+    def add_output_version(self, stage_run_id: str, version_id: str) -> StageRun:
+        with self.database.session() as session:
+            stage_run = session.get(StageRun, stage_run_id)
+            if stage_run is None:
+                raise LookupError(stage_run_id)
+            output_ids = list(stage_run.output_artifact_version_ids)
+            if version_id not in output_ids:
+                output_ids.append(version_id)
+                stage_run.output_artifact_version_ids = output_ids
             session.flush()
             return stage_run
 
