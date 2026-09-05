@@ -38,17 +38,17 @@
   `ParsedPDF`, `TextChunk`, and `FieldExtraction.source`.
 - Produces `validate_source_reference(citation, source_id, chunks) -> SourceLocator`.
 
-- [ ] Write failing tests for coordinate/page/quotation degradation, normalized
+- [x] Write failing tests for coordinate/page/quotation degradation, normalized
   whitespace quotation validation, invalid source IDs, ambiguous matches, table
   metadata, and bbox bounds.
-- [ ] Run the focused test and verify RED because locator models/functions do not exist.
-- [ ] Add models with optional fields and validators: `page_number >= 1`, positive
+- [x] Run the focused test and verify RED because locator models/functions do not exist.
+- [x] Add models with optional fields and validators: `page_number >= 1`, positive
   page dimensions, bbox within page bounds, and table row/column allowed only for
   `element_type="table"`.
-- [ ] Implement exact source validation. A valid source ID plus verbatim quote may
+- [x] Implement exact source validation. A valid source ID plus verbatim quote may
   inherit its chunk locator; a unique verbatim quote may inherit a locator without
   source ID; ambiguous/missing quotes retain quotation and parser metadata only.
-- [ ] Run focused tests/Ruff and commit as `feat: define PDF source locators`.
+- [x] Run focused tests/Ruff and commit as `feat: define PDF source locators`.
 
 ### Task 2: Preserve Docling and fallback page provenance through chunking
 
