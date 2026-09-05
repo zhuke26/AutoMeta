@@ -15,7 +15,12 @@ from autometa.agents.search_agent import SearchAgent
 from autometa.jobs.manager import JobContext
 from autometa.schemas.artifacts import ArtifactVersionView, ArtifactView
 from autometa.schemas.extraction_models import ExtractionFieldDefinition
-from autometa.schemas.meta_models import CSVSummary, MetaAnalysisMethodPlan
+from autometa.schemas.meta_models import (
+    CSVSummary,
+    GeneratedFigureResult,
+    MetaAnalysisDatasetResult,
+    MetaAnalysisMethodPlan,
+)
 from autometa.schemas.models import Paper, PICODefinition, StudyDesignFilter
 from autometa.schemas.workflows import (
     ExtractionWorkflowRequest,
@@ -30,6 +35,13 @@ from autometa.schemas.workflows import (
 from autometa.services.artifacts import ArtifactService
 from autometa.services.files import FileStorage, StoredFileNotFound
 from autometa.services.settings import LocalSettingsService
+from autometa.stats.plots import render_forest_plot
+
+_FIGURE_MIME_TYPES = {
+    "svg": "image/svg+xml",
+    "png": "image/png",
+    "pdf": "application/pdf",
+}
 
 
 @dataclass(frozen=True)
@@ -381,6 +393,29 @@ class WorkflowOperationRegistry:
                     f"Analysis failed for {plan.csv_file}: "
                     f"{details or 'pooled effect unavailable'}"
                 )
+        execution.context.emit(
+            "rendering",
+            {"message": "Rendering Review-owned forest plots"},
+        )
+        for index, (plan, result) in enumerate(zip(plans, results), start=1):
+            if not plan.output.include_forest_plot:
+                continue
+            typed_result = MetaAnalysisDatasetResult.model_validate(result)
+            rendered = render_forest_plot(typed_result)
+            result["figure_files"] = [
+                GeneratedFigureResult(
+                    file_id=record.id,
+                    filename=record.original_name,
+                    mime_type=record.mime_type,
+                ).model_dump()
+                for extension, content in rendered.items()
+                for record in [storage.save_generated_figure(
+                    execution.review_id,
+                    f"forest-plot-{index:02d}.{extension}",
+                    _FIGURE_MIME_TYPES[extension],
+                    content,
+                )]
+            ]
         saved = artifacts.save_drafts(
             execution.review_id,
             {

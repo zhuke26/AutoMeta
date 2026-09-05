@@ -139,6 +139,18 @@ def test_dataset_upload_plan_approval_and_strict_run(client, monkeypatch) -> Non
     result = client.get(f"/api/v1/reviews/{review['id']}/artifacts/result").json()
     assert code["payload"]["generated_code"]["effects.csv"] == "print('validated')"
     assert result["payload"]["results"][0]["pooled_effect"]["effect"] == 2.0
+    figures = result["payload"]["results"][0]["figure_files"]
+    assert [item["mime_type"] for item in figures] == [
+        "image/svg+xml",
+        "image/png",
+        "application/pdf",
+    ]
+    listed = client.get(f"/api/v1/reviews/{review['id']}/figures").json()
+    assert [item["id"] for item in listed] == [item["file_id"] for item in figures]
+    audit = client.get(f"/api/v1/reviews/{review['id']}/audit-export").json()
+    assert [item["id"] for item in audit["files"] if item["kind"] == "figure"] == [
+        item["file_id"] for item in figures
+    ]
     stage_run = client.app.state.workflow_coordinator.stage_runs.get_by_job(run_job.id)
     assert stage_run.input_artifact_ids == [plan["artifact_id"]]
     assert pico["artifact_id"] not in stage_run.input_artifact_ids

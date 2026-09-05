@@ -12,7 +12,7 @@ class FileView(BaseModel):
     id: str
     review_id: str
     original_name: str
-    kind: Literal["pdf", "csv"]
+    kind: Literal["pdf", "csv", "figure"]
     mime_type: str
     size_bytes: int
     parse_status: str

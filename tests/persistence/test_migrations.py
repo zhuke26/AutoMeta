@@ -38,12 +38,16 @@ def test_phase_one_database_upgrades_without_losing_rows(tmp_path, monkeypatch) 
         stage_run_columns = {
             column["name"] for column in inspect(connection).get_columns("stage_runs")
         }
+        file_columns = {
+            column["name"] for column in inspect(connection).get_columns("files")
+        }
     assert {
         "operation_kind",
         "request_payload",
         "input_artifact_version_ids",
         "output_artifact_version_ids",
     } <= stage_run_columns
+    assert "kind" in file_columns
 
     engine.dispose()
     get_settings.cache_clear()

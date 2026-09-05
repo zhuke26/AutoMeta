@@ -50,6 +50,7 @@ class FileStorage:
             content,
             directory="uploads",
             suffix=".pdf",
+            kind="pdf",
         )
 
     def save_dataset_bytes(
@@ -69,6 +70,37 @@ class FileStorage:
             content,
             directory="datasets",
             suffix=".csv",
+            kind="csv",
+        )
+
+    def save_generated_figure(
+        self,
+        review_id: str,
+        filename: str,
+        mime_type: str,
+        content: bytes,
+    ) -> FileRecord:
+        if self.reviews.get(review_id) is None:
+            raise StoredFileNotFound(f"Review not found: {review_id}")
+        self._validate_filename(filename, "Figure")
+        allowed = {
+            "image/svg+xml": ".svg",
+            "image/png": ".png",
+            "application/pdf": ".pdf",
+        }
+        suffix = allowed.get(mime_type)
+        if suffix is None or Path(filename).suffix.lower() != suffix:
+            raise InvalidUpload("Generated figure format is not supported")
+        if not content or len(content) > self.max_bytes:
+            raise InvalidUpload("Generated figure is empty or exceeds the size limit")
+        return self._save_validated(
+            review_id,
+            filename,
+            mime_type,
+            content,
+            directory="figures",
+            suffix=suffix,
+            kind="figure",
         )
 
     def _save_validated(
@@ -80,6 +112,7 @@ class FileStorage:
         *,
         directory: str,
         suffix: str,
+        kind: str,
     ) -> FileRecord:
         digest = hashlib.sha256(content).hexdigest()
         existing = self.repository.find_by_hash(review_id, digest)
@@ -109,6 +142,7 @@ class FileStorage:
                 relative_path=destination.relative_to(self.data_dir).as_posix(),
                 sha256=digest,
                 mime_type=normalized_mime_type,
+                kind=kind,
                 size_bytes=len(content),
             )
             try:

@@ -128,16 +128,16 @@
   `data/reviews/<review-id>/figures/` and Review-scoped download endpoints.
 - Result artifacts contain file IDs/mime types, never absolute paths or base64.
 
-- [ ] Write failing plot tests for study/pooled rows, null line (0 or 1), labels,
+- [x] Write failing plot tests for study/pooled rows, null line (0 or 1), labels,
   prediction interval, deterministic dimensions, all three formats, and cleanup
   on Review deletion.
-- [ ] Write migration/storage/API tests for generated file ownership and content
+- [x] Write migration/storage/API tests for generated file ownership and content
   disposition.
-- [ ] Implement Matplotlib plots using the validated result object; do not
+- [x] Implement Matplotlib plots using the validated result object; do not
   recalculate estimates in the plotting layer.
-- [ ] Persist generated files atomically and include their IDs in result artifacts
+- [x] Persist generated files atomically and include their IDs in result artifacts
   and provenance/audit export.
-- [ ] Render SVG/PNG/PDF fixtures and visually inspect them; run full backend and
+- [x] Render SVG/PNG/PDF fixtures and visually inspect them; run full backend and
   package tests; commit as `feat: add Review-owned forest plots`.
 
 ### Task 6: Present advanced statistics and figures in React

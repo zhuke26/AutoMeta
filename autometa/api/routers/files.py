@@ -100,3 +100,40 @@ def list_review_datasets(
         ]
     except StoredFileNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/reviews/{review_id}/figures", response_model=list[FileView])
+def list_review_figures(
+    review_id: str,
+    storage: FileStorage = Depends(get_file_storage),
+) -> list[FileView]:
+    try:
+        return [
+            FileView.model_validate(item)
+            for item in storage.list_for_review(review_id, kind="figure")
+        ]
+    except StoredFileNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/reviews/{review_id}/figures/{file_id}/content",
+    response_class=FileResponse,
+)
+def read_review_figure(
+    review_id: str,
+    file_id: str,
+    storage: FileStorage = Depends(get_file_storage),
+) -> FileResponse:
+    try:
+        record = storage.get_review_file(review_id, file_id, kind="figure")
+        path = storage.resolve(record)
+    except StoredFileNotFound as exc:
+        raise HTTPException(status_code=404, detail=f"Figure not found: {file_id}") from exc
+    return FileResponse(
+        path,
+        media_type=record.mime_type,
+        filename=record.original_name,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store"},
+    )
