@@ -1,0 +1,9 @@
+{
+  "source": "R 4.6.1, metafor 5.0.1",
+  "command": "rma.uni(yi=c(0.2,0.5,0.1,0.8), vi=c(0.04,0.09,0.01,0.16), method=METHOD)",
+  "effects": [0.2, 0.5, 0.1, 0.8],
+  "variances": [0.04, 0.09, 0.01, 0.16],
+  "fixed": {"effect": 0.17951220, "se": 0.08381164, "q": 4.19024390, "q_p": 0.24164047, "i2": 28.40512224},
+  "dersimonian_laird": {"effect": 0.2377217551, "se": 0.1212284274, "tau2": 0.0178754579, "prediction_lower": -0.1160058068, "prediction_upper": 0.5914493170},
+  "restricted_maximum_likelihood": {"effect": 0.229488170, "se": 0.115597382, "tau2": 0.014327170, "prediction_lower": -0.096655520, "prediction_upper": 0.555631860}
+}

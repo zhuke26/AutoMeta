@@ -60,6 +60,7 @@ class RandomEffectsMethod(str, Enum):
     """Supported random-effects tau-squared estimators."""
 
     DERSIMONIAN_LAIRD = "dersimonian_laird"
+    RESTRICTED_MAXIMUM_LIKELIHOOD = "restricted_maximum_likelihood"
 
 
 class ContinuityCorrectionApplyWhen(str, Enum):

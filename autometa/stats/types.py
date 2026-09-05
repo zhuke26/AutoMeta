@@ -14,3 +14,20 @@ class StudyEstimate:
     @property
     def standard_error(self) -> float:
         return self.variance ** 0.5
+
+
+@dataclass(frozen=True)
+class PoolingResult:
+    model_used: str
+    effect: float
+    standard_error: float
+    ci_lower: float
+    ci_upper: float
+    q: float
+    q_p_value: float | None
+    i2_percent: float
+    tau2: float
+    tau: float
+    weights: tuple[float, ...]
+    prediction_lower: float | None = None
+    prediction_upper: float | None = None

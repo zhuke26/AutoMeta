@@ -57,17 +57,17 @@
 - Produces `pool_effects(estimates, model, random_method) -> PoolingResult`.
 - Extends `RandomEffectsMethod` with `restricted_maximum_likelihood`.
 
-- [ ] Write failing tests for fixed IV, DL, REML, Q/Q p-value, I², tau²/tau,
+- [x] Write failing tests for fixed IV, DL, REML, Q/Q p-value, I², tau²/tau,
   normalized weights, ratio back-transformation, one-study behavior, and REML
   non-convergence.
-- [ ] Record constructed reference inputs and expected values in
+- [x] Record constructed reference inputs and expected values in
   `metafor_reference.json`, including exact `metafor::rma` commands and package
   version used for cross-checking.
-- [ ] Implement REML by solving its score equation with SciPy and a bounded,
+- [x] Implement REML by solving its score equation with SciPy and a bounded,
   deterministic convergence policy; raise on non-convergence.
-- [ ] Calculate two-sided normal pooled CIs and t-based random-effects prediction
+- [x] Calculate two-sided normal pooled CIs and normal-reference random-effects prediction
   intervals only when at least three studies make them defined.
-- [ ] Run focused/full tests and Ruff; commit as `feat: add validated pooling models`.
+- [x] Run focused/full tests and Ruff; commit as `feat: add validated pooling models`.
 
 ### Task 3: Add leave-one-out and subgroup diagnostics
 
