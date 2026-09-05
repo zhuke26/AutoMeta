@@ -92,6 +92,26 @@ while Uvicorn remains running. Reopening the Review restores its latest job.
 After a server restart, unfinished jobs are marked `interrupted`; review the
 saved inputs and run the stage again.
 
+## Provenance and reruns
+
+Open **Evidence provenance** from the bottom rail of any Review to inspect its
+append-only timeline. AutoMeta records artifact versions, researcher edits,
+approvals and revocations, stale transitions, stage runs, failures, and rerun
+lineage. The version comparison panel shows deterministic field-level changes
+between two saved versions.
+
+A completed workflow event can be rerun from the timeline after confirmation.
+The rerun uses the original request and exact historical input versions, then
+creates a new job, stage run, output versions, and provenance links. It never
+overwrites the source event or its artifacts. Events from older installations
+that do not contain a registered operation descriptor remain visible but are
+not rerunnable.
+
+**Download audit JSON** exports Review metadata, file metadata and hashes,
+artifact versions, approvals, jobs, events, edits, graph edges, and rerun
+relationships. It excludes uploaded file contents, local storage paths, and
+credentials.
+
 ## Privacy and local files
 
 - The API key is read only from `.env` into server memory. It is never accepted

@@ -47,7 +47,7 @@ class RerunService:
         source_run = self.stage_runs.get(event.stage_run_id)
         if source_run is None or source_run.review_id != review_id:
             raise RerunNotFound(f"Stage run not found: {event.stage_run_id}")
-        if source_run.status != "succeeded":
+        if source_run.status not in {"succeeded", "stale"}:
             raise RerunConflict("Only a completed stage run can be rerun")
         if not source_run.operation_kind or not self.registry.contains(
             source_run.operation_kind

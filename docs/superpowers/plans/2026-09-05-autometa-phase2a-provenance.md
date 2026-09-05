@@ -519,19 +519,19 @@ Commit source and compiled assets as `feat: add provenance timeline and reruns`.
 - Produces a locally mergeable Phase 2A branch while leaving retrieval feedback,
   source-linked PDF navigation, and expanded statistics for separate plans.
 
-- [ ] **Step 1: Add one end-to-end backend provenance test**
+- [x] **Step 1: Add one end-to-end backend provenance test**
 
 Run a fake Guided workflow through all stages, record a researcher correction,
 revoke approval, verify downstream stale events, rerun one completed event, and
 assert a connected immutable graph plus a secret-free audit export.
 
-- [ ] **Step 2: Verify an upgrade from a Phase 1 database**
+- [x] **Step 2: Verify an upgrade from a Phase 1 database**
 
 Create a database at Alembic revision `0001`, insert a Review/artifact/job, run
 `alembic upgrade head`, and prove the original rows survive with valid Phase 2
 tables/defaults.
 
-- [ ] **Step 3: Run complete automated gates**
+- [x] **Step 3: Run complete automated gates**
 
 ```bash
 .venv/bin/python -m pytest tests -q
@@ -544,7 +544,7 @@ npm run build
 git diff --exit-code -- ../autometa/static
 ```
 
-- [ ] **Step 4: Run a real local browser gate**
+- [x] **Step 4: Run a real local browser gate**
 
 Start Uvicorn with a temporary data directory. At 1024, 1280, 1440, and 1920 px,
 create a Review, create/edit/approve artifacts, open the timeline, inspect a
@@ -573,3 +573,18 @@ commit locally, use `verification-before-completion`, then use
 - The React provenance workspace has real APIs for timeline, diff, rerun, revoke,
   and export, with no enabled dead controls.
 - Existing Phase 1 workflow behavior and security invariants remain green.
+
+## Verification Record (2026-09-05)
+
+- `.venv/bin/python -m pytest tests -q`: 126 tests passed.
+- `.venv/bin/ruff check .`: passed.
+- `npm test -- --run`: 17 files and 58 tests passed.
+- `npm run typecheck` and two deterministic `npm run build` executions passed.
+- Alembic upgraded a populated revision `0001` database to `0002` without
+  losing the existing Review.
+- The end-to-end provenance test exercised run completion, approval, a
+  researcher correction, downstream staleness, historical rerun, graph edges,
+  rerun lineage, and the secret-free audit export.
+- A temporary Uvicorn runtime served the provenance timeline and deterministic
+  version diff at 1024, 1280, 1440, and 1920 px with no horizontal overflow or
+  browser console warnings/errors. All observed assets were local.
