@@ -11,6 +11,7 @@ from autometa.persistence.models import (
     ArtifactVersion,
     Job,
     ProvenanceEdge,
+    RerunRelationship,
     ResearcherEdit,
     Review,
     ReviewEvent,
@@ -185,6 +186,50 @@ class ProvenanceService:
                     limit=limit,
                 )
             ]
+
+    def get_event(self, review_id: str, event_id: str) -> ReviewEventView:
+        with self.repository.database.session() as session:
+            event = self.repository.event(session, event_id)
+            if event is None or event.review_id != review_id:
+                raise ProvenanceNotFound(f"Event not found: {event_id}")
+            return ReviewEventView.model_validate(event)
+
+    def add_rerun(
+        self,
+        *,
+        review_id: str,
+        source_stage_run_id: str,
+        rerun_stage_run_id: str,
+        source_event_id: str,
+    ) -> RerunRelationshipView:
+        with self._sequence_lock, self.repository.database.session() as session:
+            self._validate_reference(
+                session, StageRun, source_stage_run_id, review_id
+            )
+            self._validate_reference(
+                session, StageRun, rerun_stage_run_id, review_id
+            )
+            source_event = self.repository.event(session, source_event_id)
+            if source_event is None or source_event.review_id != review_id:
+                raise ProvenanceNotFound(f"Event not found: {source_event_id}")
+            relationship = RerunRelationship(
+                review_id=review_id,
+                source_stage_run_id=source_stage_run_id,
+                rerun_stage_run_id=rerun_stage_run_id,
+                source_event_id=source_event_id,
+            )
+            session.add(relationship)
+            session.flush()
+            return RerunRelationshipView.model_validate(relationship)
+
+    def rerun_for_stage_run(self, stage_run_id: str) -> RerunRelationshipView:
+        with self.repository.database.session() as session:
+            relationship = self.repository.rerun_for_stage_run(session, stage_run_id)
+            if relationship is None:
+                raise ProvenanceNotFound(
+                    f"Rerun relationship not found: {stage_run_id}"
+                )
+            return RerunRelationshipView.model_validate(relationship)
 
     def graph(self, review_id: str) -> ProvenanceGraphView:
         with self.repository.database.session() as session:

@@ -4,8 +4,9 @@ from urllib.parse import urlsplit
 from autometa import __version__
 from autometa.config import AgentStage
 from autometa.jobs.manager import JobContext, JobManager
+from autometa.persistence.models import StageRun
 from autometa.repositories.stage_runs import StageRunRepository
-from autometa.schemas.artifacts import ArtifactView
+from autometa.schemas.artifacts import ArtifactVersionView, ArtifactView
 from autometa.schemas.jobs import JobView
 from autometa.schemas.provenance import Producer
 from autometa.services.artifacts import ArtifactService
@@ -49,11 +50,13 @@ class WorkflowCoordinator:
         self,
         review_id: str,
         stage: str,
-        input_artifacts: list[ArtifactView],
+        input_artifacts: list[ArtifactView | ArtifactVersionView],
         operation: Callable[[JobContext], dict | None],
         *,
         operation_kind: str | None = None,
         request_payload: dict | None = None,
+        rerun_source_event_id: str | None = None,
+        on_stage_run_created: Callable[[StageRun], None] | None = None,
     ) -> JobView:
         input_ids = [artifact.artifact_id for artifact in input_artifacts]
         input_version_ids = tuple(
@@ -82,6 +85,8 @@ class WorkflowCoordinator:
                 job_id=job.id,
                 payload=metadata,
             )
+            if on_stage_run_created is not None:
+                on_stage_run_created(stage_run)
             return stage_run.id
 
         def on_state_change(job_id: str, state) -> None:
@@ -102,6 +107,24 @@ class WorkflowCoordinator:
                 job_id=job_id,
                 payload=metadata,
             )
+            if rerun_source_event_id is not None and state.value in {
+                "succeeded",
+                "failed",
+                "cancelled",
+                "interrupted",
+            }:
+                rerun_event = (
+                    "rerun.completed" if state.value == "succeeded" else "rerun.failed"
+                )
+                self.provenance.record(
+                    review_id,
+                    rerun_event,
+                    Producer.SYSTEM,
+                    stage=stage,
+                    stage_run_id=stage_run.id,
+                    job_id=job_id,
+                    payload={"source_event_id": rerun_source_event_id, **metadata},
+                )
 
         return self.manager.submit(
             review_id,

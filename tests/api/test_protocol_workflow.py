@@ -48,7 +48,7 @@ def test_protocol_job_persists_a_reviewable_draft_without_sse(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.ProtocolAgent",
+        "autometa.services.workflow_operations.ProtocolAgent",
         SuccessfulProtocolAgent,
     )
     review = _create_review(client)
@@ -88,7 +88,7 @@ def test_protocol_job_failure_is_persisted_without_creating_artifact(
             raise RuntimeError("Configured provider rejected the request")
 
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.ProtocolAgent",
+        "autometa.services.workflow_operations.ProtocolAgent",
         FailingProtocolAgent,
     )
     review = _create_review(client)
@@ -127,7 +127,7 @@ def test_protocol_workflow_rejects_missing_review_and_concurrent_run(
             )
 
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.ProtocolAgent",
+        "autometa.services.workflow_operations.ProtocolAgent",
         BlockingProtocolAgent,
     )
     review = _create_review(client)

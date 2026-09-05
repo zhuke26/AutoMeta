@@ -84,7 +84,7 @@ class SuccessfulExtractionAgent:
 
 def test_pdf_disclosure_is_local_and_required(client, monkeypatch) -> None:
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.ExtractionAgent",
+        "autometa.services.workflow_operations.ExtractionAgent",
         SuccessfulExtractionAgent,
     )
     review = _create_review(client)
@@ -122,7 +122,7 @@ def test_extraction_job_uses_review_pdf_without_selected_studies(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.ExtractionAgent",
+        "autometa.services.workflow_operations.ExtractionAgent",
         SuccessfulExtractionAgent,
     )
     review = _create_review(client)

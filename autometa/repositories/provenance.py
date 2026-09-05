@@ -45,6 +45,10 @@ class ProvenanceRepository:
         return list(session.scalars(statement))
 
     @staticmethod
+    def event(session: Session, event_id: str) -> ReviewEvent | None:
+        return session.get(ReviewEvent, event_id)
+
+    @staticmethod
     def list_edges(session: Session, review_id: str) -> list[ProvenanceEdge]:
         return list(
             session.scalars(
@@ -74,5 +78,16 @@ class ProvenanceRepository:
                     RerunRelationship.created_at.asc(),
                     RerunRelationship.id.asc(),
                 )
+            )
+        )
+
+    @staticmethod
+    def rerun_for_stage_run(
+        session: Session,
+        stage_run_id: str,
+    ) -> RerunRelationship | None:
+        return session.scalar(
+            select(RerunRelationship).where(
+                RerunRelationship.rerun_stage_run_id == stage_run_id
             )
         )

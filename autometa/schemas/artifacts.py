@@ -45,6 +45,9 @@ class ArtifactView(BaseModel):
 class ArtifactVersionView(BaseModel):
     version_id: str
     artifact_id: str
+    review_id: str
+    stage: str
+    kind: str
     version: int
     payload: dict[str, Any]
     content_hash: str

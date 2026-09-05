@@ -105,8 +105,8 @@ class SuccessfulRunner:
 
 
 def test_dataset_upload_plan_approval_and_strict_run(client, monkeypatch) -> None:
-    monkeypatch.setattr("autometa.api.routers.workflows.MetaAnalysisPlannerAgent", SuccessfulPlanner)
-    monkeypatch.setattr("autometa.api.routers.workflows.MetaAnalysisRunnerAgent", SuccessfulRunner)
+    monkeypatch.setattr("autometa.services.workflow_operations.MetaAnalysisPlannerAgent", SuccessfulPlanner)
+    monkeypatch.setattr("autometa.services.workflow_operations.MetaAnalysisRunnerAgent", SuccessfulRunner)
     review = _create_review(client)
     pico = _approve_pico(client, review["id"])
     dataset = _upload_csv(client, review["id"])
@@ -170,8 +170,8 @@ def test_meta_runner_failure_does_not_create_code_or_result(client, monkeypatch)
         def run(self, *, plans, csv_frames):
             raise ValueError("Unsupported estimator; analysis stopped")
 
-    monkeypatch.setattr("autometa.api.routers.workflows.MetaAnalysisPlannerAgent", SuccessfulPlanner)
-    monkeypatch.setattr("autometa.api.routers.workflows.MetaAnalysisRunnerAgent", FailingRunner)
+    monkeypatch.setattr("autometa.services.workflow_operations.MetaAnalysisPlannerAgent", SuccessfulPlanner)
+    monkeypatch.setattr("autometa.services.workflow_operations.MetaAnalysisRunnerAgent", FailingRunner)
     review = _create_review(client)
     _approve_pico(client, review["id"])
     dataset = _upload_csv(client, review["id"])

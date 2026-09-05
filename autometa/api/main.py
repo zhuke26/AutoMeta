@@ -31,6 +31,7 @@ from autometa.api.routers import (
     jobs,
     meta_analysis,
     protocol,
+    provenance,
     reviews,
     screening,
     search,
@@ -50,8 +51,10 @@ from autometa.repositories.stage_runs import StageRunRepository
 from autometa.services.artifacts import ArtifactService
 from autometa.services.files import FileStorage
 from autometa.services.provenance import ProvenanceService
+from autometa.services.reruns import RerunService
 from autometa.services.reviews import ReviewService
 from autometa.services.settings import LocalSettingsService
+from autometa.services.workflow_operations import WorkflowOperationRegistry
 from autometa.services.workflows import WorkflowCoordinator
 
 # ---------------------------------------------------------------------------
@@ -89,9 +92,10 @@ def create_app(
         application.state.settings = resolved_settings
         application.state.job_manager = active_manager
         application.state.file_storage = file_storage
-        application.state.local_settings = LocalSettingsService(
+        local_settings = LocalSettingsService(
             LocalSettingsRepository(active_database)
         )
+        application.state.local_settings = local_settings
         provenance_service = ProvenanceService(ProvenanceRepository(active_database))
         artifact_service = ArtifactService(
             ArtifactRepository(active_database),
@@ -99,11 +103,25 @@ def create_app(
         )
         application.state.provenance_service = provenance_service
         application.state.artifact_service = artifact_service
-        application.state.workflow_coordinator = WorkflowCoordinator(
+        workflow_coordinator = WorkflowCoordinator(
             active_manager,
             StageRunRepository(active_database),
             artifact_service,
             provenance_service,
+        )
+        workflow_operations = WorkflowOperationRegistry(
+            artifacts=artifact_service,
+            storage=file_storage,
+            local_settings=local_settings,
+        )
+        application.state.workflow_coordinator = workflow_coordinator
+        application.state.workflow_operations = workflow_operations
+        application.state.rerun_service = RerunService(
+            provenance=provenance_service,
+            stage_runs=workflow_coordinator.stage_runs,
+            artifacts=artifact_service,
+            coordinator=workflow_coordinator,
+            registry=workflow_operations,
         )
         application.state.review_service = ReviewService(
             ReviewRepository(active_database),
@@ -166,6 +184,7 @@ def create_app(
         system.router,
         settings_router.router,
         workflows.router,
+        provenance.router,
     ):
         application.include_router(router, prefix=API_PREFIX)
 

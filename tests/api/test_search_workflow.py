@@ -98,7 +98,7 @@ def test_search_query_and_retrieval_jobs_persist_draft_artifacts(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.SearchAgent",
+        "autometa.services.workflow_operations.SearchAgent",
         SuccessfulSearchAgent,
     )
     review = _create_review(client)
@@ -148,7 +148,7 @@ def test_search_query_and_retrieval_jobs_persist_draft_artifacts(
 
 def test_search_workflow_requires_approved_inputs(client, monkeypatch) -> None:
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.SearchAgent",
+        "autometa.services.workflow_operations.SearchAgent",
         SuccessfulSearchAgent,
     )
     review = _create_review(client)
@@ -182,7 +182,7 @@ def test_empty_generated_query_fails_job_without_records(client, monkeypatch) ->
             })
 
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.SearchAgent",
+        "autometa.services.workflow_operations.SearchAgent",
         EmptySearchAgent,
     )
     review = _create_review(client)

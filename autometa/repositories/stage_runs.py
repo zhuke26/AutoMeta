@@ -51,6 +51,10 @@ class StageRunRepository:
         with self.database.session() as session:
             return session.scalar(select(StageRun).where(StageRun.job_id == job_id))
 
+    def get(self, stage_run_id: str) -> StageRun | None:
+        with self.database.session() as session:
+            return session.get(StageRun, stage_run_id)
+
     def transition(self, job_id: str, state: JobState | str) -> StageRun:
         with self.database.session() as session:
             stage_run = session.scalar(

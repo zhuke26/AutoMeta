@@ -109,7 +109,7 @@ class SuccessfulScreeningAgent:
 
 def test_import_and_screening_job_persist_human_review_draft(client, monkeypatch) -> None:
     monkeypatch.setattr(
-        "autometa.api.routers.workflows.ScreeningAgentV2",
+        "autometa.services.workflow_operations.ScreeningAgentV2",
         SuccessfulScreeningAgent,
     )
     review = _create_review(client)

@@ -355,7 +355,7 @@ Run `.venv/bin/python -m pytest tests -q && .venv/bin/ruff check .` and commit a
 - Registered operations: `protocol.draft`, `search.query`, `search.run`,
   `screening.run`, `extraction.run`, `meta.plan`, and `meta.run`.
 
-- [ ] **Step 1: Write failing registry and rerun tests**
+- [x] **Step 1: Write failing registry and rerun tests**
 
 Cover operation allowlisting, Review ownership, completed-event requirement,
 exact historical input-version loading, missing file rejection, concurrent-stage
@@ -371,11 +371,11 @@ def test_rerun_replays_exact_historical_inputs(reruns, completed_event) -> None:
     assert relation.rerun_stage_run_id != relation.source_stage_run_id
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `.venv/bin/python -m pytest tests/services/test_reruns.py tests/api/test_reruns.py -q`
 
-- [ ] **Step 3: Extract registered operations without changing behavior**
+- [x] **Step 3: Extract registered operations without changing behavior**
 
 Move each route closure into a method that receives this immutable envelope:
 
@@ -391,14 +391,14 @@ class WorkflowExecution:
 Routes and reruns must call the same registry. Unknown operations, historical
 failed runs, events without a completed StageRun, and deleted inputs return 409.
 
-- [ ] **Step 4: Implement rerun lineage**
+- [x] **Step 4: Implement rerun lineage**
 
 The rerun creates a new job and StageRun before execution, records
 `rerun.started`, and records `rerun.completed` or `rerun.failed`. New artifacts
 become current drafts and follow normal downstream stale propagation; historical
 versions and source run rows remain untouched.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run the focused tests, complete backend suite, and Ruff. Commit as
 `feat: rerun completed provenance events`.

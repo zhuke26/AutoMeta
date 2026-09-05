@@ -222,7 +222,7 @@ class ArtifactService:
             if artifact is None:
                 raise ArtifactNotFound(kind)
             return [
-                self._version_view(session, version)
+                self._version_view(session, artifact, version)
                 for version in self.repository.list_versions(session, artifact.id)
             ]
 
@@ -240,7 +240,21 @@ class ArtifactService:
             item = self.repository.version_number(session, artifact.id, version)
             if item is None:
                 raise ArtifactNotFound(f"{kind} version {version}")
-            return self._version_view(session, item)
+            return self._version_view(session, artifact, item)
+
+    def get_version_by_id(
+        self,
+        review_id: str,
+        version_id: str,
+    ) -> ArtifactVersionView:
+        with self.repository.database.session() as session:
+            version = self.repository.version(session, version_id)
+            if version is None:
+                raise ArtifactNotFound(version_id)
+            artifact = session.get(Artifact, version.artifact_id)
+            if artifact is None or artifact.review_id != review_id:
+                raise ArtifactNotFound(version_id)
+            return self._version_view(session, artifact, version)
 
     def diff_versions(
         self,
@@ -298,12 +312,16 @@ class ArtifactService:
     def _version_view(
         self,
         session,
+        artifact: Artifact,
         version: ArtifactVersion,
     ) -> ArtifactVersionView:
         approval = self.repository.latest_approval(session, version.id)
         return ArtifactVersionView(
             version_id=version.id,
             artifact_id=version.artifact_id,
+            review_id=artifact.review_id,
+            stage=artifact.stage,
+            kind=artifact.kind,
             version=version.version,
             payload=version.payload or {},
             content_hash=version.content_hash,
