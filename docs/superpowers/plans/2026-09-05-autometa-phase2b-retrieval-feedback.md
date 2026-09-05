@@ -124,15 +124,15 @@ SearchAgent.expand_with_retrieval_feedback(
 - Renders seed and expanded variants, result counts, optional known-study hits,
   added/removed terms, warnings, and the editable final query.
 
-- [ ] Write failing React tests for seed limits, optional PMID input, loading and
+- [x] Write failing React tests for seed limits, optional PMID input, loading and
   failure states, no false recall label, query/count diffs, editable final query,
   approval invalidation, and disabled execution before approval.
-- [ ] Run the focused Vitest file and verify RED.
-- [ ] Implement the comparison component with text/glyph semantics in addition to
+- [x] Run the focused Vitest file and verify RED.
+- [x] Implement the comparison component with text/glyph semantics in addition to
   color and horizontally scrollable query text at 1024 px.
-- [ ] Keep every displayed metric sourced from the saved Query artifact; do not
+- [x] Keep every displayed metric sourced from the saved Query artifact; do not
   calculate or invent values in the browser.
-- [ ] Run the full frontend suite, typecheck, build, and deterministic rebuild;
+- [x] Run the full frontend suite, typecheck, build, and deterministic rebuild;
   commit source and compiled assets as `feat: add Search feedback workspace`.
 
 ### Task 5: Phase 2B integration and runtime gate

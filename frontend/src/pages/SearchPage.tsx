@@ -8,6 +8,7 @@ import type { ArtifactView } from "../api/types";
 import { ArtifactApprovalBar } from "../components/ArtifactApprovalBar";
 import { JobProgressPanel } from "../components/JobProgressPanel";
 import { RecordsTable, type SearchRecord } from "../components/RecordsTable";
+import { SearchStrategyComparison } from "../components/SearchStrategyComparison";
 import { useAutosavedArtifact } from "../hooks/useAutosavedArtifact";
 import { useDurableJob } from "../hooks/useDurableJob";
 import { useReviewWorkspace } from "./ReviewWorkspace";
@@ -82,10 +83,13 @@ export function SearchPage() {
   const [fetchAll, setFetchAll] = useState(false);
   const [minYear, setMinYear] = useState("");
   const [maxYear, setMaxYear] = useState("");
+  const [seedRetmax, setSeedRetmax] = useState(20);
+  const [includedPmids, setIncludedPmids] = useState("");
   const hydratedVersion = useRef(queryArtifact?.version);
   const queryClient = useQueryClient();
   const searchJob = useDurableJob(review.id, "search");
   const generateQuery = useStartWorkflowJob(review.id, "search", "search/query");
+  const expandQuery = useStartWorkflowJob(review.id, "search", "search/expand");
   const runSearch = useStartWorkflowJob(review.id, "search", "search/run");
   const queryPayload = useMemo(() => ({
     ...(queryArtifact?.payload ?? {}),
@@ -147,6 +151,11 @@ export function SearchPage() {
             type="button"
           >Generate query</button>
         </header>
+        <div className="retrieval-feedback-controls">
+          <label><span className="field-label">Seed records</span><input aria-label="Seed records" className="text-input" min={5} max={50} onChange={(event) => setSeedRetmax(Number(event.target.value))} type="number" value={seedRetmax} /></label>
+          <label><span className="field-label">Known-study PMIDs (optional)</span><textarea aria-label="Known-study PMIDs" className="text-input" onChange={(event) => setIncludedPmids(event.target.value)} rows={2} value={includedPmids} /></label>
+          <button className="button" disabled={!picoArtifact?.approved || searchJob.isActive || expandQuery.isPending} onClick={() => expandQuery.mutate({ seed_retmax: seedRetmax, included_pmids: includedPmids.split(/[\s,]+/).filter(Boolean), min_year: minYear ? Number(minYear) : null, max_year: maxYear ? Number(maxYear) : null })} type="button">Generate with retrieval feedback</button>
+        </div>
         {queryArtifact ? (
           <div className="section-body">
             <label className="field-label" htmlFor="pubmed-query">PubMed query</label>
@@ -171,6 +180,8 @@ export function SearchPage() {
         />
       ) : null}
 
+      {queryArtifact ? <SearchStrategyComparison payload={queryArtifact.payload} /> : null}
+
       <section className="panel search-run-panel">
         <header className="section-heading"><div><p className="eyebrow">Retrieval</p><h2>PubMed settings</h2></div></header>
         <div className="search-settings">
@@ -188,8 +199,8 @@ export function SearchPage() {
       </section>
 
       <JobProgressPanel job={searchJob.job} />
-      {generateQuery.isError || runSearch.isError || autosave.error ? (
-        <p className="form-error" role="alert">{(generateQuery.error ?? runSearch.error ?? autosave.error)?.message}</p>
+      {generateQuery.isError || expandQuery.isError || runSearch.isError || autosave.error ? (
+        <p className="form-error" role="alert">{(generateQuery.error ?? expandQuery.error ?? runSearch.error ?? autosave.error)?.message}</p>
       ) : null}
 
       {recordsArtifact ? (

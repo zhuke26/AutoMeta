@@ -62,6 +62,21 @@ const records = artifact("records", {
   ],
 }, "draft");
 
+const feedbackQuery = artifact("query", {
+  strategy_mode: "retrieval_informed",
+  generated_raw_query: "rehabilitation[Title/Abstract]",
+  raw_query: "rehabilitation[Title/Abstract]",
+  comparison: {
+    seed_query: "stroke[Title/Abstract]",
+    expanded_query: "rehabilitation[Title/Abstract]",
+    added_terms: ["rehabilitation"],
+    removed_terms: ["stroke"],
+    seed_result_count: 100,
+    expanded_result_count: 60,
+    known_study_total: 0,
+  },
+}, "draft");
+
 
 function renderPage(fetchMock: ReturnType<typeof vi.fn>) {
   vi.stubGlobal("fetch", fetchMock);
@@ -186,5 +201,33 @@ describe("SearchPage", () => {
       }),
     );
     expect(screen.getByRole("button", { name: "Approve Records" })).toBeEnabled();
+  });
+
+  it("starts retrieval feedback and renders only persisted comparison metrics", async () => {
+    const fetchMock = searchFetch([pico, feedbackQuery]);
+    renderPage(fetchMock);
+
+    expect(await screen.findByText("Seed and expanded strategy")).toBeInTheDocument();
+    expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText("60")).toBeInTheDocument();
+    expect(screen.getByText("rehabilitation")).toBeInTheDocument();
+    expect(screen.queryByText("Known-study coverage")).not.toBeInTheDocument();
+    await userEvent.clear(screen.getByRole("spinbutton", { name: "Seed records" }));
+    await userEvent.type(screen.getByRole("spinbutton", { name: "Seed records" }), "15");
+    await userEvent.type(screen.getByRole("textbox", { name: "Known-study PMIDs" }), "123, 456");
+    await userEvent.click(screen.getByRole("button", { name: "Generate with retrieval feedback" }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reviews/review-1/workflow/search/expand",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          seed_retmax: 15,
+          included_pmids: ["123", "456"],
+          min_year: null,
+          max_year: null,
+        }),
+      }),
+    );
   });
 });
