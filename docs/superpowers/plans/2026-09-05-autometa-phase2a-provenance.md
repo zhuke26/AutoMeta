@@ -469,7 +469,7 @@ Run `.venv/bin/python -m pytest tests -q && .venv/bin/ruff check .` and commit a
 - Produces typed queries for events, graph, versions, diffs, audit export, and
   rerun mutation.
 
-- [ ] **Step 1: Write failing React tests**
+- [x] **Step 1: Write failing React tests**
 
 Cover chronological rendering, producer/stage/type filters, event details,
 version selection, add/remove/replace diff rendering, approval/revocation/stale
@@ -477,24 +477,24 @@ labels, disabled rerun for ineligible events, explicit rerun confirmation,
 new-job navigation/progress, audit download, empty/error states, and 1024 px
 overflow behavior.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `cd frontend && npm test -- --run src/pages/ProvenancePage.test.tsx`
 
-- [ ] **Step 3: Implement typed client and full timeline**
+- [x] **Step 3: Implement typed client and full timeline**
 
 Display event sequence, timestamp, stage, producer, event label, exact input and
 output version references, duration, and safe metadata. Do not render raw JSON
 until the user expands an event. Use text/glyph labels in addition to color.
 
-- [ ] **Step 4: Implement version diff, export, and rerun confirmation**
+- [x] **Step 4: Implement version diff, export, and rerun confirmation**
 
 The diff viewer requests two explicit version numbers. The rerun dialog names
 the operation and source timestamp and requires `Rerun` confirmation before
 calling the API. The audit export button downloads only the server-generated
 JSON attachment.
 
-- [ ] **Step 5: Run frontend gates and commit**
+- [x] **Step 5: Run frontend gates and commit**
 
 Run:
 

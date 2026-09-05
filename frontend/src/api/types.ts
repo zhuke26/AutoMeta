@@ -36,6 +36,7 @@ export type ArtifactKind =
 
 export interface ArtifactView {
   artifact_id: string;
+  version_id?: string;
   review_id: string;
   stage: string;
   kind: ArtifactKind;
@@ -45,6 +46,60 @@ export interface ArtifactView {
   content_hash: string;
   created_at: string;
   approved: boolean;
+}
+
+export interface ArtifactVersionView {
+  version_id: string;
+  artifact_id: string;
+  review_id: string;
+  stage: string;
+  kind: ArtifactKind;
+  version: number;
+  payload: Record<string, unknown>;
+  content_hash: string;
+  created_at: string;
+  approval_status: string | null;
+  approved_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface ArtifactDiffChange {
+  op: "add" | "remove" | "replace";
+  path: string;
+  before: unknown;
+  after: unknown;
+}
+
+export interface ArtifactDiffView {
+  artifact_id: string;
+  kind: ArtifactKind;
+  from_version: number;
+  to_version: number;
+  changes: ArtifactDiffChange[];
+}
+
+export type ProvenanceProducer = "researcher" | "agent" | "system";
+
+export interface ReviewEventView {
+  id: string;
+  review_id: string;
+  sequence: number;
+  stage: string | null;
+  event_type: string;
+  producer: ProvenanceProducer;
+  stage_run_id: string | null;
+  job_id: string | null;
+  artifact_version_id: string | null;
+  elapsed_ms: number | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ProvenanceGraphView {
+  events: ReviewEventView[];
+  edges: Array<{ id: string; source_version_id: string; target_version_id: string; relation: string }>;
+  edits: Array<{ id: string; artifact_id: string; from_version_id: string | null; to_version_id: string; changed_paths: string[] }>;
+  reruns: Array<{ id: string; source_stage_run_id: string; rerun_stage_run_id: string; source_event_id: string }>;
 }
 
 export type JobState =

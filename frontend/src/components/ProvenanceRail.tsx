@@ -15,15 +15,16 @@ export type ProvenanceState = "not_started" | "draft" | "approved" | "stale";
 
 interface ProvenanceRailProps {
   completed?: ReadonlyArray<ProvenanceArtifact>;
+  reviewId?: string;
   states?: Partial<Record<ProvenanceArtifact, ProvenanceState>>;
 }
 
 
-export function ProvenanceRail({ completed = [], states = {} }: ProvenanceRailProps) {
+export function ProvenanceRail({ completed = [], reviewId, states = {} }: ProvenanceRailProps) {
   const completedSet = new Set(completed);
   return (
     <footer className="provenance-rail">
-      <span className="provenance-rail__label">Evidence provenance</span>
+      {reviewId ? <Link className="provenance-rail__label" to={`/reviews/${reviewId}/provenance`}>Evidence provenance</Link> : <span className="provenance-rail__label">Evidence provenance</span>}
       <ol>
         {artifacts.map((artifact) => {
           const state = states[artifact] ?? (completedSet.has(artifact) ? "approved" : "not_started");
@@ -40,3 +41,4 @@ export function ProvenanceRail({ completed = [], states = {} }: ProvenanceRailPr
     </footer>
   );
 }
+import { Link } from "react-router-dom";

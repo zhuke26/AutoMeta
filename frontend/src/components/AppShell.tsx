@@ -53,7 +53,7 @@ export function AppShell({
         <StageRail reviewId={reviewId} activeStage={activeStage} stageStates={stageStates} />
       ) : null}
       <div className="workspace-canvas">{children}</div>
-      {showWorkflow ? <ProvenanceRail states={provenanceStates} /> : null}
+      {showWorkflow ? <ProvenanceRail reviewId={reviewId} states={provenanceStates} /> : null}
     </div>
   );
 }
