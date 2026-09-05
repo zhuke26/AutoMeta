@@ -4,6 +4,7 @@ from autometa.config import Settings
 from autometa.jobs.manager import JobManager
 from autometa.persistence.database import Database
 from autometa.services.artifacts import ArtifactService
+from autometa.services.audit_export import AuditExportService
 from autometa.services.files import FileStorage
 from autometa.services.provenance import ProvenanceService
 from autometa.services.reruns import RerunService
@@ -81,6 +82,13 @@ def get_workflow_operations(request: Request) -> WorkflowOperationRegistry:
     if registry is None:
         raise RuntimeError("AutoMeta workflow operation registry is not initialized")
     return registry
+
+
+def get_audit_export_service(request: Request) -> AuditExportService:
+    service = getattr(request.app.state, "audit_export_service", None)
+    if service is None:
+        raise RuntimeError("AutoMeta audit export service is not initialized")
+    return service
 
 
 def get_app_settings(request: Request) -> Settings:

@@ -49,6 +49,7 @@ from autometa.repositories.reviews import ReviewRepository
 from autometa.repositories.settings import LocalSettingsRepository
 from autometa.repositories.stage_runs import StageRunRepository
 from autometa.services.artifacts import ArtifactService
+from autometa.services.audit_export import AuditExportService
 from autometa.services.files import FileStorage
 from autometa.services.provenance import ProvenanceService
 from autometa.services.reruns import RerunService
@@ -102,6 +103,10 @@ def create_app(
             provenance_service,
         )
         application.state.provenance_service = provenance_service
+        application.state.audit_export_service = AuditExportService(
+            active_database,
+            provenance_service,
+        )
         application.state.artifact_service = artifact_service
         workflow_coordinator = WorkflowCoordinator(
             active_manager,
@@ -185,6 +190,7 @@ def create_app(
         settings_router.router,
         workflows.router,
         provenance.router,
+        provenance.audit_router,
     ):
         application.include_router(router, prefix=API_PREFIX)
 

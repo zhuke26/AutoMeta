@@ -421,29 +421,29 @@ Run the focused tests, complete backend suite, and Ruff. Commit as
 - Export media type: `application/json`; filename:
   `autometa-review-<review-id>-audit.json`.
 
-- [ ] **Step 1: Write failing API and export tests**
+- [x] **Step 1: Write failing API and export tests**
 
 Test pagination, deterministic ordering, graph node/edge integrity, 404 isolation,
 content-disposition, stable export schema version `1`, and recursive absence of
 secrets, absolute paths, PDF text, and CSV contents.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `.venv/bin/python -m pytest tests/api/test_provenance_api.py tests/api/test_audit_export.py -q`
 
-- [ ] **Step 3: Implement deterministic export assembly**
+- [x] **Step 3: Implement deterministic export assembly**
 
 Use sorted lists and JSON serialization with `sort_keys=True`. Include hashes and
 relative metadata, but exclude stored filenames/paths and file bodies. Add a
 top-level `schema_version`, `exported_at`, and `product_version`.
 
-- [ ] **Step 4: Add routes and verify HTTP headers/body**
+- [x] **Step 4: Add routes and verify HTTP headers/body**
 
 All endpoints use Review ownership checks and return no server exception text.
 The export endpoint returns a streamed attachment without first writing the
 audit JSON into the Review directory.
 
-- [ ] **Step 5: Run the backend gate and commit**
+- [x] **Step 5: Run the backend gate and commit**
 
 Run `.venv/bin/python -m pytest tests -q && .venv/bin/ruff check .` and commit as
 `feat: expose Review provenance and audit export`.
