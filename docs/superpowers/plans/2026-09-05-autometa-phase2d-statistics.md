@@ -81,13 +81,13 @@
   `subgroup_analysis(..., labels) -> SubgroupResult`.
 - Extends the method plan with optional `subgroup_column` and output switches.
 
-- [ ] Write failing tests for deterministic omissions, subgroup pools, between-
+- [x] Write failing tests for deterministic omissions, subgroup pools, between-
   subgroup Q, missing/single-study groups, ratio scales, and strict errors.
-- [ ] Verify RED.
-- [ ] Implement diagnostics by repeatedly calling the same pooling function; do
+- [x] Verify RED.
+- [x] Implement diagnostics by repeatedly calling the same pooling function; do
   not duplicate or alter formulas.
-- [ ] Add Pydantic result models and JSON serialization.
-- [ ] Run focused/full tests and Ruff; commit as `feat: add meta-analysis diagnostics`.
+- [x] Add Pydantic result models and JSON serialization.
+- [x] Run focused/full tests and Ruff; commit as `feat: add meta-analysis diagnostics`.
 
 ### Task 4: Refactor the runner and generated code onto the shared engine
 

@@ -132,6 +132,10 @@ class MetaAnalysisOutputSpec(BaseModel):
     include_pooled_effect: bool = True
     include_heterogeneity: bool = True
     include_output_csv: bool = True
+    include_prediction_interval: bool = True
+    include_leave_one_out: bool = True
+    include_subgroup: bool = True
+    include_forest_plot: bool = True
 
 
 class MetaAnalysisMethodPlan(BaseModel):
@@ -149,6 +153,7 @@ class MetaAnalysisMethodPlan(BaseModel):
     effect_source: EffectSource
     model: PoolingModelSpec = Field(default_factory=PoolingModelSpec)
     columns: MetaAnalysisColumns
+    subgroup_column: Optional[str] = None
     continuity_correction: Optional[ContinuityCorrectionSpec] = None
     exclusion_rules: List[str] = Field(default_factory=list)
     output: MetaAnalysisOutputSpec = Field(default_factory=MetaAnalysisOutputSpec)
@@ -228,6 +233,31 @@ class PooledEffectResult(BaseModel):
     ci_upper: float
     z_value: Optional[float] = None
     p_value: Optional[float] = None
+
+
+class PredictionIntervalResult(BaseModel):
+    lower: float
+    upper: float
+
+
+class LeaveOneOutResult(BaseModel):
+    omitted_study: str
+    pooled_effect: PooledEffectResult
+    heterogeneity: HeterogeneityResult
+
+
+class SubgroupPoolResult(BaseModel):
+    label: str
+    study_count: int
+    pooled_effect: PooledEffectResult
+    heterogeneity: HeterogeneityResult
+
+
+class SubgroupAnalysisResult(BaseModel):
+    groups: List[SubgroupPoolResult] = Field(default_factory=list)
+    between_group_q: float
+    between_group_df: int
+    between_group_p_value: float
 
 
 class MetaAnalysisDatasetResult(BaseModel):

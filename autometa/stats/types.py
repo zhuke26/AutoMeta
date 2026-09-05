@@ -31,3 +31,24 @@ class PoolingResult:
     weights: tuple[float, ...]
     prediction_lower: float | None = None
     prediction_upper: float | None = None
+
+
+@dataclass(frozen=True)
+class InfluenceResult:
+    omitted_study: str
+    pool: PoolingResult
+
+
+@dataclass(frozen=True)
+class SubgroupPool:
+    label: str
+    study_count: int
+    pool: PoolingResult
+
+
+@dataclass(frozen=True)
+class SubgroupResult:
+    groups: tuple[SubgroupPool, ...]
+    between_group_q: float
+    between_group_df: int
+    between_group_p_value: float
