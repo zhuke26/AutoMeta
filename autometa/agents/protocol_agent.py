@@ -8,10 +8,10 @@ from typing import List
 from pydantic import BaseModel, Field, ValidationError
 
 from autometa.agents.base_agent import BaseAgent
+from autometa.config import AgentStage, get_settings
 from autometa.prompts.protocol import PROTOCOL_DRAFT_PROMPT, PROTOCOL_DRAFT_TOOL
 from autometa.schemas.models import PICODefinition
 from autometa.tools.llm import batch_function_call_llm
-from autometa.config import AgentStage, get_settings
 
 logger = logging.getLogger(__name__)
 

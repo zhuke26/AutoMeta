@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 from autometa.api.main import app
 
-
 client = TestClient(app)
 STATIC_INDEX = Path(__file__).resolve().parents[2] / "autometa" / "static" / "index.html"
 

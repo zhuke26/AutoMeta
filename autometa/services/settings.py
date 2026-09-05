@@ -1,6 +1,5 @@
 from autometa.repositories.settings import LocalSettingsRepository
 
-
 PDF_DISCLOSURE_KEY = "pdf_model_disclosure"
 
 

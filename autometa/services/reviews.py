@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from autometa.jobs.manager import JobManager
 from autometa.persistence.models import Review, ReviewMode, ReviewStatus
 from autometa.repositories.reviews import ReviewRepository
 from autometa.services.files import FileStorage
-from autometa.jobs.manager import JobManager
 
 
 class ReviewNotFound(LookupError):

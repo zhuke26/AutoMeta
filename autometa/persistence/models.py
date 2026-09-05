@@ -8,12 +8,14 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     DateTime,
-    Enum as SqlEnum,
     ForeignKey,
     Integer,
     String,
     Text,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SqlEnum,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

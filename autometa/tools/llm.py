@@ -7,13 +7,14 @@ Uses an OpenAI-compatible API configured by the server environment.
 
 import asyncio
 import json
+import logging
 import re
+from functools import lru_cache
+from typing import List
+
 import httpx
 import tenacity
-from openai import OpenAI, AsyncOpenAI
-from typing import List
-import logging
-from functools import lru_cache
+from openai import AsyncOpenAI, OpenAI
 
 from autometa.config import get_settings
 

@@ -28,10 +28,9 @@ def _convert_pdf(file_path: str, do_ocr: bool) -> Tuple[str, List[str], int]:
     Returns:
         (markdown_text, tables_as_markdown_strings, num_pages)
     """
-    from docling.document_converter import DocumentConverter
     from docling.datamodel.base_models import InputFormat
-    from docling.document_converter import PdfFormatOption
     from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
 
     pipeline_options = PdfPipelineOptions()
     pipeline_options.do_table_structure = True

@@ -14,14 +14,21 @@ Pipeline:
 """
 
 import json
-import re
 import logging
+import re
 from typing import Optional
 
 from autometa.agents.base_agent import BaseAgent
+from autometa.config import AgentStage, get_settings
+from autometa.prompts.search_query import (
+    FIELD_TAGGED_SEARCH_REPAIR,
+    FIELD_TAGGED_SEARCH_STRATEGY,
+    PRIMARY_TERM_EXTRACTION,
+    SEARCH_TERM_EXTRACTION,
+)
 from autometa.schemas.models import (
-    PICODefinition,
     Paper,
+    PICODefinition,
     SearchQueryEvaluation,
     SearchQueryVariant,
     SearchResult,
@@ -29,14 +36,12 @@ from autometa.schemas.models import (
     SearchTerms,
 )
 from autometa.tools.llm import call_llm
-from autometa.tools.pubmed import ReqPubmedID, ReqPubmedFull, PubmedAPIWrapper, pmid2papers
-from autometa.prompts.search_query import (
-    FIELD_TAGGED_SEARCH_REPAIR,
-    FIELD_TAGGED_SEARCH_STRATEGY,
-    PRIMARY_TERM_EXTRACTION,
-    SEARCH_TERM_EXTRACTION,
+from autometa.tools.pubmed import (
+    PubmedAPIWrapper,
+    ReqPubmedFull,
+    ReqPubmedID,
+    pmid2papers,
 )
-from autometa.config import AgentStage, get_settings
 
 logger = logging.getLogger(__name__)
 

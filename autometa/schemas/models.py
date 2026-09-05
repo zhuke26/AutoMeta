@@ -4,8 +4,8 @@ Shared Pydantic data models for AutoMeta.
 
 from enum import Enum
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Input models

@@ -1,14 +1,13 @@
 import time
 
 from autometa.schemas.models import (
-    PICODefinition,
     Paper,
+    PICODefinition,
     SearchQueryVariant,
     SearchResult,
     SearchStrategy,
     SearchTerms,
 )
-
 
 PICO_PAYLOAD = {
     "research_question": "Does rehabilitation improve recovery after stroke?",

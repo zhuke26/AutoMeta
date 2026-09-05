@@ -3,13 +3,14 @@ AutoMeta pipeline — chains SearchAgent and ScreeningAgentV2 for a complete run
 """
 
 import logging
-from typing import Optional
 
-from autometa.agents.search_agent import SearchAgent
 from autometa.agents.screening_agent_v2 import ScreeningAgentV2
+from autometa.agents.search_agent import SearchAgent
 from autometa.schemas.models import (
-    PICODefinition, StudyDesignFilter,
-    SearchResult, ScreeningResultV2,
+    PICODefinition,
+    ScreeningResultV2,
+    SearchResult,
+    StudyDesignFilter,
 )
 
 logger = logging.getLogger(__name__)

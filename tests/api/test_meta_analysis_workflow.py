@@ -10,7 +10,6 @@ from autometa.schemas.meta_models import (
     PoolingModelSpec,
 )
 
-
 PICO_PAYLOAD = {
     "research_question": "Does rehabilitation improve recovery after stroke?",
     "pico": {"P": "Adults", "I": "Rehabilitation", "C": "Usual care", "O": "Recovery"},

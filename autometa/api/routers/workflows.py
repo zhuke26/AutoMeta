@@ -2,12 +2,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 
-from autometa.agents.protocol_agent import ProtocolAgent
-from autometa.agents.search_agent import SearchAgent
-from autometa.agents.screening_agent_v2 import ScreeningAgentV2
 from autometa.agents.extraction_agent import ExtractionAgent
 from autometa.agents.meta_analysis_planner_agent import MetaAnalysisPlannerAgent
 from autometa.agents.meta_analysis_runner_agent import MetaAnalysisRunnerAgent
+from autometa.agents.protocol_agent import ProtocolAgent
+from autometa.agents.screening_agent_v2 import ScreeningAgentV2
+from autometa.agents.search_agent import SearchAgent
 from autometa.api.dependencies import (
     get_file_storage,
     get_local_settings,
@@ -15,11 +15,11 @@ from autometa.api.dependencies import (
     get_workflow_coordinator,
 )
 from autometa.jobs.manager import JobConflict, JobContext
-from autometa.schemas.jobs import JobView
 from autometa.schemas.artifacts import ArtifactView
 from autometa.schemas.extraction_models import ExtractionFieldDefinition
-from autometa.schemas.models import PICODefinition, Paper, StudyDesignFilter
+from autometa.schemas.jobs import JobView
 from autometa.schemas.meta_models import CSVSummary, MetaAnalysisMethodPlan
+from autometa.schemas.models import Paper, PICODefinition, StudyDesignFilter
 from autometa.schemas.workflows import (
     ExtractionWorkflowRequest,
     MetaPlanWorkflowRequest,
@@ -30,11 +30,10 @@ from autometa.schemas.workflows import (
     SearchQueryWorkflowRequest,
     SearchRunWorkflowRequest,
 )
-from autometa.services.reviews import ReviewNotFound, ReviewService
 from autometa.services.files import FileStorage, StoredFileNotFound
+from autometa.services.reviews import ReviewNotFound, ReviewService
 from autometa.services.settings import LocalSettingsService
 from autometa.services.workflows import WorkflowCoordinator, WorkflowInputConflict
-
 
 router = APIRouter(prefix="/reviews/{review_id}/workflow", tags=["workflow"])
 
@@ -253,7 +252,7 @@ def run_search(
             review_id,
             ("question_pico", "query"),
         )
-        pico = PICODefinition.model_validate(inputs[0].payload.get("pico"))
+        PICODefinition.model_validate(inputs[0].payload.get("pico"))
         raw_query = str(inputs[1].payload.get("raw_query") or "").strip()
         if not raw_query:
             raise WorkflowInputConflict("Approved Query is empty")

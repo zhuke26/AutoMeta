@@ -1,7 +1,7 @@
 from autometa.services.files import FileStorage, InvalidUpload, StoredFileNotFound
 from autometa.services.reviews import (
-    ReviewConfirmationMismatch,
     ReviewBusy,
+    ReviewConfirmationMismatch,
     ReviewNotFound,
     ReviewService,
 )

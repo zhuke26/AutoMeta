@@ -10,19 +10,23 @@ Two-phase screening pipeline:
 """
 
 import json
-import re
 import logging
+import re
 from typing import Generator, List, Optional
 
 from autometa.agents.base_agent import BaseAgent
-from autometa.schemas.models import (
-    PICODefinition, Paper,
-    CriteriaSet, PaperDecision, ScreeningSummary, ScreeningResult,
-)
-from autometa.tools.llm import call_llm, batch_function_call_llm
+from autometa.config import AgentStage, get_settings
 from autometa.prompts.screen_criteria import SCREENING_CRITERIA_GENERATION
 from autometa.prompts.screening import LITERATURE_SCREENING_FC
-from autometa.config import AgentStage, get_settings
+from autometa.schemas.models import (
+    CriteriaSet,
+    Paper,
+    PaperDecision,
+    PICODefinition,
+    ScreeningResult,
+    ScreeningSummary,
+)
+from autometa.tools.llm import batch_function_call_llm, call_llm
 
 logger = logging.getLogger(__name__)
 

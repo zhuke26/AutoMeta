@@ -16,12 +16,12 @@ from pydantic import BaseModel, Field
 
 from autometa.agents.screening_agent_v2 import ScreeningAgentV2
 from autometa.schemas.models import (
-    PICODefinition,
-    Paper,
-    StudyDesignFilter,
     MatchingCriteria,
+    Paper,
     PaperDecisionV2,
+    PICODefinition,
     ScreeningResultV2,
+    StudyDesignFilter,
 )
 
 logger = logging.getLogger(__name__)
@@ -253,11 +253,15 @@ async def review_uncertain_papers_stream(
     # Process uploaded PDFs: parse with Docling + BM25 chunking
     pdf_map: Dict[str, str] = {}
     if pdfs:
-        from autometa.tools.pdf_parser import parse_pdfs
+        import os
+        import tempfile
+
         from autometa.tools.chunker import (
-            chunk_document, build_context_chunks, format_chunks_with_citations,
+            build_context_chunks,
+            chunk_document,
+            format_chunks_with_citations,
         )
-        import tempfile, os
+        from autometa.tools.pdf_parser import parse_pdfs
 
         for upload in pdfs:
             pmid = os.path.splitext(upload.filename)[0]

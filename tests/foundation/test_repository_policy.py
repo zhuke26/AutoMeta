@@ -1,10 +1,9 @@
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[2]
 

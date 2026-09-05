@@ -12,6 +12,7 @@ from typing import List
 from pydantic import ValidationError
 
 from autometa.agents.base_agent import BaseAgent
+from autometa.config import AgentStage, get_settings
 from autometa.prompts.meta_analysis import (
     META_ANALYSIS_PLAN_PROMPT,
     META_ANALYSIS_PLAN_TOOL,
@@ -23,7 +24,6 @@ from autometa.schemas.meta_models import (
 )
 from autometa.schemas.models import PICODefinition
 from autometa.tools.llm import batch_function_call_llm
-from autometa.config import AgentStage, get_settings
 
 logger = logging.getLogger(__name__)
 

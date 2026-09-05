@@ -1,13 +1,13 @@
 from fastapi import Request
 
-from autometa.persistence.database import Database
-from autometa.jobs.manager import JobManager
 from autometa.config import Settings
+from autometa.jobs.manager import JobManager
+from autometa.persistence.database import Database
 from autometa.services.artifacts import ArtifactService
-from autometa.services.reviews import ReviewService
 from autometa.services.files import FileStorage
-from autometa.services.workflows import WorkflowCoordinator
+from autometa.services.reviews import ReviewService
 from autometa.services.settings import LocalSettingsService
+from autometa.services.workflows import WorkflowCoordinator
 
 
 def get_database(request: Request) -> Database:

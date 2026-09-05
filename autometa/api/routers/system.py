@@ -10,7 +10,6 @@ from autometa.config import AgentStage, Settings
 from autometa.persistence.database import Database
 from autometa.schemas.system import SystemStatus
 
-
 router = APIRouter(prefix="/system", tags=["system"])
 
 

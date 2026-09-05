@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from threading import Event, RLock
-import time
 
 from autometa.persistence.models import JobState
 from autometa.repositories.jobs import JobRepository

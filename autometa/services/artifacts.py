@@ -16,7 +16,6 @@ from autometa.persistence.models import (
 from autometa.repositories.artifacts import ArtifactRepository
 from autometa.schemas.artifacts import ArtifactView
 
-
 ARTIFACT_ORDER = (
     "question_pico",
     "query",

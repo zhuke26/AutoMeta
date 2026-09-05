@@ -12,12 +12,11 @@ from autometa.schemas.reviews import (
 )
 from autometa.services.files import FileStorage
 from autometa.services.reviews import (
-    ReviewConfirmationMismatch,
     ReviewBusy,
+    ReviewConfirmationMismatch,
     ReviewNotFound,
     ReviewService,
 )
-
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 

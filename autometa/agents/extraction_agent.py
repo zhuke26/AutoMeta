@@ -16,35 +16,35 @@ from pathlib import Path
 from typing import Generator, List, Tuple
 
 from autometa.agents.base_agent import BaseAgent
-from autometa.schemas.models import PICODefinition
-from autometa.schemas.extraction_models import (
-    ExtractionFieldDefinition,
-    ParsedPDF,
-    FieldExtraction,
-    CharacteristicsRow,
-    ResultsRow,
-    ExtractionOutput,
-    ExtractionSummary,
-)
-from autometa.tools.llm import batch_function_call_llm
-from autometa.tools.pdf_parser import (
-    parse_pdf,
-    parse_pdfs,
-    get_last_ocr_fallback_files,
-    reset_last_ocr_fallback_files,
-)
-from autometa.tools.chunker import (
-    chunk_document,
-    build_context_chunks,
-    format_chunks_with_citations,
-)
+from autometa.config import AgentStage, get_settings
 from autometa.prompts.extraction import (
     RESULT_TARGET_PLANNING,
     RESULT_TARGET_PLANNING_TOOL,
     STUDY_CHARACTERISTICS_EXTRACTION,
     STUDY_RESULTS_EXTRACTION,
 )
-from autometa.config import AgentStage, get_settings
+from autometa.schemas.extraction_models import (
+    CharacteristicsRow,
+    ExtractionFieldDefinition,
+    ExtractionOutput,
+    ExtractionSummary,
+    FieldExtraction,
+    ParsedPDF,
+    ResultsRow,
+)
+from autometa.schemas.models import PICODefinition
+from autometa.tools.chunker import (
+    build_context_chunks,
+    chunk_document,
+    format_chunks_with_citations,
+)
+from autometa.tools.llm import batch_function_call_llm
+from autometa.tools.pdf_parser import (
+    get_last_ocr_fallback_files,
+    parse_pdf,
+    parse_pdfs,
+    reset_last_ocr_fallback_files,
+)
 
 logger = logging.getLogger(__name__)
 

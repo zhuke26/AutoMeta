@@ -4,7 +4,6 @@ from autometa.api.dependencies import get_local_settings
 from autometa.schemas.settings import PdfDisclosureSetting
 from autometa.services.settings import LocalSettingsService
 
-
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 

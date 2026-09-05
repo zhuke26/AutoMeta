@@ -2,11 +2,9 @@
 Pydantic data models for the ExtractionAgent pipeline.
 """
 
-from typing import Dict, List, Optional
+from typing import List
+
 from pydantic import BaseModel, Field
-
-from autometa.schemas.models import PICODefinition
-
 
 # ---------------------------------------------------------------------------
 # Input models

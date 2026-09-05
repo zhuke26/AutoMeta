@@ -11,12 +11,12 @@ Changes:
 
 import copy
 import json
+import logging
 import re
-import traceback
 import time
+import traceback
 import urllib.parse
 import xml.etree.ElementTree as ET
-import logging
 from typing import Optional
 
 import pandas as pd

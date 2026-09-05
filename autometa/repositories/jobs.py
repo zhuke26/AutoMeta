@@ -7,7 +7,6 @@ from sqlalchemy import func, select
 from autometa.persistence.database import Database
 from autometa.persistence.models import Job, JobEvent, JobState, Review, ReviewStatus
 
-
 ACTIVE_JOB_STATES = (JobState.QUEUED, JobState.RUNNING)
 
 

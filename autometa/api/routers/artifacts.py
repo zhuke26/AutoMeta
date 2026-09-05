@@ -15,7 +15,6 @@ from autometa.services.artifacts import (
     InvalidArtifactKind,
 )
 
-
 router = APIRouter(prefix="/reviews/{review_id}/artifacts", tags=["artifacts"])
 
 

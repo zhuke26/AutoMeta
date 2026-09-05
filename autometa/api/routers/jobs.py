@@ -12,7 +12,6 @@ from autometa.persistence.models import JobState
 from autometa.schemas.jobs import JobView
 from autometa.services.reviews import ReviewNotFound, ReviewService
 
-
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 review_router = APIRouter(prefix="/reviews/{review_id}/jobs", tags=["jobs"])
 TERMINAL_STATES = {

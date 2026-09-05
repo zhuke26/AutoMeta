@@ -8,7 +8,6 @@ import requests
 from autometa.config import get_settings
 from autometa.tools.pubmed import PubmedAPIWrapper, _request_with_retry
 
-
 PUBMED_KEY_SENTINEL = "PUBMED_SECRET_SENTINEL_9f3c"
 
 

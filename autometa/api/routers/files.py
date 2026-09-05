@@ -7,7 +7,6 @@ from autometa.api.dependencies import get_file_storage
 from autometa.schemas.files import FileView
 from autometa.services.files import FileStorage, InvalidUpload, StoredFileNotFound
 
-
 router = APIRouter(tags=["files"])
 
 

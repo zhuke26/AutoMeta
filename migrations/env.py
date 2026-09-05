@@ -9,7 +9,6 @@ from autometa.config import get_settings
 from autometa.persistence.database import Database
 from autometa.persistence.models import Base
 
-
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

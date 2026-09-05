@@ -7,7 +7,6 @@ from autometa.schemas.extraction_models import (
     ResultsRow,
 )
 
-
 PICO_PAYLOAD = {
     "research_question": "Does rehabilitation improve recovery after stroke?",
     "pico": {"P": "Adults", "I": "Rehabilitation", "C": "Usual care", "O": "Recovery"},

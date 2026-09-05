@@ -4,16 +4,22 @@ POST /api/v1/search
 Accepts PICO → runs SearchAgent → returns candidate paper list.
 """
 
-from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, Field
-from typing import Literal, Optional
 import csv
 import io
 import json
 import logging
+from typing import Literal, Optional
+
+from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel, Field
 
 from autometa.agents.search_agent import SearchAgent
-from autometa.schemas.models import PICODefinition, SearchQueryVariant, SearchResult, SearchTerms
+from autometa.schemas.models import (
+    PICODefinition,
+    SearchQueryVariant,
+    SearchResult,
+    SearchTerms,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/search", tags=["search"])

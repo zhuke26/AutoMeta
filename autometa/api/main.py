@@ -24,20 +24,33 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from autometa.api.routers import artifacts, extraction, files, jobs, meta_analysis, protocol, reviews, screening, search, settings as settings_router, system, workflows
+from autometa.api.routers import (
+    artifacts,
+    extraction,
+    files,
+    jobs,
+    meta_analysis,
+    protocol,
+    reviews,
+    screening,
+    search,
+    system,
+    workflows,
+)
+from autometa.api.routers import settings as settings_router
 from autometa.config import Settings, get_settings
 from autometa.jobs.manager import JobManager
 from autometa.persistence.database import Database
 from autometa.repositories.artifacts import ArtifactRepository
 from autometa.repositories.jobs import JobRepository
 from autometa.repositories.reviews import ReviewRepository
-from autometa.repositories.stage_runs import StageRunRepository
 from autometa.repositories.settings import LocalSettingsRepository
+from autometa.repositories.stage_runs import StageRunRepository
 from autometa.services.artifacts import ArtifactService
 from autometa.services.files import FileStorage
 from autometa.services.reviews import ReviewService
-from autometa.services.workflows import WorkflowCoordinator
 from autometa.services.settings import LocalSettingsService
+from autometa.services.workflows import WorkflowCoordinator
 
 # ---------------------------------------------------------------------------
 # Logging

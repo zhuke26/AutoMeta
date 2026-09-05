@@ -16,12 +16,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from autometa.agents.extraction_agent import ExtractionAgent
-from autometa.schemas.models import PICODefinition
 from autometa.schemas.extraction_models import (
     ExtractionFieldDefinition,
-    ExtractionOutput,
-    ExtractionSummary,
 )
+from autometa.schemas.models import PICODefinition
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/extract", tags=["extraction"])
