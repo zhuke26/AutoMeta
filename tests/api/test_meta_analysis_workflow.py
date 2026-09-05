@@ -6,6 +6,7 @@ from autometa.schemas.meta_models import (
     EffectSource,
     MetaAnalysisColumns,
     MetaAnalysisMethodPlan,
+    MetaAnalysisOutputSpec,
     MetaAnalysisType,
     PoolingModelSpec,
 )
@@ -72,6 +73,7 @@ def _method_plan():
             control_sd="sd_c",
             control_total="n_c",
         ),
+        output=MetaAnalysisOutputSpec(include_forest_plot=True),
     )
 
 

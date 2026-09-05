@@ -5,5 +5,21 @@
   "variances": [0.04, 0.09, 0.01, 0.16],
   "fixed": {"effect": 0.17951220, "se": 0.08381164, "q": 4.19024390, "q_p": 0.24164047, "i2": 28.40512224},
   "dersimonian_laird": {"effect": 0.2377217551, "se": 0.1212284274, "tau2": 0.0178754579, "prediction_lower": -0.1160058068, "prediction_upper": 0.5914493170},
-  "restricted_maximum_likelihood": {"effect": 0.229488170, "se": 0.115597382, "tau2": 0.014327170, "prediction_lower": -0.096655520, "prediction_upper": 0.555631860}
+  "restricted_maximum_likelihood": {"effect": 0.229488170, "se": 0.115597382, "tau2": 0.014327170, "prediction_lower": -0.096655520, "prediction_upper": 0.555631860},
+  "continuous_standardized": {
+    "command_smd": "escalc(measure='SMD', m1i=5, sd1i=2, n1i=40, m2i=3, sd2i=2, n2i=40, correct=FALSE, vtype='LS')",
+    "command_hedges_g": "escalc(measure='SMD', m1i=5, sd1i=2, n1i=40, m2i=3, sd2i=2, n2i=40, correct=TRUE, vtype='LS')",
+    "smd_effect": 1.0,
+    "smd_variance": 0.05625,
+    "hedges_g_effect": 0.9903485131,
+    "hedges_g_variance": 0.0561299386
+  },
+  "subgroup_reml": {
+    "command": "rma.uni(yi=c(0.2,0.5,0.1,0.8), vi=c(0.04,0.09,0.01,0.16), mods=~factor(c('Early','Early','Late','Late')), method='REML')",
+    "tau2": 0.0563779972,
+    "early_effect": 0.3191047794,
+    "late_effect": 0.2643275438,
+    "qm": 0.0275507098,
+    "qm_p": 0.8681694907
+  }
 }

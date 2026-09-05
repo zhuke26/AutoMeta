@@ -13,6 +13,23 @@ def _positive_finite(*values: float) -> None:
         raise ValueError("Required values must be finite and positive")
 
 
+def _sample_size(value: float) -> None:
+    _positive_finite(value)
+    if not float(value).is_integer():
+        raise ValueError("Sample sizes must be whole numbers")
+    if value < 2:
+        raise ValueError("Continuous sample sizes must be at least two")
+
+
+def _count(value: float, *, total: bool = False) -> None:
+    if not math.isfinite(value):
+        raise ValueError("Event counts and totals must be finite")
+    if not float(value).is_integer():
+        raise ValueError("Event counts and totals must be whole numbers")
+    if value < (1 if total else 0):
+        raise ValueError("Totals must be positive and event counts non-negative")
+
+
 def continuous_effect(
     measure: EffectMeasure,
     experimental_mean: float,
@@ -22,7 +39,11 @@ def continuous_effect(
     control_sd: float,
     control_total: float,
 ) -> StudyEstimate:
-    _positive_finite(experimental_sd, experimental_total, control_sd, control_total)
+    _positive_finite(experimental_sd, control_sd)
+    _sample_size(experimental_total)
+    _sample_size(control_total)
+    if not math.isfinite(experimental_mean) or not math.isfinite(control_mean):
+        raise ValueError("Means must be finite")
     difference = experimental_mean - control_mean
     if measure == EffectMeasure.MD:
         variance = (
@@ -37,13 +58,19 @@ def continuous_effect(
     _positive_finite(pooled_variance)
     standardized = difference / math.sqrt(pooled_variance)
     if measure == EffectMeasure.HEDGES_G:
-        standardized *= 1 - 3 / (4 * (experimental_total + control_total) - 9)
+        degrees = experimental_total + control_total - 2
+        correction = math.exp(
+            math.lgamma(degrees / 2)
+            - 0.5 * math.log(degrees / 2)
+            - math.lgamma((degrees - 1) / 2)
+        )
+        standardized *= correction
     elif measure != EffectMeasure.SMD:
         raise ValueError(f"Unsupported continuous effect measure: {measure}")
     variance = (
         (experimental_total + control_total)
         / (experimental_total * control_total)
-        + standardized**2 / (2 * (experimental_total + control_total - 2))
+        + standardized**2 / (2 * (experimental_total + control_total))
     )
     return StudyEstimate(effect=standardized, variance=variance)
 
@@ -58,7 +85,10 @@ def dichotomous_effect(
     correction: float = 0.5,
     apply_correction: bool = False,
 ) -> StudyEstimate:
-    _positive_finite(experimental_total, control_total)
+    _count(experimental_events)
+    _count(experimental_total, total=True)
+    _count(control_events)
+    _count(control_total, total=True)
     a, c = experimental_events, control_events
     b, d = experimental_total - a, control_total - c
     if min(a, b, c, d) < 0:
@@ -100,6 +130,8 @@ def reported_effect(
     standard_error: float | None = None,
     variance: float | None = None,
 ) -> StudyEstimate:
+    if not math.isfinite(effect):
+        raise ValueError("Reported effect must be finite")
     ratio = measure in {EffectMeasure.OR, EffectMeasure.RR}
     if ratio and effect <= 0:
         raise ValueError("Ratio effects must be positive")
@@ -111,11 +143,17 @@ def reported_effect(
         _positive_finite(variance)
         se = math.sqrt(variance)
     elif ci_lower is not None and ci_upper is not None:
+        if not math.isfinite(ci_lower) or not math.isfinite(ci_upper):
+            raise ValueError("Confidence interval bounds must be finite")
+        if ci_lower >= ci_upper:
+            raise ValueError("Confidence interval bounds must be ordered")
+        if not ci_lower <= effect <= ci_upper:
+            raise ValueError("Confidence interval must contain the reported effect")
         if ratio:
             _positive_finite(ci_lower, ci_upper)
-            se = abs(math.log(ci_upper) - math.log(ci_lower)) / (2 * _Z)
+            se = (math.log(ci_upper) - math.log(ci_lower)) / (2 * _Z)
         else:
-            se = abs(ci_upper - ci_lower) / (2 * _Z)
+            se = (ci_upper - ci_lower) / (2 * _Z)
         _positive_finite(se)
     else:
         raise ValueError("Provide CI, standard error, or variance")

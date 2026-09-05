@@ -11,6 +11,7 @@ from autometa.schemas.meta_models import (
     EffectSource,
     MetaAnalysisColumns,
     MetaAnalysisMethodPlan,
+    MetaAnalysisOutputSpec,
     MetaAnalysisType,
     PoolingModelSpec,
     RandomEffectsMethod,
@@ -66,6 +67,12 @@ def test_runner_returns_reml_prediction_influence_and_subgroups() -> None:
             variance="variance",
         ),
         subgroup_column="group",
+        output=MetaAnalysisOutputSpec(
+            include_prediction_interval=True,
+            include_leave_one_out=True,
+            include_subgroup=True,
+            include_forest_plot=True,
+        ),
     )
     frame = pd.DataFrame([
         {"study": "A", "effect": .2, "variance": .04, "group": "Early"},
@@ -106,3 +113,41 @@ def test_generated_script_reproduces_the_server_result(tmp_path) -> None:
     )
 
     assert json.loads(completed.stdout) == response.results[0].model_dump(mode="json")
+
+    incompatible = script.read_text(encoding="utf-8").replace(
+        'ENGINE_VERSION = "0.1.0"',
+        'ENGINE_VERSION = "0.0.0"',
+    )
+    script.write_text(incompatible, encoding="utf-8")
+    rejected = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert "requires AutoMeta 0.0.0" in rejected.stderr
+
+
+def test_generated_script_cannot_execute_plan_text_as_python(tmp_path) -> None:
+    plan = _plan().model_copy(update={
+        "outcome_name": 'Safe label\nraise RuntimeError("INJECTED")',
+    })
+    frame = pd.DataFrame([
+        {"study": "A", "mean_t": 5, "sd_t": 1, "n_t": 20, "mean_c": 3, "sd_c": 1, "n_c": 20},
+        {"study": "B", "mean_t": 6, "sd_t": 2, "n_t": 30, "mean_c": 4, "sd_c": 2, "n_c": 30},
+    ])
+    frame.to_csv(tmp_path / "effects.csv", index=False)
+    response = MetaAnalysisRunnerAgent().run([plan], {"effects.csv": frame})
+    script = tmp_path / "analysis.py"
+    script.write_text(response.generated_code["effects.csv"], encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert json.loads(completed.stdout)["outcome_name"] == plan.outcome_name

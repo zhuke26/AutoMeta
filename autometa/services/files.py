@@ -6,6 +6,8 @@ import io
 import os
 import shutil
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -80,6 +82,61 @@ class FileStorage:
         mime_type: str,
         content: bytes,
     ) -> FileRecord:
+        suffix = self._validate_generated_figure(review_id, filename, mime_type, content)
+        return self._save_validated(
+            review_id,
+            filename,
+            mime_type,
+            content,
+            directory="figures",
+            suffix=suffix,
+            kind="figure",
+        )
+
+    @contextmanager
+    def generated_figure_batch(
+        self,
+        review_id: str,
+        figures: list[tuple[str, str, bytes]],
+    ) -> Iterator[list[FileRecord]]:
+        validated = [
+            (filename, mime_type, content, self._validate_generated_figure(
+                review_id,
+                filename,
+                mime_type,
+                content,
+            ))
+            for filename, mime_type, content in figures
+        ]
+        records: list[FileRecord] = []
+        created: list[FileRecord] = []
+        try:
+            for filename, mime_type, content, suffix in validated:
+                record, was_created = self._save_validated_with_status(
+                    review_id,
+                    filename,
+                    mime_type,
+                    content,
+                    directory="figures",
+                    suffix=suffix,
+                    kind="figure",
+                )
+                records.append(record)
+                if was_created:
+                    created.append(record)
+            yield records
+        except Exception:
+            for record in reversed(created):
+                self._discard(record)
+            raise
+
+    def _validate_generated_figure(
+        self,
+        review_id: str,
+        filename: str,
+        mime_type: str,
+        content: bytes,
+    ) -> str:
         if self.reviews.get(review_id) is None:
             raise StoredFileNotFound(f"Review not found: {review_id}")
         self._validate_filename(filename, "Figure")
@@ -93,15 +150,7 @@ class FileStorage:
             raise InvalidUpload("Generated figure format is not supported")
         if not content or len(content) > self.max_bytes:
             raise InvalidUpload("Generated figure is empty or exceeds the size limit")
-        return self._save_validated(
-            review_id,
-            filename,
-            mime_type,
-            content,
-            directory="figures",
-            suffix=suffix,
-            kind="figure",
-        )
+        return suffix
 
     def _save_validated(
         self,
@@ -114,10 +163,32 @@ class FileStorage:
         suffix: str,
         kind: str,
     ) -> FileRecord:
+        record, _ = self._save_validated_with_status(
+            review_id,
+            filename,
+            normalized_mime_type,
+            content,
+            directory=directory,
+            suffix=suffix,
+            kind=kind,
+        )
+        return record
+
+    def _save_validated_with_status(
+        self,
+        review_id: str,
+        filename: str,
+        normalized_mime_type: str,
+        content: bytes,
+        *,
+        directory: str,
+        suffix: str,
+        kind: str,
+    ) -> tuple[FileRecord, bool]:
         digest = hashlib.sha256(content).hexdigest()
-        existing = self.repository.find_by_hash(review_id, digest)
+        existing = self.repository.find_by_hash(review_id, digest, kind=kind)
         if existing is not None:
-            return existing
+            return existing, False
 
         record_id = uuid4().hex
         upload_dir = self.review_directory(review_id) / directory
@@ -146,12 +217,21 @@ class FileStorage:
                 size_bytes=len(content),
             )
             try:
-                return self.repository.create(record)
+                return self.repository.create(record), True
             except Exception:
                 destination.unlink(missing_ok=True)
                 raise
         finally:
             Path(temporary_name).unlink(missing_ok=True)
+
+    def _discard(self, record: FileRecord) -> None:
+        path = (self.data_dir / record.relative_path).resolve()
+        try:
+            path.relative_to(self.data_dir)
+        except ValueError as exc:
+            raise StoredFileNotFound(record.id) from exc
+        self.repository.delete(record.id)
+        path.unlink(missing_ok=True)
 
     async def save_upload(self, review_id: str, upload: UploadFile) -> FileRecord:
         content = await self._read_upload(upload, "PDF")

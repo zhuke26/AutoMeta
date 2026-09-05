@@ -1,4 +1,6 @@
+import json
 import math
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +11,10 @@ from autometa.stats.effects import (
     reported_effect,
 )
 
+REFERENCE = json.loads(
+    (Path(__file__).parents[1] / "fixtures" / "metafor_reference.json").read_text()
+)["continuous_standardized"]
+
 
 def test_continuous_md_smd_and_hedges_g() -> None:
     md = continuous_effect(EffectMeasure.MD, 5, 2, 40, 3, 2, 40)
@@ -16,8 +22,10 @@ def test_continuous_md_smd_and_hedges_g() -> None:
     hedges = continuous_effect(EffectMeasure.HEDGES_G, 5, 2, 40, 3, 2, 40)
     assert md.effect == pytest.approx(2)
     assert md.standard_error == pytest.approx(math.sqrt(0.2))
-    assert smd.effect == pytest.approx(1)
-    assert hedges.effect < smd.effect
+    assert smd.effect == pytest.approx(REFERENCE["smd_effect"])
+    assert smd.variance == pytest.approx(REFERENCE["smd_variance"])
+    assert hedges.effect == pytest.approx(REFERENCE["hedges_g_effect"])
+    assert hedges.variance == pytest.approx(REFERENCE["hedges_g_variance"])
 
 
 def test_dichotomous_or_rr_and_rd() -> None:
@@ -40,6 +48,13 @@ def test_zero_cells_require_an_explicit_correction() -> None:
     assert math.isfinite(corrected.effect)
 
 
+def test_dichotomous_counts_must_be_finite_whole_numbers() -> None:
+    with pytest.raises(ValueError, match="whole numbers"):
+        dichotomous_effect(EffectMeasure.OR, 1.5, 20, 3, 20)
+    with pytest.raises(ValueError, match="finite"):
+        dichotomous_effect(EffectMeasure.RD, math.nan, 20, 3, 20)
+
+
 def test_reported_ratio_and_linear_effects() -> None:
     ratio = reported_effect(EffectMeasure.RR, effect=2, ci_lower=1.5, ci_upper=2.5)
     linear = reported_effect(EffectMeasure.MD, effect=3, standard_error=0.4)
@@ -54,3 +69,11 @@ def test_effect_inputs_must_be_finite_and_positive_where_required() -> None:
         continuous_effect(EffectMeasure.MD, 1, 0, 10, 0, 1, 10)
     with pytest.raises(ValueError):
         reported_effect(EffectMeasure.RR, effect=-1, standard_error=0.2)
+    with pytest.raises(ValueError, match="whole numbers"):
+        continuous_effect(EffectMeasure.SMD, 1, 1, 10.5, 0, 1, 10)
+    with pytest.raises(ValueError, match="at least two"):
+        continuous_effect(EffectMeasure.HEDGES_G, 1, 1, 1, 0, 1, 10)
+    with pytest.raises(ValueError, match="ordered"):
+        reported_effect(EffectMeasure.MD, effect=1, ci_lower=2, ci_upper=0)
+    with pytest.raises(ValueError, match="contain"):
+        reported_effect(EffectMeasure.MD, effect=3, ci_lower=0, ci_upper=2)

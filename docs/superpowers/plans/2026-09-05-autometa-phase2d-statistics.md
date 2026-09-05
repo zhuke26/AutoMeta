@@ -178,21 +178,25 @@
 - [x] Render every plot format and browser-test Meta-analysis at
   1024/1280/1440/1920 with no clipping, console errors, remote assets, or dead
   controls.
-- [ ] Verify reference fixture values field by field, scan for credentials and
+- [x] Verify reference fixture values field by field, scan for credentials and
   manuscript/benchmark data, confirm no remote, and merge locally without push.
 
 ## Verification Record (2026-09-05)
 
-- `.venv/bin/python -m pytest tests -q`: 170 tests passed, including the
+- `.venv/bin/python -m pytest tests -q`: 187 tests passed, including the
   `metafor` reference fields, executable generated code, migrations, the public
   repository policy, and the full statistics/figure/delete API workflow.
 - `.venv/bin/ruff check .`: passed.
-- `npm test -- --run`: 20 files and 64 tests passed; `npm run typecheck` passed.
+- `npm test -- --run`: 21 files and 65 tests passed; `npm run typecheck` passed.
 - Two consecutive production builds produced identical hashes for every
   committed static asset.
+- All 30 numeric fields in the constructed R 4.6.1 / `metafor` 5.0.1 fixture
+  matched their fixed, DL, REML, SMD, Hedges g, and mixed-effects subgroup
+  references within the declared tolerances.
 - `uv build` produced both sdist and wheel; the wheel and its complete runtime
   dependency set installed into a clean Python 3.12 environment, where the CLI,
-  FastAPI app, shared statistics engine, and plot renderer imported successfully.
+  FastAPI app, shared statistics engine, and all three plot formats ran
+  successfully without third-party INFO-log noise.
 - Windows Python 3.12 dependency resolution succeeded, and CI covers Windows
   3.11/3.12 plus a Linux CPU Docker build/start health check. Docker is not
   installed on the local macOS host, so the container itself was not run here.

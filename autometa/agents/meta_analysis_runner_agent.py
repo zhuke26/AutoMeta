@@ -7,6 +7,7 @@ from typing import Dict, List
 
 import pandas as pd
 
+from autometa import __version__
 from autometa.agents.base_agent import BaseAgent
 from autometa.schemas.meta_models import (
     MetaAnalysisDatasetResult,
@@ -49,16 +50,24 @@ class MetaAnalysisRunnerAgent(BaseAgent):
             ensure_ascii=False,
             sort_keys=True,
         )
+        engine_version = json.dumps(__version__)
         return f'''# Auto-generated deterministic AutoMeta calculation
-# CSV file: {plan.csv_file}
-# Outcome: {plan.outcome_name}
+# Dataset and outcome are defined in the validated PLAN below.
 
 from pathlib import Path
 
 import pandas as pd
 
+from autometa import __version__ as AUTOMETA_VERSION
 from autometa.schemas.meta_models import MetaAnalysisMethodPlan
 from autometa.stats import run_analysis
+
+ENGINE_VERSION = {engine_version}
+if AUTOMETA_VERSION != ENGINE_VERSION:
+    raise RuntimeError(
+        f"This calculation requires AutoMeta {{ENGINE_VERSION}}; "
+        f"installed version is {{AUTOMETA_VERSION}}"
+    )
 
 PLAN = MetaAnalysisMethodPlan.model_validate_json({plan_json!r})
 CSV_PATH = Path(__file__).resolve().with_name(PLAN.csv_file)

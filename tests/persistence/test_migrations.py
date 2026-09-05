@@ -41,6 +41,10 @@ def test_phase_one_database_upgrades_without_losing_rows(tmp_path, monkeypatch) 
         file_columns = {
             column["name"] for column in inspect(connection).get_columns("files")
         }
+        file_unique_constraints = {
+            tuple(item["column_names"])
+            for item in inspect(connection).get_unique_constraints("files")
+        }
     assert {
         "operation_kind",
         "request_payload",
@@ -48,6 +52,7 @@ def test_phase_one_database_upgrades_without_losing_rows(tmp_path, monkeypatch) 
         "output_artifact_version_ids",
     } <= stage_run_columns
     assert "kind" in file_columns
+    assert ("review_id", "kind", "sha256") in file_unique_constraints
 
     engine.dispose()
     get_settings.cache_clear()

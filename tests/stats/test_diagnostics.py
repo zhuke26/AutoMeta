@@ -1,5 +1,9 @@
+import json
+from pathlib import Path
+
 import pytest
 
+from autometa.stats import diagnostics
 from autometa.stats.diagnostics import leave_one_out, subgroup_analysis
 from autometa.stats.types import StudyEstimate
 
@@ -9,6 +13,9 @@ ESTIMATES = [
     StudyEstimate(effect=0.1, variance=0.01, study_label="C"),
     StudyEstimate(effect=0.8, variance=0.16, study_label="D"),
 ]
+REFERENCE = json.loads(
+    (Path(__file__).parents[1] / "fixtures" / "metafor_reference.json").read_text()
+)["subgroup_reml"]
 
 
 def test_leave_one_out_uses_same_pooling_model() -> None:
@@ -30,8 +37,52 @@ def test_subgroup_analysis_pools_groups_and_between_group_q() -> None:
     assert 0 <= result.between_group_p_value <= 1
 
 
+def test_reml_subgroup_analysis_matches_metafor_mixed_effects_reference() -> None:
+    result = subgroup_analysis(
+        ESTIMATES,
+        ["Early", "Early", "Late", "Late"],
+        model="random",
+        random_method="restricted_maximum_likelihood",
+    )
+
+    assert result.groups[0].pool.effect == pytest.approx(REFERENCE["early_effect"], abs=2e-6)
+    assert result.groups[1].pool.effect == pytest.approx(REFERENCE["late_effect"], abs=2e-6)
+    assert result.groups[0].pool.tau2 == pytest.approx(REFERENCE["tau2"], abs=2e-6)
+    assert result.groups[1].pool.tau2 == pytest.approx(REFERENCE["tau2"], abs=2e-6)
+    assert result.between_group_q == pytest.approx(REFERENCE["qm"], abs=2e-6)
+    assert result.between_group_p_value == pytest.approx(REFERENCE["qm_p"], abs=2e-6)
+
+
+def test_auto_selected_random_subgroups_keep_the_shared_random_model() -> None:
+    result = subgroup_analysis(
+        ESTIMATES,
+        ["Early", "Early", "Late", "Late"],
+        model="auto_by_i2",
+        random_method="restricted_maximum_likelihood",
+        i2_threshold=20,
+    )
+
+    assert all(group.pool.model_used == "random" for group in result.groups)
+    assert result.between_group_q == pytest.approx(REFERENCE["qm"], abs=2e-6)
+
+
 def test_subgroup_requires_two_nonempty_groups() -> None:
     with pytest.raises(ValueError, match="two groups"):
         subgroup_analysis(ESTIMATES, ["Only"] * 4, model="fixed")
     with pytest.raises(ValueError, match="same length"):
         subgroup_analysis(ESTIMATES, ["A"], model="fixed")
+
+
+def test_leave_one_out_rejects_unbounded_study_counts_before_pooling(monkeypatch) -> None:
+    estimates = [
+        StudyEstimate(effect=float(index), variance=1, study_label=str(index))
+        for index in range(201)
+    ]
+    monkeypatch.setattr(
+        diagnostics,
+        "pool_effects",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("pooling invoked")),
+    )
+
+    with pytest.raises(ValueError, match="at most 200"):
+        leave_one_out(estimates, model="fixed")

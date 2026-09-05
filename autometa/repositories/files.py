@@ -16,10 +16,17 @@ class FileRepository:
             session.flush()
             return record
 
-    def find_by_hash(self, review_id: str, sha256: str) -> FileRecord | None:
+    def find_by_hash(
+        self,
+        review_id: str,
+        sha256: str,
+        *,
+        kind: str,
+    ) -> FileRecord | None:
         with self.database.session() as session:
             statement = select(FileRecord).where(
                 FileRecord.review_id == review_id,
+                FileRecord.kind == kind,
                 FileRecord.sha256 == sha256,
             )
             return session.scalar(statement)
@@ -36,3 +43,11 @@ class FileRepository:
                 .order_by(FileRecord.created_at.asc())
             )
             return list(session.scalars(statement))
+
+    def delete(self, file_id: str) -> bool:
+        with self.database.session() as session:
+            record = session.get(FileRecord, file_id)
+            if record is None:
+                return False
+            session.delete(record)
+            return True

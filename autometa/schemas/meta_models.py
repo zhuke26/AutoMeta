@@ -8,7 +8,7 @@ inputs are cleaned CSV files plus the review PICO context.
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from autometa.schemas.models import PICODefinition
 
@@ -53,7 +53,6 @@ class FixedEffectMethod(str, Enum):
     """Supported fixed-effect pooling methods."""
 
     INVERSE_VARIANCE = "inverse_variance"
-    MANTEL_HAENSZEL = "mantel_haenszel"
 
 
 class RandomEffectsMethod(str, Enum):
@@ -132,10 +131,10 @@ class MetaAnalysisOutputSpec(BaseModel):
     include_pooled_effect: bool = True
     include_heterogeneity: bool = True
     include_output_csv: bool = True
-    include_prediction_interval: bool = True
-    include_leave_one_out: bool = True
-    include_subgroup: bool = True
-    include_forest_plot: bool = True
+    include_prediction_interval: bool = False
+    include_leave_one_out: bool = False
+    include_subgroup: bool = False
+    include_forest_plot: bool = False
 
 
 class MetaAnalysisMethodPlan(BaseModel):
@@ -166,6 +165,39 @@ class MetaAnalysisMethodPlan(BaseModel):
         default_factory=list,
         description="Potential data or method issues detected by the planner",
     )
+
+    @model_validator(mode="after")
+    def validate_supported_combination(self) -> "MetaAnalysisMethodPlan":
+        if self.effect_source == EffectSource.ARM_LEVEL_DATA:
+            continuous = {
+                EffectMeasure.MD,
+                EffectMeasure.SMD,
+                EffectMeasure.HEDGES_G,
+            }
+            dichotomous = {EffectMeasure.OR, EffectMeasure.RR, EffectMeasure.RD}
+            if self.analysis_type == MetaAnalysisType.CONTINUOUS and self.effect_measure not in continuous:
+                raise ValueError("Continuous analyses require MD, SMD, or Hedges_g")
+            if self.analysis_type == MetaAnalysisType.DICHOTOMOUS and self.effect_measure not in dichotomous:
+                raise ValueError("Dichotomous analyses require OR, RR, or RD")
+            if self.analysis_type == MetaAnalysisType.GENERIC_EFFECT:
+                raise ValueError("Generic-effect analyses require a reported effect source")
+        if self.continuity_correction is not None and not (
+            self.analysis_type == MetaAnalysisType.DICHOTOMOUS
+            and self.effect_source == EffectSource.ARM_LEVEL_DATA
+        ):
+            raise ValueError("Continuity correction requires dichotomous arm-level data")
+        if self.output.include_subgroup and not self.subgroup_column:
+            raise ValueError("Subgroup output requires a subgroup column")
+        if self.output.include_forest_plot and not (
+            self.output.include_study_effects and self.output.include_pooled_effect
+        ):
+            raise ValueError("Forest plots require study effects and a pooled effect")
+        if (
+            self.output.include_prediction_interval
+            and self.model.type == MetaModelType.FIXED
+        ):
+            raise ValueError("Prediction intervals require a random-capable model")
+        return self
 
 
 class CSVSummary(BaseModel):

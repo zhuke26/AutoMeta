@@ -128,8 +128,10 @@ AutoMeta derives mean differences (MD), standardized mean differences (SMD),
 Hedges' g, odds ratios (OR), risk ratios (RR), and risk differences (RD) from
 declared arm-level columns. It can also use a reported effect with a 95% CI,
 standard error, or variance. Ratio measures are analyzed on the log scale and
-back-transformed for presentation. Zero-cell continuity correction is used only
-when it is explicitly present in the approved method plan.
+back-transformed for presentation; for reported OR/RR inputs, standard errors
+and variances are therefore expected on the log scale, while CI endpoints are
+entered on the ratio scale. Zero-cell continuity correction is used only when
+it is explicitly present in the approved method plan.
 
 Pooling choices are fixed inverse variance, DerSimonian-Laird random effects,
 and restricted maximum likelihood (REML) random effects. Results report the
@@ -138,6 +140,10 @@ normal-reference prediction interval is reported for random-effects analyses
 with at least three studies. Leave-one-out estimates and subgroup pools call the
 same engine with the approved effect scale and model; subgroup analysis requires
 a populated subgroup column with at least two groups.
+
+Advanced outputs are explicit plan choices. Forest plots accept at most 100
+studies and leave-one-out diagnostics at most 200 studies, preventing accidental
+unbounded raster allocation or quadratic refitting on very large uploads.
 
 Invalid inputs or REML non-convergence stop the analysis with an explicit error.
 AutoMeta never silently changes the effect measure, source columns, pooling

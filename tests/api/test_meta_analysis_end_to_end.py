@@ -1,5 +1,7 @@
 import time
 
+import pytest
+
 
 def _wait_for_terminal(manager, job_id: str):
     deadline = time.monotonic() + 5
@@ -52,6 +54,17 @@ def test_meta_analysis_result_figures_audit_and_review_cleanup(client) -> None:
                 "variance": "variance",
             },
             "subgroup_column": "group",
+            "output": {
+                "include_study_effects": True,
+                "include_weights": True,
+                "include_pooled_effect": True,
+                "include_heterogeneity": True,
+                "include_output_csv": True,
+                "include_prediction_interval": True,
+                "include_leave_one_out": True,
+                "include_subgroup": True,
+                "include_forest_plot": True,
+            },
         }],
     }
     plan = client.put(
@@ -83,6 +96,10 @@ def test_meta_analysis_result_figures_audit_and_review_cleanup(client) -> None:
         "Early",
         "Late",
     ]
+    assert result["subgroup_analysis"]["between_group_q"] == pytest.approx(
+        0.0275507098,
+        abs=2e-6,
+    )
     figures = result["figure_files"]
     assert [figure["mime_type"] for figure in figures] == [
         "image/svg+xml",

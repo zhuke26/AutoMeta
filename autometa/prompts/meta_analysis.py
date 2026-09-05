@@ -42,7 +42,14 @@ Python code is generated or executed.
 - Use "auto_by_i2" with inverse-variance fixed-effect pooling and
   DerSimonian-Laird random-effects pooling by default unless the CSV/user hint
   strongly indicates a fixed or random model.
+- Set the fixed estimator to "inverse_variance". Choose the random estimator
+  explicitly as "dersimonian_laird" or "restricted_maximum_likelihood".
 - Add continuity correction only for dichotomous outcomes.
+- Set every output flag explicitly. Request subgroup analysis only when an
+  exact populated subgroup column exists; otherwise set subgroup_column to null
+  and include_subgroup to false.
+- Request a forest plot only for datasets with at most 100 study rows. Request
+  leave-one-out analysis only for datasets with at most 200 study rows.
 - Put all uncertain assumptions in assumptions or warnings. Do not hide them in
   method_text only.
 - Column mappings must use exact CSV column names from the summary.
@@ -95,11 +102,14 @@ META_ANALYSIS_PLAN_TOOL = {
                                     },
                                     "fixed_method": {
                                         "type": "string",
-                                        "enum": ["inverse_variance", "mantel_haenszel"],
+                                        "enum": ["inverse_variance"],
                                     },
                                     "random_method": {
                                         "type": "string",
-                                        "enum": ["dersimonian_laird"],
+                                        "enum": [
+                                            "dersimonian_laird",
+                                            "restricted_maximum_likelihood",
+                                        ],
                                     },
                                     "i2_threshold": {"type": "number"},
                                 },
@@ -132,6 +142,12 @@ META_ANALYSIS_PLAN_TOOL = {
                                     "variance": {"type": "string"},
                                 },
                             },
+                            "subgroup_column": {
+                                "anyOf": [
+                                    {"type": "string"},
+                                    {"type": "null"},
+                                ],
+                            },
                             "continuity_correction": {
                                 "type": "object",
                                 "properties": {
@@ -156,6 +172,10 @@ META_ANALYSIS_PLAN_TOOL = {
                                     "include_pooled_effect": {"type": "boolean"},
                                     "include_heterogeneity": {"type": "boolean"},
                                     "include_output_csv": {"type": "boolean"},
+                                    "include_prediction_interval": {"type": "boolean"},
+                                    "include_leave_one_out": {"type": "boolean"},
+                                    "include_subgroup": {"type": "boolean"},
+                                    "include_forest_plot": {"type": "boolean"},
                                 },
                                 "required": [
                                     "include_study_effects",
@@ -163,6 +183,10 @@ META_ANALYSIS_PLAN_TOOL = {
                                     "include_pooled_effect",
                                     "include_heterogeneity",
                                     "include_output_csv",
+                                    "include_prediction_interval",
+                                    "include_leave_one_out",
+                                    "include_subgroup",
+                                    "include_forest_plot",
                                 ],
                             },
                             "assumptions": {

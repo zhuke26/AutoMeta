@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from io import BytesIO
+from threading import Lock
 
 import matplotlib
 
@@ -12,23 +14,40 @@ from matplotlib.patches import Polygon
 from autometa.schemas.meta_models import EffectMeasure, MetaAnalysisDatasetResult
 
 MM_PER_INCH = 25.4
+MAX_FOREST_PLOT_STUDIES = 100
+_PLOT_LOCK = Lock()
 
 
 def render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
     if result.pooled_effect is None:
         raise ValueError("A pooled effect is required for a forest plot")
+    if len(result.study_effects) > MAX_FOREST_PLOT_STUDIES:
+        raise ValueError(
+            f"Forest plots support at most {MAX_FOREST_PLOT_STUDIES} studies"
+        )
+    with _PLOT_LOCK:
+        fonttools_logger = logging.getLogger("fontTools.subset")
+        original_level = fonttools_logger.level
+        fonttools_logger.setLevel(max(original_level, logging.WARNING))
+        try:
+            with matplotlib.rc_context({
+                "font.family": "sans-serif",
+                "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans", "sans-serif"],
+                "font.size": 7,
+                "axes.spines.right": False,
+                "axes.spines.top": False,
+                "svg.hashsalt": "autometa-forest-plot",
+                "svg.fonttype": "none",
+                "pdf.fonttype": 42,
+            }):
+                return _render_forest_plot(result)
+        finally:
+            fonttools_logger.setLevel(original_level)
+
+
+def _render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
     studies = result.study_effects
     height = max(3.2, 1.6 + len(studies) * 0.38)
-    matplotlib.rcParams.update({
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans", "sans-serif"],
-        "font.size": 7,
-        "axes.spines.right": False,
-        "axes.spines.top": False,
-        "svg.hashsalt": "autometa-forest-plot",
-        "svg.fonttype": "none",
-        "pdf.fonttype": 42,
-    })
     figure, axis = plt.subplots(figsize=(183 / MM_PER_INCH, height), constrained_layout=True)
     positions = list(range(len(studies), 0, -1))
     for position, study in zip(positions, studies):
@@ -82,22 +101,24 @@ def render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
     if result.prediction_interval is not None:
         axis.legend(loc="lower right")
 
-    outputs: dict[str, bytes] = {}
-    for format_name, dpi in (("svg", None), ("png", 300), ("pdf", None)):
-        buffer = BytesIO()
-        metadata = {"Creator": "AutoMeta"}
-        if format_name == "svg":
-            metadata["Date"] = None
-        elif format_name == "pdf":
-            metadata.update({"CreationDate": None, "ModDate": None})
-        figure.savefig(
-            buffer,
-            format=format_name,
-            dpi=dpi,
-            bbox_inches="tight",
-            facecolor="white",
-            metadata=metadata,
-        )
-        outputs[format_name] = buffer.getvalue()
-    plt.close(figure)
-    return outputs
+    try:
+        outputs: dict[str, bytes] = {}
+        for format_name, dpi in (("svg", None), ("png", 300), ("pdf", None)):
+            buffer = BytesIO()
+            metadata = {"Creator": "AutoMeta"}
+            if format_name == "svg":
+                metadata["Date"] = None
+            elif format_name == "pdf":
+                metadata.update({"CreationDate": None, "ModDate": None})
+            figure.savefig(
+                buffer,
+                format=format_name,
+                dpi=dpi,
+                bbox_inches="tight",
+                facecolor="white",
+                metadata=metadata,
+            )
+            outputs[format_name] = buffer.getvalue()
+        return outputs
+    finally:
+        plt.close(figure)

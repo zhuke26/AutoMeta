@@ -95,7 +95,14 @@ class Review(TimestampMixin, Base):
 
 class FileRecord(TimestampMixin, Base):
     __tablename__ = "files"
-    __table_args__ = (UniqueConstraint("review_id", "sha256"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "review_id",
+            "kind",
+            "sha256",
+            name="uq_files_review_kind_sha256",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
     review_id: Mapped[str] = mapped_column(

@@ -52,6 +52,39 @@ def test_duplicate_pdf_reuses_record(file_storage, review) -> None:
     assert second.original_name == "one.pdf"
 
 
+def test_identical_bytes_in_different_file_kinds_do_not_alias(file_storage, review) -> None:
+    content = b"%PDF-1.7\nsame bytes"
+    uploaded = file_storage.save_bytes(
+        review.id, "source.pdf", "application/pdf", content
+    )
+    generated = file_storage.save_generated_figure(
+        review.id, "forest.pdf", "application/pdf", content
+    )
+
+    assert uploaded.id != generated.id
+    assert uploaded.kind == "pdf"
+    assert generated.kind == "figure"
+
+
+def test_generated_figure_batch_rolls_back_when_artifact_save_fails(
+    file_storage,
+    review,
+) -> None:
+    with pytest.raises(RuntimeError, match="artifact failure"):
+        with file_storage.generated_figure_batch(
+            review.id,
+            [
+                ("forest.svg", "image/svg+xml", b"<svg />"),
+                ("forest.png", "image/png", b"\x89PNG\r\n\x1a\nplot"),
+            ],
+        ):
+            raise RuntimeError("artifact failure")
+
+    assert file_storage.list_for_review(review.id, kind="figure") == []
+    figure_directory = file_storage.review_directory(review.id) / "figures"
+    assert not figure_directory.exists() or not list(figure_directory.iterdir())
+
+
 @pytest.mark.parametrize(
     ("name", "mime_type", "content"),
     (

@@ -393,37 +393,52 @@ class WorkflowOperationRegistry:
                     f"Analysis failed for {plan.csv_file}: "
                     f"{details or 'pooled effect unavailable'}"
                 )
-        execution.context.emit(
-            "rendering",
-            {"message": "Rendering Review-owned forest plots"},
-        )
+        pending_figures: list[tuple[str, str, bytes]] = []
+        figure_counts: list[int] = []
         for index, (plan, result) in enumerate(zip(plans, results), start=1):
             if not plan.output.include_forest_plot:
+                figure_counts.append(0)
                 continue
-            typed_result = MetaAnalysisDatasetResult.model_validate(result)
-            rendered = render_forest_plot(typed_result)
-            result["figure_files"] = [
-                GeneratedFigureResult(
-                    file_id=record.id,
-                    filename=record.original_name,
-                    mime_type=record.mime_type,
-                ).model_dump()
-                for extension, content in rendered.items()
-                for record in [storage.save_generated_figure(
-                    execution.review_id,
+            execution.context.emit(
+                "rendering",
+                {"message": f"Rendering forest plot {index} of {len(results)}"},
+            )
+            rendered = render_forest_plot(
+                MetaAnalysisDatasetResult.model_validate(result)
+            )
+            figure_counts.append(len(rendered))
+            pending_figures.extend(
+                (
                     f"forest-plot-{index:02d}.{extension}",
                     _FIGURE_MIME_TYPES[extension],
                     content,
-                )]
-            ]
-        saved = artifacts.save_drafts(
+                )
+                for extension, content in rendered.items()
+            )
+        with storage.generated_figure_batch(
             execution.review_id,
-            {
-                "code": {"generated_code": raw.get("generated_code", {})},
-                "result": {"results": results},
-            },
-            context=execution.context.artifact_context(),
-        )
+            pending_figures,
+        ) as figure_records:
+            position = 0
+            for result, count in zip(results, figure_counts):
+                owned = figure_records[position:position + count]
+                position += count
+                result["figure_files"] = [
+                    GeneratedFigureResult(
+                        file_id=record.id,
+                        filename=record.original_name,
+                        mime_type=record.mime_type,
+                    ).model_dump()
+                    for record in owned
+                ]
+            saved = artifacts.save_drafts(
+                execution.review_id,
+                {
+                    "code": {"generated_code": raw.get("generated_code", {})},
+                    "result": {"results": results},
+                },
+                context=execution.context.artifact_context(),
+            )
         reference = {
             "code_artifact_id": saved["code"].artifact_id,
             "code_version_id": saved["code"].version_id,

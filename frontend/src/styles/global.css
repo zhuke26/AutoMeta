@@ -1498,6 +1498,38 @@ a {
   padding: 14px;
 }
 
+.meta-plan-options,
+.meta-output-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.meta-plan-options legend,
+.meta-output-options legend {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.meta-plan-options label,
+.meta-output-options label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.meta-output-options__help {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .column-mapping legend {
   color: var(--ink-3);
   font-size: 11px;

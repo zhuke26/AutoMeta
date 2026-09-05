@@ -10,24 +10,88 @@ from autometa.schemas.meta_models import MetaModelType, RandomEffectsMethod
 from autometa.stats.types import PoolingResult, StudyEstimate
 
 
-def _reml_tau2(effects: np.ndarray, variances: np.ndarray) -> float:
-    def score(tau2: float) -> float:
-        weights = 1.0 / (variances + tau2)
-        mean = float(np.sum(weights * effects) / np.sum(weights))
-        return float(
-            np.sum(weights**2 * (effects - mean) ** 2)
-            - np.sum(weights)
-            + np.sum(weights**2) / np.sum(weights)
+def _weighted_model(
+    effects: np.ndarray,
+    variances: np.ndarray,
+    tau2: float,
+    design: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+    weights = 1.0 / (variances + tau2)
+    information = design.T @ (weights[:, None] * design)
+    if np.linalg.matrix_rank(information) != information.shape[0]:
+        raise ValueError("Moderator design matrix must have full column rank")
+    covariance = np.linalg.inv(information)
+    coefficients = covariance @ (design.T @ (weights * effects))
+    residuals = effects - design @ coefficients
+    trace_projection = float(
+        np.sum(weights)
+        - np.trace(
+            covariance @ (design.T @ ((weights**2)[:, None] * design))
         )
+    )
+    return weights, residuals, covariance, trace_projection
 
+
+def _reml_tau2(
+    effects: np.ndarray,
+    variances: np.ndarray,
+    design: np.ndarray,
+) -> float:
+    def score(tau2: float) -> float:
+        weights, residuals, _, trace_projection = _weighted_model(
+            effects,
+            variances,
+            tau2,
+            design,
+        )
+        return float(np.sum((weights * residuals) ** 2) - trace_projection)
+
+    if len(effects) <= design.shape[1]:
+        return 0.0
     if score(0.0) <= 0:
         return 0.0
     upper = max(float(np.var(effects)), 1.0e-6)
     for _ in range(60):
         if score(upper) < 0:
-            return float(brentq(score, 0.0, upper, xtol=1.0e-12, maxiter=200))
+            try:
+                return float(
+                    brentq(score, 0.0, upper, xtol=1.0e-12, maxiter=200)
+                )
+            except ValueError as exc:
+                raise RuntimeError("REML tau-squared did not converge") from exc
         upper *= 2
     raise RuntimeError("REML tau-squared did not converge")
+
+
+def estimate_tau2(
+    estimates: list[StudyEstimate],
+    *,
+    random_method: RandomEffectsMethod | str,
+    design: np.ndarray | None = None,
+) -> float:
+    effects = np.asarray([item.effect for item in estimates], dtype=float)
+    variances = np.asarray([item.variance for item in estimates], dtype=float)
+    if design is None:
+        design = np.ones((len(estimates), 1), dtype=float)
+    design = np.asarray(design, dtype=float)
+    if design.ndim != 2 or design.shape[0] != len(estimates):
+        raise ValueError("Moderator design matrix must match the study count")
+    if not np.all(np.isfinite(design)):
+        raise ValueError("Moderator design matrix must be finite")
+    degrees = len(estimates) - design.shape[1]
+    if degrees <= 0:
+        return 0.0
+    method = RandomEffectsMethod(random_method)
+    if method is RandomEffectsMethod.RESTRICTED_MAXIMUM_LIKELIHOOD:
+        return _reml_tau2(effects, variances, design)
+    weights, residuals, _, denominator = _weighted_model(
+        effects,
+        variances,
+        0.0,
+        design,
+    )
+    residual_q = float(np.sum(weights * residuals**2))
+    return max(0.0, (residual_q - degrees) / denominator) if denominator > 0 else 0.0
 
 
 def pool_effects(
@@ -36,6 +100,7 @@ def pool_effects(
     model: MetaModelType | str,
     random_method: RandomEffectsMethod | str = RandomEffectsMethod.DERSIMONIAN_LAIRD,
     i2_threshold: float = 50.0,
+    tau2_override: float | None = None,
 ) -> PoolingResult:
     if not estimates:
         raise ValueError("At least one study estimate is required")
@@ -56,14 +121,13 @@ def pool_effects(
         selected_model is MetaModelType.AUTO_BY_I2 and i2 >= i2_threshold
     )
     tau2 = 0.0
-    if use_random and degrees > 0:
-        method = RandomEffectsMethod(random_method)
-        if method is RandomEffectsMethod.RESTRICTED_MAXIMUM_LIKELIHOOD:
-            tau2 = _reml_tau2(effects, variances)
-        else:
-            total = float(np.sum(fixed_weights))
-            denominator = total - float(np.sum(fixed_weights**2)) / total
-            tau2 = max(0.0, (q - degrees) / denominator) if denominator > 0 else 0.0
+    if use_random:
+        if tau2_override is not None:
+            if not math.isfinite(tau2_override) or tau2_override < 0:
+                raise ValueError("Tau-squared override must be finite and non-negative")
+            tau2 = tau2_override
+        elif degrees > 0:
+            tau2 = estimate_tau2(estimates, random_method=random_method)
     weights = 1.0 / (variances + tau2) if use_random else fixed_weights
     pooled = float(np.sum(weights * effects) / np.sum(weights))
     standard_error = math.sqrt(1.0 / float(np.sum(weights)))
