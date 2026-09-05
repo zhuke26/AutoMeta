@@ -37,16 +37,16 @@
 - Produces `SearchStrategySnapshot`, `SearchStrategyComparison`, and
   `diff_queries(seed: str, expanded: str) -> SearchStrategyComparison`.
 
-- [ ] Write failing tests for stable term extraction, field-tag preservation,
+- [x] Write failing tests for stable term extraction, field-tag preservation,
   added/removed term order, identical queries, empty queries, and PMID trimming/
   deduplication.
-- [ ] Run `.venv/bin/python -m pytest tests/services/test_query_diff.py -q`
+- [x] Run `.venv/bin/python -m pytest tests/services/test_query_diff.py -q`
   and verify RED because the schemas and diff function do not exist.
-- [ ] Implement a parser that compares normalized quoted phrases and PubMed
+- [x] Implement a parser that compares normalized quoted phrases and PubMed
   field-tagged terms without rewriting the executable query.
-- [ ] Validate years as in `SearchRunWorkflowRequest`; normalize PMIDs to unique
+- [x] Validate years as in `SearchRunWorkflowRequest`; normalize PMIDs to unique
   nonempty strings while preserving first-seen order.
-- [ ] Run focused tests and Ruff; commit as
+- [x] Run focused tests and Ruff; commit as
   `feat: define retrieval feedback contracts`.
 
 ### Task 2: Add a bounded seed and expansion operation to SearchAgent

@@ -80,6 +80,26 @@ class SearchQueryEvaluation(BaseModel):
     query: str
 
 
+class SearchStrategyComparison(BaseModel):
+    seed_query: str
+    expanded_query: str
+    added_terms: list[str] = Field(default_factory=list)
+    removed_terms: list[str] = Field(default_factory=list)
+    shared_terms: list[str] = Field(default_factory=list)
+
+
+class SearchStrategySnapshot(BaseModel):
+    strategy: SearchStrategy
+    evaluations: list[SearchQueryEvaluation] = Field(default_factory=list)
+    records: list[Paper] = Field(default_factory=list)
+
+
+class SearchExpansionResult(BaseModel):
+    seed: SearchStrategySnapshot
+    expanded: SearchStrategySnapshot
+    comparison: SearchStrategyComparison
+
+
 # ---------------------------------------------------------------------------
 # Screening result models
 # ---------------------------------------------------------------------------

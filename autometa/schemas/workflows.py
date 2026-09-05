@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ProtocolWorkflowRequest(BaseModel):
@@ -16,6 +16,33 @@ class SearchRunWorkflowRequest(BaseModel):
     fetch_all: bool = False
     min_year: int | None = Field(default=None, ge=1900, le=2100)
     max_year: int | None = Field(default=None, ge=1900, le=2100)
+
+    @model_validator(mode="after")
+    def validate_years(self):
+        if self.min_year and self.max_year and self.min_year > self.max_year:
+            raise ValueError("Start year must be earlier than or equal to end year")
+        return self
+
+
+class SearchExpansionRequest(BaseModel):
+    seed_retmax: int = Field(default=20, ge=5, le=50)
+    included_pmids: list[str] = Field(default_factory=list, max_length=100)
+    min_year: int | None = Field(default=None, ge=1900, le=2100)
+    max_year: int | None = Field(default=None, ge=1900, le=2100)
+
+    @field_validator("included_pmids")
+    @classmethod
+    def normalize_pmids(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            pmid = value.strip()
+            if not pmid:
+                continue
+            if not pmid.isdigit():
+                raise ValueError("Known-study PMIDs must contain digits only")
+            if pmid not in normalized:
+                normalized.append(pmid)
+        return normalized
 
     @model_validator(mode="after")
     def validate_years(self):
