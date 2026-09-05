@@ -36,14 +36,14 @@
 - Produces `StudyEstimate` and pure functions for MD, SMD, Hedges g, OR, RR,
   RD, and reported effect+CI/SE/variance inputs.
 
-- [ ] Write failing deterministic tests for all six measures, log-scale ratio
+- [x] Write failing deterministic tests for all six measures, log-scale ratio
   handling, zero-cell correction modes, Hedges correction, and invalid inputs.
-- [ ] Verify RED before adding `autometa.stats`.
-- [ ] Move formulas without changing current outputs; use finite numeric arrays and
+- [x] Verify RED before adding `autometa.stats`.
+- [x] Move formulas without changing current outputs; use finite numeric arrays and
   preserve study labels/metadata.
-- [ ] Make continuity correction explicit per plan and reject unsupported
+- [x] Make continuity correction explicit per plan and reject unsupported
   combinations rather than substituting.
-- [ ] Run focused/full tests and Ruff; commit as `feat: add statistical effect engine`.
+- [x] Run focused/full tests and Ruff; commit as `feat: add statistical effect engine`.
 
 ### Task 2: Implement fixed, DL, REML, heterogeneity, and prediction intervals
 
