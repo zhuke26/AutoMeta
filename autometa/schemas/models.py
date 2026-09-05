@@ -86,6 +86,13 @@ class SearchStrategyComparison(BaseModel):
     added_terms: list[str] = Field(default_factory=list)
     removed_terms: list[str] = Field(default_factory=list)
     shared_terms: list[str] = Field(default_factory=list)
+    seed_result_count: int | None = None
+    expanded_result_count: int | None = None
+    known_study_total: int = 0
+    seed_known_hits: int | None = None
+    expanded_known_hits: int | None = None
+    seed_known_recall: float | None = None
+    expanded_known_recall: float | None = None
 
 
 class SearchStrategySnapshot(BaseModel):

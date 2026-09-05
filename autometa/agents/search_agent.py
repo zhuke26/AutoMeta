@@ -29,12 +29,15 @@ from autometa.prompts.search_query import (
 from autometa.schemas.models import (
     Paper,
     PICODefinition,
+    SearchExpansionResult,
     SearchQueryEvaluation,
     SearchQueryVariant,
     SearchResult,
     SearchStrategy,
+    SearchStrategySnapshot,
     SearchTerms,
 )
+from autometa.search import diff_queries
 from autometa.tools.llm import call_llm
 from autometa.tools.pubmed import (
     PubmedAPIWrapper,
@@ -229,6 +232,86 @@ class SearchAgent(BaseAgent):
             lambda: call_llm(FIELD_TAGGED_SEARCH_REPAIR, inputs, model=self._model),
         )
         return self._parse_search_strategy(raw)
+
+    def expand_with_retrieval_feedback(
+        self,
+        pico: PICODefinition,
+        *,
+        seed_retmax: int,
+        included_pmids: list[str],
+        min_year: int | None,
+        max_year: int | None,
+    ) -> SearchExpansionResult:
+        """Generate, probe, and refine a transparent PubMed strategy."""
+        seed_strategy = self.generate_field_tagged_strategy(pico)
+        seed_result = self.search_with_raw_query(
+            raw_query=seed_strategy.balanced.query,
+            retmax=seed_retmax,
+            min_year=min_year,
+            max_year=max_year,
+            fetch_all=False,
+        )
+        seed_evaluations = self.evaluate_strategy(
+            seed_strategy,
+            included_pmids,
+            retmax=seed_retmax,
+            min_date=str(min_year) if min_year else None,
+            max_date=str(max_year) if max_year else None,
+        )
+        seed_context = "\n\n".join(
+            f"{index}. {paper.title}\nAbstract: {paper.abstract}"
+            for index, paper in enumerate(seed_result.papers, start=1)
+        ) or "(No seed records were retrieved.)"
+        expanded_strategy = self.generate_field_tagged_strategy(
+            pico,
+            included_studies_text=seed_context,
+            baseline_notes=json.dumps(
+                [self._model_to_dict(item) for item in seed_evaluations],
+                ensure_ascii=False,
+            ),
+        )
+        expanded_evaluations = self.evaluate_strategy(
+            expanded_strategy,
+            included_pmids,
+            retmax=seed_retmax,
+            min_date=str(min_year) if min_year else None,
+            max_date=str(max_year) if max_year else None,
+        )
+        seed_balanced = self._balanced_evaluation(seed_evaluations)
+        expanded_balanced = self._balanced_evaluation(expanded_evaluations)
+        comparison = diff_queries(
+            seed_strategy.balanced.query,
+            expanded_strategy.balanced.query,
+        ).model_copy(update={
+            "seed_result_count": seed_balanced.total_count,
+            "expanded_result_count": expanded_balanced.total_count,
+            "known_study_total": len(included_pmids),
+            "seed_known_hits": seed_balanced.included_hits if included_pmids else None,
+            "expanded_known_hits": expanded_balanced.included_hits if included_pmids else None,
+            "seed_known_recall": seed_balanced.included_recall if included_pmids else None,
+            "expanded_known_recall": expanded_balanced.included_recall if included_pmids else None,
+        })
+        return SearchExpansionResult(
+            seed=SearchStrategySnapshot(
+                strategy=seed_strategy,
+                evaluations=seed_evaluations,
+                records=seed_result.papers,
+            ),
+            expanded=SearchStrategySnapshot(
+                strategy=expanded_strategy,
+                evaluations=expanded_evaluations,
+            ),
+            comparison=comparison,
+        )
+
+    @staticmethod
+    def _balanced_evaluation(
+        evaluations: list[SearchQueryEvaluation],
+    ) -> SearchQueryEvaluation:
+        for evaluation in evaluations:
+            if evaluation.name.casefold() == "balanced":
+                return evaluation
+        raise ValueError("Search strategy evaluation is missing the balanced variant")
 
     def evaluate_raw_query(
         self,

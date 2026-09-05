@@ -70,17 +70,17 @@ SearchAgent.expand_with_retrieval_feedback(
 ) -> SearchExpansionResult
 ```
 
-- [ ] Write failing tests with fake PubMed/LLM collaborators for call order,
+- [x] Write failing tests with fake PubMed/LLM collaborators for call order,
   seed bounds, real seed citation context, three variant evaluations, optional
   known-study coverage, and provider failure propagation.
-- [ ] Verify RED with
+- [x] Verify RED with
   `.venv/bin/python -m pytest tests/agents/test_search_expansion.py -q`.
-- [ ] Generate the seed strategy from PICO, retrieve only the balanced seed query,
+- [x] Generate the seed strategy from PICO, retrieve only the balanced seed query,
   format titles/abstracts/indexed terms as bounded expansion context, generate an
   expanded strategy, and evaluate both strategies through existing count APIs.
-- [ ] Return seed records only as structured source metadata needed for review;
+- [x] Return seed records only as structured source metadata needed for review;
   do not persist or log credentials, request headers, or benchmark labels.
-- [ ] Run focused/full backend tests and Ruff; commit as
+- [x] Run focused/full backend tests and Ruff; commit as
   `feat: add retrieval informed query expansion`.
 
 ### Task 3: Add the durable Search expansion API and provenance
