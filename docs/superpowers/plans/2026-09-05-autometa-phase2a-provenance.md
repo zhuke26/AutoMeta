@@ -214,7 +214,7 @@ Then commit as `feat: add append-only provenance ledger`.
   - `GET /api/v1/reviews/{review_id}/artifacts/{kind}/versions/{version}`
   - `GET /api/v1/reviews/{review_id}/artifacts/{kind}/diff?from_version=1&to_version=2`
 
-- [ ] **Step 1: Write failing history and diff tests**
+- [x] **Step 1: Write failing history and diff tests**
 
 Require immutable version payloads, exact version IDs, current/noncurrent
 approval visibility, cross-Review rejection, deterministic JSON-pointer diffs,
@@ -238,17 +238,17 @@ def test_researcher_edit_creates_diff_and_stale_events(artifact_service, review)
     }]
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `.venv/bin/python -m pytest tests/services/test_artifact_history.py tests/api/test_artifact_history.py -q`
 
-- [ ] **Step 3: Implement deterministic recursive JSON diffing**
+- [x] **Step 3: Implement deterministic recursive JSON diffing**
 
 Emit sorted `add`, `remove`, and `replace` changes. Escape JSON Pointer `~` and
 `/`; treat list replacement as one value-level change so reordered scientific
 rows are not misrepresented as many unrelated edits.
 
-- [ ] **Step 4: Make artifact lifecycle and provenance atomic**
+- [x] **Step 4: Make artifact lifecycle and provenance atomic**
 
 Within the same database transaction as each version/approval change:
 
@@ -263,7 +263,7 @@ Within the same database transaction as each version/approval change:
 - keep existing public methods source-compatible by using a researcher context
   when no explicit context is passed.
 
-- [ ] **Step 5: Add version and diff APIs, verify, and commit**
+- [x] **Step 5: Add version and diff APIs, verify, and commit**
 
 Run:
 

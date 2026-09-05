@@ -10,6 +10,8 @@ from autometa.persistence.models import (
     Artifact,
     ArtifactVersion,
     Job,
+    ProvenanceEdge,
+    ResearcherEdit,
     Review,
     ReviewEvent,
     StageRun,
@@ -39,6 +41,10 @@ class ProvenanceService:
         self.repository = repository
         self.redactor = SecretRedactor(repository.database.settings)
         self._sequence_lock = RLock()
+
+    @property
+    def sequence_lock(self) -> RLock:
+        return self._sequence_lock
 
     def safe_metadata(self, payload: dict[str, Any] | None) -> dict[str, Any]:
         safe = self.redactor.payload(payload or {})
@@ -88,39 +94,73 @@ class ProvenanceService:
         elapsed_ms: int | None = None,
         payload: dict[str, Any] | None = None,
     ) -> ReviewEvent:
-        if session.get(Review, review_id) is None:
-            raise ProvenanceNotFound(f"Review not found: {review_id}")
-        self._validate_reference(session, StageRun, stage_run_id, review_id)
-        self._validate_reference(session, Job, job_id, review_id)
-        if artifact_version_id is not None:
-            artifact_review_id = session.scalar(
-                select(Artifact.review_id)
-                .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
-                .where(ArtifactVersion.id == artifact_version_id)
+        with self._sequence_lock:
+            if session.get(Review, review_id) is None:
+                raise ProvenanceNotFound(f"Review not found: {review_id}")
+            self._validate_reference(session, StageRun, stage_run_id, review_id)
+            self._validate_reference(session, Job, job_id, review_id)
+            if artifact_version_id is not None:
+                self._artifact_version_review(session, artifact_version_id, review_id)
+            event = ReviewEvent(
+                review_id=review_id,
+                sequence=self.repository.next_sequence(session, review_id),
+                stage=stage,
+                event_type=event_type,
+                producer=Producer(producer).value,
+                stage_run_id=stage_run_id,
+                job_id=job_id,
+                artifact_version_id=artifact_version_id,
+                elapsed_ms=elapsed_ms,
+                payload=self.safe_metadata(payload),
             )
-            if artifact_review_id is None:
-                raise ProvenanceNotFound(
-                    f"Artifact version not found: {artifact_version_id}"
-                )
-            if artifact_review_id != review_id:
-                raise ProvenanceConflict(
-                    "Referenced records must belong to the same Review"
-                )
-        event = ReviewEvent(
+            session.add(event)
+            session.flush()
+            return event
+
+    def add_edit_in_session(
+        self,
+        session: Session,
+        *,
+        review_id: str,
+        artifact_id: str,
+        from_version_id: str | None,
+        to_version_id: str,
+        changed_paths: list[str],
+    ) -> ResearcherEdit:
+        self._artifact_version_review(session, to_version_id, review_id)
+        if from_version_id is not None:
+            self._artifact_version_review(session, from_version_id, review_id)
+        edit = ResearcherEdit(
             review_id=review_id,
-            sequence=self.repository.next_sequence(session, review_id),
-            stage=stage,
-            event_type=event_type,
-            producer=Producer(producer).value,
-            stage_run_id=stage_run_id,
-            job_id=job_id,
-            artifact_version_id=artifact_version_id,
-            elapsed_ms=elapsed_ms,
-            payload=self.safe_metadata(payload),
+            artifact_id=artifact_id,
+            from_version_id=from_version_id,
+            to_version_id=to_version_id,
+            changed_paths=list(changed_paths),
         )
-        session.add(event)
+        session.add(edit)
         session.flush()
-        return event
+        return edit
+
+    def add_edge_in_session(
+        self,
+        session: Session,
+        *,
+        review_id: str,
+        source_version_id: str,
+        target_version_id: str,
+        relation: str = "derived_from",
+    ) -> ProvenanceEdge:
+        self._artifact_version_review(session, source_version_id, review_id)
+        self._artifact_version_review(session, target_version_id, review_id)
+        edge = ProvenanceEdge(
+            review_id=review_id,
+            source_version_id=source_version_id,
+            target_version_id=target_version_id,
+            relation=relation,
+        )
+        session.add(edge)
+        session.flush()
+        return edge
 
     def list_events(
         self,
@@ -182,4 +222,20 @@ class ProvenanceService:
         if record is None:
             raise ProvenanceNotFound(f"Referenced record not found: {record_id}")
         if record.review_id != review_id:
+            raise ProvenanceConflict("Referenced records must belong to the same Review")
+
+    @staticmethod
+    def _artifact_version_review(
+        session: Session,
+        version_id: str,
+        review_id: str,
+    ) -> None:
+        artifact_review_id = session.scalar(
+            select(Artifact.review_id)
+            .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
+            .where(ArtifactVersion.id == version_id)
+        )
+        if artifact_review_id is None:
+            raise ProvenanceNotFound(f"Artifact version not found: {version_id}")
+        if artifact_review_id != review_id:
             raise ProvenanceConflict("Referenced records must belong to the same Review")

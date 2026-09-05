@@ -33,10 +33,41 @@ class ArtifactRepository:
         return select(ArtifactVersion.id).where(ArtifactVersion.artifact_id == artifact_id)
 
     @staticmethod
+    def list_versions(session: Session, artifact_id: str) -> list[ArtifactVersion]:
+        return list(
+            session.scalars(
+                select(ArtifactVersion)
+                .where(ArtifactVersion.artifact_id == artifact_id)
+                .order_by(ArtifactVersion.version.asc())
+            )
+        )
+
+    @staticmethod
+    def version_number(
+        session: Session,
+        artifact_id: str,
+        version: int,
+    ) -> ArtifactVersion | None:
+        return session.scalar(
+            select(ArtifactVersion).where(
+                ArtifactVersion.artifact_id == artifact_id,
+                ArtifactVersion.version == version,
+            )
+        )
+
+    @staticmethod
     def approval(session: Session, version_id: str) -> Approval | None:
         return session.scalar(
             select(Approval).where(
                 Approval.artifact_version_id == version_id,
                 Approval.status == "approved",
             )
+        )
+
+    @staticmethod
+    def latest_approval(session: Session, version_id: str) -> Approval | None:
+        return session.scalar(
+            select(Approval)
+            .where(Approval.artifact_version_id == version_id)
+            .order_by(Approval.created_at.desc(), Approval.id.desc())
         )

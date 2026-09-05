@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 
 from autometa.persistence.models import (
     Approval,
@@ -12,9 +14,19 @@ from autometa.persistence.models import (
     ArtifactState,
     ArtifactVersion,
     Review,
+    StageRun,
 )
+from autometa.provenance import diff_payloads
 from autometa.repositories.artifacts import ArtifactRepository
-from autometa.schemas.artifacts import ArtifactView
+from autometa.repositories.provenance import ProvenanceRepository
+from autometa.schemas.artifacts import (
+    ArtifactDiffChange,
+    ArtifactDiffView,
+    ArtifactVersionView,
+    ArtifactView,
+)
+from autometa.schemas.provenance import Producer
+from autometa.services.provenance import ProvenanceService
 
 ARTIFACT_ORDER = (
     "question_pico",
@@ -39,6 +51,15 @@ ARTIFACT_STAGE = {
 }
 
 
+@dataclass(frozen=True)
+class ArtifactWriteContext:
+    producer: Producer = Producer.RESEARCHER
+    stage_run_id: str | None = None
+    job_id: str | None = None
+    input_version_ids: tuple[str, ...] = ()
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 class ArtifactNotFound(LookupError):
     pass
 
@@ -52,33 +73,63 @@ class ArtifactConflict(RuntimeError):
 
 
 class ArtifactService:
-    def __init__(self, repository: ArtifactRepository):
+    def __init__(
+        self,
+        repository: ArtifactRepository,
+        provenance: ProvenanceService | None = None,
+    ):
         self.repository = repository
+        self.provenance = provenance or ProvenanceService(
+            ProvenanceRepository(repository.database)
+        )
 
-    def save_draft(self, review_id: str, kind: str, payload: dict) -> ArtifactView:
+    def save_draft(
+        self,
+        review_id: str,
+        kind: str,
+        payload: dict,
+        *,
+        context: ArtifactWriteContext | None = None,
+    ) -> ArtifactView:
         self._validate_kind(kind)
-        with self.repository.database.session() as session:
+        write_context = context or ArtifactWriteContext()
+        with self.provenance.sequence_lock, self.repository.database.session() as session:
             if session.get(Review, review_id) is None:
                 raise ArtifactNotFound(f"Review not found: {review_id}")
-            return self._save_draft(session, review_id, kind, payload)
+            return self._save_draft(
+                session,
+                review_id,
+                kind,
+                payload,
+                context=write_context,
+            )
 
     def save_drafts(
         self,
         review_id: str,
         payloads: dict[str, dict],
+        *,
+        context: ArtifactWriteContext | None = None,
     ) -> dict[str, ArtifactView]:
         for kind in payloads:
             self._validate_kind(kind)
-        with self.repository.database.session() as session:
+        write_context = context or ArtifactWriteContext()
+        with self.provenance.sequence_lock, self.repository.database.session() as session:
             if session.get(Review, review_id) is None:
                 raise ArtifactNotFound(f"Review not found: {review_id}")
             return {
-                kind: self._save_draft(session, review_id, kind, payload)
+                kind: self._save_draft(
+                    session,
+                    review_id,
+                    kind,
+                    payload,
+                    context=write_context,
+                )
                 for kind, payload in payloads.items()
             }
 
     def approve(self, review_id: str, artifact_id: str, version: int) -> ArtifactView:
-        with self.repository.database.session() as session:
+        with self.provenance.sequence_lock, self.repository.database.session() as session:
             artifact = session.get(Artifact, artifact_id)
             if artifact is None or artifact.review_id != review_id:
                 raise ArtifactNotFound(artifact_id)
@@ -92,23 +143,34 @@ class ArtifactService:
             approval = self.repository.approval(session, current.id)
             if approval is None:
                 session.add(Approval(artifact_version_id=current.id))
+                self.provenance.record_in_session(
+                    session,
+                    review_id,
+                    "artifact.approved",
+                    Producer.RESEARCHER,
+                    stage=artifact.stage,
+                    artifact_version_id=current.id,
+                    payload={"kind": artifact.kind, "version": current.version},
+                )
             artifact.state = ArtifactState.APPROVED
             session.flush()
             return self._view(artifact, current, approved=True)
 
     def revoke(self, review_id: str, kind: str) -> ArtifactView:
         self._validate_kind(kind)
-        with self.repository.database.session() as session:
+        with self.provenance.sequence_lock, self.repository.database.session() as session:
             artifact = self.repository.find(session, review_id, kind)
             if artifact is None:
                 raise ArtifactNotFound(kind)
             current = self.repository.version(session, artifact.current_version_id)
             if current is None:
                 raise ArtifactNotFound(kind)
-            approval = self.repository.approval(session, current.id)
-            if approval is not None:
-                approval.status = "revoked"
-                approval.revoked_at = datetime.now(timezone.utc)
+            self._revoke_approvals(
+                session,
+                artifact,
+                producer=Producer.RESEARCHER,
+                reason="researcher_revoked",
+            )
             artifact.state = ArtifactState.DRAFT
             self._mark_downstream_stale(session, review_id, kind)
             session.flush()
@@ -163,6 +225,60 @@ class ArtifactService:
                 )
             return result
 
+    def list_versions(self, review_id: str, kind: str) -> list[ArtifactVersionView]:
+        self._validate_kind(kind)
+        with self.repository.database.session() as session:
+            artifact = self.repository.find(session, review_id, kind)
+            if artifact is None:
+                raise ArtifactNotFound(kind)
+            return [
+                self._version_view(session, version)
+                for version in self.repository.list_versions(session, artifact.id)
+            ]
+
+    def get_version(
+        self,
+        review_id: str,
+        kind: str,
+        version: int,
+    ) -> ArtifactVersionView:
+        self._validate_kind(kind)
+        with self.repository.database.session() as session:
+            artifact = self.repository.find(session, review_id, kind)
+            if artifact is None:
+                raise ArtifactNotFound(kind)
+            item = self.repository.version_number(session, artifact.id, version)
+            if item is None:
+                raise ArtifactNotFound(f"{kind} version {version}")
+            return self._version_view(session, item)
+
+    def diff_versions(
+        self,
+        review_id: str,
+        kind: str,
+        from_version: int,
+        to_version: int,
+    ) -> ArtifactDiffView:
+        self._validate_kind(kind)
+        with self.repository.database.session() as session:
+            artifact = self.repository.find(session, review_id, kind)
+            if artifact is None:
+                raise ArtifactNotFound(kind)
+            before = self.repository.version_number(session, artifact.id, from_version)
+            after = self.repository.version_number(session, artifact.id, to_version)
+            if before is None or after is None:
+                raise ArtifactNotFound("Artifact version not found")
+            return ArtifactDiffView(
+                artifact_id=artifact.id,
+                kind=kind,
+                from_version=from_version,
+                to_version=to_version,
+                changes=[
+                    ArtifactDiffChange.model_validate(change)
+                    for change in diff_payloads(before.payload or {}, after.payload or {})
+                ],
+            )
+
     def get_state(self, review_id: str, kind: str) -> str | None:
         self._validate_kind(kind)
         with self.repository.database.session() as session:
@@ -177,6 +293,7 @@ class ArtifactService:
     ) -> ArtifactView:
         return ArtifactView(
             artifact_id=artifact.id,
+            version_id=version.id,
             review_id=artifact.review_id,
             stage=artifact.stage,
             kind=artifact.kind,
@@ -188,7 +305,33 @@ class ArtifactService:
             approved=approved,
         )
 
-    def _save_draft(self, session, review_id: str, kind: str, payload: dict) -> ArtifactView:
+    def _version_view(
+        self,
+        session,
+        version: ArtifactVersion,
+    ) -> ArtifactVersionView:
+        approval = self.repository.latest_approval(session, version.id)
+        return ArtifactVersionView(
+            version_id=version.id,
+            artifact_id=version.artifact_id,
+            version=version.version,
+            payload=version.payload or {},
+            content_hash=version.content_hash,
+            created_at=version.created_at,
+            approval_status=approval.status if approval is not None else None,
+            approved_at=approval.created_at if approval is not None else None,
+            revoked_at=approval.revoked_at if approval is not None else None,
+        )
+
+    def _save_draft(
+        self,
+        session,
+        review_id: str,
+        kind: str,
+        payload: dict,
+        *,
+        context: ArtifactWriteContext,
+    ) -> ArtifactView:
         canonical = json.dumps(
             payload,
             ensure_ascii=False,
@@ -197,6 +340,7 @@ class ArtifactService:
         )
         content_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         artifact = self.repository.find(session, review_id, kind)
+        previous: ArtifactVersion | None = None
         if artifact is None:
             artifact = Artifact(
                 review_id=review_id,
@@ -205,12 +349,21 @@ class ArtifactService:
             )
             session.add(artifact)
             session.flush()
+        else:
+            previous = self.repository.version(session, artifact.current_version_id)
 
         latest = session.scalar(
             select(func.max(ArtifactVersion.version)).where(
                 ArtifactVersion.artifact_id == artifact.id
             )
         )
+        self._revoke_approvals(
+            session,
+            artifact,
+            producer=context.producer,
+            reason="new_version",
+        )
+        self._mark_downstream_stale(session, review_id, kind)
         version = ArtifactVersion(
             artifact_id=artifact.id,
             version=int(latest or 0) + 1,
@@ -221,8 +374,41 @@ class ArtifactService:
         session.flush()
         artifact.current_version_id = version.id
         artifact.state = ArtifactState.DRAFT
-        self._revoke_approvals(session, artifact.id)
-        self._mark_downstream_stale(session, review_id, kind)
+
+        changes = diff_payloads(previous.payload or {}, payload) if previous else []
+        if previous is not None and context.producer is Producer.RESEARCHER and changes:
+            self.provenance.add_edit_in_session(
+                session,
+                review_id=review_id,
+                artifact_id=artifact.id,
+                from_version_id=previous.id,
+                to_version_id=version.id,
+                changed_paths=[change["path"] for change in changes],
+            )
+        for source_version_id in context.input_version_ids:
+            self.provenance.add_edge_in_session(
+                session,
+                review_id=review_id,
+                source_version_id=source_version_id,
+                target_version_id=version.id,
+            )
+        self.provenance.record_in_session(
+            session,
+            review_id,
+            "artifact.version_created",
+            context.producer,
+            stage=artifact.stage,
+            stage_run_id=context.stage_run_id,
+            job_id=context.job_id,
+            artifact_version_id=version.id,
+            payload={
+                "kind": kind,
+                "version": version.version,
+                "content_hash": content_hash,
+                "changed_paths": [change["path"] for change in changes],
+                **context.metadata,
+            },
+        )
         session.flush()
         return self._view(artifact, version, approved=False)
 
@@ -231,41 +417,89 @@ class ArtifactService:
         if kind not in ARTIFACT_ORDER:
             raise InvalidArtifactKind(f"Unsupported artifact kind: {kind}")
 
-    def _revoke_approvals(self, session, artifact_id: str) -> None:
-        version_ids = self.repository.versions_query(artifact_id)
-        session.execute(
-            update(Approval)
-            .where(
-                Approval.artifact_version_id.in_(version_ids),
-                Approval.status == "approved",
+    def _revoke_approvals(
+        self,
+        session,
+        artifact: Artifact,
+        *,
+        producer: Producer,
+        reason: str,
+    ) -> None:
+        approvals = list(
+            session.scalars(
+                select(Approval)
+                .join(ArtifactVersion, Approval.artifact_version_id == ArtifactVersion.id)
+                .where(
+                    ArtifactVersion.artifact_id == artifact.id,
+                    Approval.status == "approved",
+                )
             )
-            .values(status="revoked", revoked_at=datetime.now(timezone.utc))
         )
+        for approval in approvals:
+            approval.status = "revoked"
+            approval.revoked_at = datetime.now(timezone.utc)
+            self.provenance.record_in_session(
+                session,
+                artifact.review_id,
+                "artifact.revoked",
+                producer,
+                stage=artifact.stage,
+                artifact_version_id=approval.artifact_version_id,
+                payload={"kind": artifact.kind, "reason": reason},
+            )
 
     def _mark_downstream_stale(self, session, review_id: str, kind: str) -> None:
         downstream = ARTIFACT_ORDER[ARTIFACT_ORDER.index(kind) + 1 :]
-        if downstream:
-            current_versions = select(Artifact.current_version_id).where(
-                Artifact.review_id == review_id,
-                Artifact.kind.in_(downstream),
-                Artifact.current_version_id.is_not(None),
-            )
-            session.execute(
-                update(Approval)
-                .where(
-                    Approval.artifact_version_id.in_(current_versions),
-                    Approval.status == "approved",
-                )
-                .values(
-                    status="revoked",
-                    revoked_at=datetime.now(timezone.utc),
-                )
-            )
-            session.execute(
-                update(Artifact)
-                .where(
+        if not downstream:
+            return
+        artifacts = list(
+            session.scalars(
+                select(Artifact).where(
                     Artifact.review_id == review_id,
                     Artifact.kind.in_(downstream),
                 )
-                .values(state=ArtifactState.STALE)
             )
+        )
+        stale_version_ids: set[str] = set()
+        for artifact in artifacts:
+            current = self.repository.version(session, artifact.current_version_id)
+            if current is None:
+                continue
+            stale_version_ids.add(current.id)
+            self._revoke_approvals(
+                session,
+                artifact,
+                producer=Producer.SYSTEM,
+                reason="upstream_changed",
+            )
+            if artifact.state is ArtifactState.STALE:
+                continue
+            artifact.state = ArtifactState.STALE
+            self.provenance.record_in_session(
+                session,
+                review_id,
+                "artifact.stale",
+                Producer.SYSTEM,
+                stage=artifact.stage,
+                artifact_version_id=current.id,
+                payload={"kind": artifact.kind, "upstream_kind": kind},
+            )
+        if stale_version_ids:
+            for stage_run in session.scalars(
+                select(StageRun).where(
+                    StageRun.review_id == review_id,
+                    StageRun.status == "succeeded",
+                )
+            ):
+                if stale_version_ids.intersection(stage_run.output_artifact_version_ids):
+                    stage_run.status = "stale"
+                    self.provenance.record_in_session(
+                        session,
+                        review_id,
+                        "stage.stale",
+                        Producer.SYSTEM,
+                        stage=stage_run.stage,
+                        stage_run_id=stage_run.id,
+                        job_id=stage_run.job_id,
+                        payload={"upstream_kind": kind},
+                    )
