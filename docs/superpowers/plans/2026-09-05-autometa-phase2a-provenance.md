@@ -552,7 +552,7 @@ version diff, download the audit JSON, and trigger a registered fake-free rerun
 only when the configured operation can complete with the available local inputs.
 Verify no console errors, remote assets, dead enabled controls, or secret fields.
 
-- [ ] **Step 5: Record evidence, commit, and integrate locally**
+- [x] **Step 5: Record evidence, commit, and integrate locally**
 
 Confirm `git remote -v` is empty. Record exact commands/results in this plan,
 commit locally, use `verification-before-completion`, then use
