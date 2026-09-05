@@ -72,7 +72,9 @@ class WorkflowOperationRegistry:
 
     def register(self, operation_kind: str, handler: WorkflowHandler) -> None:
         if not operation_kind or operation_kind in self._handlers:
-            raise ValueError(f"Workflow operation is already registered: {operation_kind}")
+            raise ValueError(
+                f"Workflow operation is already registered: {operation_kind}"
+            )
         self._handlers[operation_kind] = handler
 
     def contains(self, operation_kind: str) -> bool:
@@ -216,13 +218,15 @@ class WorkflowOperationRegistry:
             max_year=request.max_year,
         )
         payload = result.model_dump()
-        payload.update({
-            "strategy_mode": "retrieval_informed",
-            "included_pmids": request.included_pmids,
-            "generated_raw_query": result.expanded.strategy.balanced.query,
-            "raw_query": result.expanded.strategy.balanced.query,
-            "strategy": result.expanded.strategy.model_dump(),
-        })
+        payload.update(
+            {
+                "strategy_mode": "retrieval_informed",
+                "included_pmids": request.included_pmids,
+                "generated_raw_query": result.expanded.strategy.balanced.query,
+                "raw_query": result.expanded.strategy.balanced.query,
+                "strategy": result.expanded.strategy.model_dump(),
+            }
+        )
         output = artifacts.save_draft(
             execution.review_id,
             "query",
@@ -245,12 +249,16 @@ class WorkflowOperationRegistry:
             "screening",
             {"message": "Ranking records", "total": len(papers)},
         )
-        result = ScreeningAgentV2().run_scored_direct(
-            papers=papers,
-            pico=pico,
-            study_design_filter=StudyDesignFilter(request.study_design_filter),
-            max_concurrency=request.max_concurrency,
-        ).model_dump()
+        result = (
+            ScreeningAgentV2()
+            .run_scored_direct(
+                papers=papers,
+                pico=pico,
+                study_design_filter=StudyDesignFilter(request.study_design_filter),
+                max_concurrency=request.max_concurrency,
+            )
+            .model_dump()
+        )
         decisions = result.get("decisions", [])
         result["selected_pmids"] = [
             str(decision.get("pmid"))
@@ -267,7 +275,10 @@ class WorkflowOperationRegistry:
 
     def _extraction_run(self, execution: WorkflowExecution) -> dict:
         artifacts, storage = self._require_services()
-        if self.local_settings is None or not self.local_settings.pdf_disclosure_acknowledged():
+        if (
+            self.local_settings is None
+            or not self.local_settings.pdf_disclosure_acknowledged()
+        ):
             raise ValueError("PDF model disclosure acknowledgement is required")
         request = ExtractionWorkflowRequest.model_validate(execution.request_payload)
         pico = PICODefinition.model_validate(
@@ -324,15 +335,19 @@ class WorkflowOperationRegistry:
         for record in records:
             frame = pd.read_csv(storage.resolve(record), encoding="utf-8-sig")
             if frame.empty:
-                raise ValueError(f"CSV dataset has no data rows: {record.original_name}")
+                raise ValueError(
+                    f"CSV dataset has no data rows: {record.original_name}"
+                )
             head = frame.head(request.sample_rows)
             sample = head.astype(object).where(pd.notnull(head), None)
-            summaries.append(CSVSummary(
-                csv_file=record.original_name,
-                columns=[str(column) for column in frame.columns],
-                row_count=int(len(frame)),
-                sample_rows=sample.to_dict(orient="records"),
-            ))
+            summaries.append(
+                CSVSummary(
+                    csv_file=record.original_name,
+                    columns=[str(column) for column in frame.columns],
+                    row_count=int(len(frame)),
+                    sample_rows=sample.to_dict(orient="records"),
+                )
+            )
         response = MetaAnalysisPlannerAgent().run(
             pico=pico,
             csv_summaries=summaries,
@@ -340,18 +355,26 @@ class WorkflowOperationRegistry:
             max_concurrency=request.max_concurrency,
         )
         raw = response.model_dump()
-        plans = [MetaAnalysisMethodPlan.model_validate(item) for item in raw.get("plans", [])]
-        if {plan.csv_file for plan in plans} != {record.original_name for record in records}:
-            raise ValueError("Planner must return exactly one plan for each CSV dataset")
+        plans = [
+            MetaAnalysisMethodPlan.model_validate(item) for item in raw.get("plans", [])
+        ]
+        if {plan.csv_file for plan in plans} != {
+            record.original_name for record in records
+        }:
+            raise ValueError(
+                "Planner must return exactly one plan for each CSV dataset"
+            )
         output = artifacts.save_draft(
             execution.review_id,
             "plan",
-            jsonable_encoder({
-                "file_ids": [record.id for record in records],
-                "user_hint": request.user_hint,
-                "csv_summaries": [summary.model_dump() for summary in summaries],
-                "plans": [plan.model_dump() for plan in plans],
-            }),
+            jsonable_encoder(
+                {
+                    "file_ids": [record.id for record in records],
+                    "user_hint": request.user_hint,
+                    "csv_summaries": [summary.model_dump() for summary in summaries],
+                    "plans": [plan.model_dump() for plan in plans],
+                }
+            ),
             context=execution.context.artifact_context(),
         )
         return self._saved(execution.context, output)
@@ -371,23 +394,32 @@ class WorkflowOperationRegistry:
             storage,
         )
         plans = [MetaAnalysisMethodPlan.model_validate(plan) for plan in raw_plans]
-        if {plan.csv_file for plan in plans} != {record.original_name for record in records}:
+        if {plan.csv_file for plan in plans} != {
+            record.original_name for record in records
+        }:
             raise ValueError("Approved Plan does not match the stored CSV datasets")
         execution.context.emit(
             "analyzing",
             {"message": "Validating and fitting meta-analysis models"},
         )
         frames = {
-            record.original_name: pd.read_csv(storage.resolve(record), encoding="utf-8-sig")
+            record.original_name: pd.read_csv(
+                storage.resolve(record), encoding="utf-8-sig"
+            )
             for record in records
         }
         response = MetaAnalysisRunnerAgent().run(plans=plans, csv_frames=frames)
         raw = jsonable_encoder(response.model_dump())
         results = raw.get("results", [])
         if len(results) != len(plans):
-            raise ValueError("Meta-analysis did not return one result per approved plan")
+            raise ValueError(
+                "Meta-analysis did not return one result per approved plan"
+            )
         for plan, result in zip(plans, results):
-            if plan.output.include_pooled_effect and result.get("pooled_effect") is None:
+            if (
+                plan.output.include_pooled_effect
+                and result.get("pooled_effect") is None
+            ):
                 details = "; ".join(result.get("warnings", []))
                 raise ValueError(
                     f"Analysis failed for {plan.csv_file}: "
@@ -421,7 +453,7 @@ class WorkflowOperationRegistry:
         ) as figure_records:
             position = 0
             for result, count in zip(results, figure_counts):
-                owned = figure_records[position:position + count]
+                owned = figure_records[position : position + count]
                 position += count
                 result["figure_files"] = [
                     GeneratedFigureResult(

@@ -59,9 +59,7 @@ class WorkflowCoordinator:
         on_stage_run_created: Callable[[StageRun], None] | None = None,
     ) -> JobView:
         input_ids = [artifact.artifact_id for artifact in input_artifacts]
-        input_version_ids = tuple(
-            artifact.version_id for artifact in input_artifacts
-        )
+        input_version_ids = tuple(artifact.version_id for artifact in input_artifacts)
         resolved_operation = operation_kind or f"{stage}.run"
         safe_request = self.provenance.safe_metadata(request_payload)
         metadata = self._execution_metadata(stage, resolved_operation)
@@ -146,9 +144,11 @@ class WorkflowCoordinator:
             model = settings.model_for(AgentStage(stage))
         except ValueError:
             model = settings.llm_model
-        return self.provenance.safe_metadata({
-            "operation_kind": operation_kind,
-            "model": model,
-            "provider_origin": origin,
-            "product_version": __version__,
-        })
+        return self.provenance.safe_metadata(
+            {
+                "operation_kind": operation_kind,
+                "model": model,
+                "provider_origin": origin,
+                "product_version": __version__,
+            }
+        )

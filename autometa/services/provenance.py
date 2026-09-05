@@ -203,12 +203,8 @@ class ProvenanceService:
         source_event_id: str,
     ) -> RerunRelationshipView:
         with self._sequence_lock, self.repository.database.session() as session:
-            self._validate_reference(
-                session, StageRun, source_stage_run_id, review_id
-            )
-            self._validate_reference(
-                session, StageRun, rerun_stage_run_id, review_id
-            )
+            self._validate_reference(session, StageRun, source_stage_run_id, review_id)
+            self._validate_reference(session, StageRun, rerun_stage_run_id, review_id)
             source_event = self.repository.event(session, source_event_id)
             if source_event is None or source_event.review_id != review_id:
                 raise ProvenanceNotFound(f"Event not found: {source_event_id}")
@@ -267,7 +263,9 @@ class ProvenanceService:
         if record is None:
             raise ProvenanceNotFound(f"Referenced record not found: {record_id}")
         if record.review_id != review_id:
-            raise ProvenanceConflict("Referenced records must belong to the same Review")
+            raise ProvenanceConflict(
+                "Referenced records must belong to the same Review"
+            )
 
     @staticmethod
     def _artifact_version_review(
@@ -283,4 +281,6 @@ class ProvenanceService:
         if artifact_review_id is None:
             raise ProvenanceNotFound(f"Artifact version not found: {version_id}")
         if artifact_review_id != review_id:
-            raise ProvenanceConflict("Referenced records must belong to the same Review")
+            raise ProvenanceConflict(
+                "Referenced records must belong to the same Review"
+            )

@@ -1,17 +1,3 @@
-"""
-Search query prompts — domain-agnostic version of TrialMind's search_query.py.
-
-Key changes from TrialMind:
-  - Removed "clinical specialist" persona → "systematic review specialist"
-  - Removed "medical conditions / treatments" language → generic research constructs
-  - Renamed output keys: CONDITIONS→POPULATION_TERMS, TREATMENTS→INTERVENTION_TERMS
-  - Otherwise keeps TrialMind's proven 2-step structure (primary terms → refine+expand)
-"""
-
-# ---------------------------------------------------------------------------
-# Step 1  –  quick bootstrap: extract 1-3 primary terms to seed PubMed reference search
-# ---------------------------------------------------------------------------
-
 PRIMARY_TERM_EXTRACTION = """\
 You are a systematic review specialist. You are conducting a systematic review and meta-analysis.
 The research is defined by the following PICO elements:
@@ -35,10 +21,6 @@ Output ONLY valid JSON, no explanation:
 }}
 """
 
-# ---------------------------------------------------------------------------
-# Step 2  –  full term extraction + refinement + expansion
-#            (informed by reference papers fetched in Step 1)
-# ---------------------------------------------------------------------------
 
 SEARCH_TERM_EXTRACTION = """\
 ## Background
@@ -109,10 +91,6 @@ Output ONLY valid JSON:
 }}
 """
 
-
-# ---------------------------------------------------------------------------
-# Field-tagged PubMed strategy generation
-# ---------------------------------------------------------------------------
 
 FIELD_TAGGED_SEARCH_STRATEGY = """\
 You are a biomedical information specialist designing a PubMed search strategy

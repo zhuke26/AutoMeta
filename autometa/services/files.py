@@ -82,7 +82,9 @@ class FileStorage:
         mime_type: str,
         content: bytes,
     ) -> FileRecord:
-        suffix = self._validate_generated_figure(review_id, filename, mime_type, content)
+        suffix = self._validate_generated_figure(
+            review_id, filename, mime_type, content
+        )
         return self._save_validated(
             review_id,
             filename,
@@ -100,12 +102,17 @@ class FileStorage:
         figures: list[tuple[str, str, bytes]],
     ) -> Iterator[list[FileRecord]]:
         validated = [
-            (filename, mime_type, content, self._validate_generated_figure(
-                review_id,
+            (
                 filename,
                 mime_type,
                 content,
-            ))
+                self._validate_generated_figure(
+                    review_id,
+                    filename,
+                    mime_type,
+                    content,
+                ),
+            )
             for filename, mime_type, content in figures
         ]
         records: list[FileRecord] = []
@@ -267,7 +274,9 @@ class FileStorage:
             chunks.append(chunk)
         return b"".join(chunks)
 
-    def list_for_review(self, review_id: str, kind: str | None = None) -> list[FileRecord]:
+    def list_for_review(
+        self, review_id: str, kind: str | None = None
+    ) -> list[FileRecord]:
         if self.reviews.get(review_id) is None:
             raise StoredFileNotFound(f"Review not found: {review_id}")
         records = self.repository.list_for_review(review_id)
@@ -323,7 +332,12 @@ class FileStorage:
             shutil.rmtree(staged, ignore_errors=False)
 
     def _validate_filename(self, filename: str, label: str) -> None:
-        if not filename or Path(filename).name != filename or "/" in filename or "\\" in filename:
+        if (
+            not filename
+            or Path(filename).name != filename
+            or "/" in filename
+            or "\\" in filename
+        ):
             raise InvalidUpload(f"{label} filename must not contain path separators")
 
     def _validate_pdf(self, filename: str, mime_type: str, content: bytes) -> None:

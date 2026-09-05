@@ -83,7 +83,10 @@ class ArtifactService:
     ) -> ArtifactView:
         self._validate_kind(kind)
         write_context = context or ArtifactWriteContext()
-        with self.provenance.sequence_lock, self.repository.database.session() as session:
+        with (
+            self.provenance.sequence_lock,
+            self.repository.database.session() as session,
+        ):
             if session.get(Review, review_id) is None:
                 raise ArtifactNotFound(f"Review not found: {review_id}")
             return self._save_draft(
@@ -104,7 +107,10 @@ class ArtifactService:
         for kind in payloads:
             self._validate_kind(kind)
         write_context = context or ArtifactWriteContext()
-        with self.provenance.sequence_lock, self.repository.database.session() as session:
+        with (
+            self.provenance.sequence_lock,
+            self.repository.database.session() as session,
+        ):
             if session.get(Review, review_id) is None:
                 raise ArtifactNotFound(f"Review not found: {review_id}")
             return {
@@ -119,7 +125,10 @@ class ArtifactService:
             }
 
     def approve(self, review_id: str, artifact_id: str, version: int) -> ArtifactView:
-        with self.provenance.sequence_lock, self.repository.database.session() as session:
+        with (
+            self.provenance.sequence_lock,
+            self.repository.database.session() as session,
+        ):
             artifact = session.get(Artifact, artifact_id)
             if artifact is None or artifact.review_id != review_id:
                 raise ArtifactNotFound(artifact_id)
@@ -129,7 +138,9 @@ class ArtifactService:
                 )
             current = self.repository.version(session, artifact.current_version_id)
             if current is None or current.version != version:
-                raise ArtifactConflict("Only the current artifact version can be approved")
+                raise ArtifactConflict(
+                    "Only the current artifact version can be approved"
+                )
             approval = self.repository.approval(session, current.id)
             if approval is None:
                 session.add(Approval(artifact_version_id=current.id))
@@ -148,7 +159,10 @@ class ArtifactService:
 
     def revoke(self, review_id: str, kind: str) -> ArtifactView:
         self._validate_kind(kind)
-        with self.provenance.sequence_lock, self.repository.database.session() as session:
+        with (
+            self.provenance.sequence_lock,
+            self.repository.database.session() as session,
+        ):
             artifact = self.repository.find(session, review_id, kind)
             if artifact is None:
                 raise ArtifactNotFound(kind)
@@ -210,7 +224,8 @@ class ArtifactService:
                     self._view(
                         artifact,
                         current,
-                        approved=self.repository.approval(session, current.id) is not None,
+                        approved=self.repository.approval(session, current.id)
+                        is not None,
                     )
                 )
             return result
@@ -279,7 +294,9 @@ class ArtifactService:
                 to_version=to_version,
                 changes=[
                     ArtifactDiffChange.model_validate(change)
-                    for change in diff_payloads(before.payload or {}, after.payload or {})
+                    for change in diff_payloads(
+                        before.payload or {}, after.payload or {}
+                    )
                 ],
             )
 
@@ -444,7 +461,9 @@ class ArtifactService:
         approvals = list(
             session.scalars(
                 select(Approval)
-                .join(ArtifactVersion, Approval.artifact_version_id == ArtifactVersion.id)
+                .join(
+                    ArtifactVersion, Approval.artifact_version_id == ArtifactVersion.id
+                )
                 .where(
                     ArtifactVersion.artifact_id == artifact.id,
                     Approval.status == "approved",
@@ -507,7 +526,9 @@ class ArtifactService:
                     StageRun.status == "succeeded",
                 )
             ):
-                if stale_version_ids.intersection(stage_run.output_artifact_version_ids):
+                if stale_version_ids.intersection(
+                    stage_run.output_artifact_version_ids
+                ):
                     stage_run.status = "stale"
                     self.provenance.record_in_session(
                         session,

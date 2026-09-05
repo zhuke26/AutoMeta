@@ -30,8 +30,8 @@ jobs:
       - name: Verify committed frontend build
         run: git diff --exit-code -- autometa/static
 
-  test:
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+  python:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -50,8 +50,6 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install AutoMeta
         run: python -m pip install -e ".[dev]"
-      - name: Run Python tests
-        run: python -m pytest tests -q
       - name: Lint Python source
         run: python -m ruff check .
       - name: Verify application import

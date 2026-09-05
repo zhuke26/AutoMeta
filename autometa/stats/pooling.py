@@ -25,9 +25,7 @@ def _weighted_model(
     residuals = effects - design @ coefficients
     trace_projection = float(
         np.sum(weights)
-        - np.trace(
-            covariance @ (design.T @ ((weights**2)[:, None] * design))
-        )
+        - np.trace(covariance @ (design.T @ ((weights**2)[:, None] * design)))
     )
     return weights, residuals, covariance, trace_projection
 
@@ -54,9 +52,7 @@ def _reml_tau2(
     for _ in range(60):
         if score(upper) < 0:
             try:
-                return float(
-                    brentq(score, 0.0, upper, xtol=1.0e-12, maxiter=200)
-                )
+                return float(brentq(score, 0.0, upper, xtol=1.0e-12, maxiter=200))
             except ValueError as exc:
                 raise RuntimeError("REML tau-squared did not converge") from exc
         upper *= 2
@@ -137,7 +133,9 @@ def pool_effects(
         prediction_se = math.sqrt(tau2 + standard_error**2)
         prediction_lower = pooled - critical * prediction_se
         prediction_upper = pooled + critical * prediction_se
-    normalized_weights = tuple(float(weight / np.sum(weights) * 100) for weight in weights)
+    normalized_weights = tuple(
+        float(weight / np.sum(weights) * 100) for weight in weights
+    )
     return PoolingResult(
         model_used="random" if use_random else "fixed",
         effect=pooled,

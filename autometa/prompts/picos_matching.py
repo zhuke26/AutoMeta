@@ -1,15 +1,3 @@
-"""
-Stage 2b — PICOS dimension matching prompt.
-
-For each candidate paper, the LLM compares its extracted PICOS profile
-against the review's matching criteria with chain-of-thought reasoning
-on every dimension, then outputs MATCH / MISMATCH / UNCERTAIN per dimension.
-"""
-
-# ---------------------------------------------------------------------------
-# Prompt template
-# ---------------------------------------------------------------------------
-
 PICOS_MATCHING_PROMPT = """\
 # ROLE
 You are a systematic review screener evaluating a candidate study for inclusion.
@@ -53,9 +41,6 @@ CRITICAL GUIDELINES:
 Call the function `submit_screening` with your evaluation.
 """
 
-# ---------------------------------------------------------------------------
-# Function-calling tool schema
-# ---------------------------------------------------------------------------
 
 _DIMENSION_ENUM = {"type": "string", "enum": ["MATCH", "MISMATCH", "UNCERTAIN"]}
 

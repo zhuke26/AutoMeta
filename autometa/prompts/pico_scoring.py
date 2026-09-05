@@ -1,12 +1,3 @@
-"""
-Direct PICO ranking prompt for fast screening.
-
-The model evaluates a candidate record directly against the review PICO in one
-function call. Missing abstract information should be scored as uncertain, not
-as a mismatch. The downstream system ranks records by auditable P/I/C/O scores
-and does not exclude records during this stage.
-"""
-
 PICO_SCORING_PROMPT = """\
 # ROLE
 You are a fast systematic-review ranking assistant.

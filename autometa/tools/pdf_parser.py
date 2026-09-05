@@ -1,5 +1,3 @@
-"""PDF parsing with verifiable element-level provenance."""
-
 from __future__ import annotations
 
 import logging
@@ -17,7 +15,9 @@ from autometa.schemas.extraction_models import (
 logger = logging.getLogger(__name__)
 DOCLING_ARTIFACTS_PATH = os.environ.get("DOCLING_ARTIFACTS_PATH")
 DOCLING_DISABLE_OCR = os.environ.get("DOCLING_DISABLE_OCR", "").lower() in {
-    "1", "true", "yes",
+    "1",
+    "true",
+    "yes",
 }
 _OCR_FALLBACK_MODE = False
 _LAST_OCR_FALLBACK_FILES: list[str] = []
@@ -54,7 +54,15 @@ def _span(provenance, text_length: int) -> tuple[int | None, int | None]:
     return None, None
 
 
-def _locator(document, provenance, *, file_id: str | None, source_id: str, element_type: str, table_index: int | None = None) -> SourceLocator:
+def _locator(
+    document,
+    provenance,
+    *,
+    file_id: str | None,
+    source_id: str,
+    element_type: str,
+    table_index: int | None = None,
+) -> SourceLocator:
     page_number = int(getattr(provenance, "page_no", 0) or 0) or None
     bbox = None
     page_size = _page_size(document, page_number) if page_number else None
@@ -64,9 +72,12 @@ def _locator(document, provenance, *, file_id: str | None, source_id: str, eleme
         try:
             converted = raw_box.to_bottom_left_origin(height)
             bbox = BoundingBox(
-                left=float(converted.l), bottom=float(converted.b),
-                right=float(converted.r), top=float(converted.t),
-                page_width=width, page_height=height,
+                left=float(converted.l),
+                bottom=float(converted.b),
+                right=float(converted.r),
+                top=float(converted.t),
+                page_width=width,
+                page_height=height,
             )
         except (AttributeError, TypeError, ValueError):
             bbox = None
@@ -85,7 +96,9 @@ def _locator(document, provenance, *, file_id: str | None, source_id: str, eleme
     )
 
 
-def _elements_from_docling(document, file_id: str | None = None) -> tuple[list[DocumentElement], list[str]]:
+def _elements_from_docling(
+    document, file_id: str | None = None
+) -> tuple[list[DocumentElement], list[str]]:
     elements: list[DocumentElement] = []
     for index, item in enumerate(getattr(document, "texts", []) or []):
         text = str(getattr(item, "text", "") or "").strip()
@@ -95,11 +108,25 @@ def _elements_from_docling(document, file_id: str | None = None) -> tuple[list[D
         provenance = provenance_items[0] if provenance_items else None
         source_id = f"body-{index}"
         locator = (
-            _locator(document, provenance, file_id=file_id, source_id=source_id, element_type="body")
+            _locator(
+                document,
+                provenance,
+                file_id=file_id,
+                source_id=source_id,
+                element_type="body",
+            )
             if provenance is not None
-            else SourceLocator(file_id=file_id, source_id=source_id, element_type="body", parser_name="docling", parser_version=_package_version("docling"))
+            else SourceLocator(
+                file_id=file_id,
+                source_id=source_id,
+                element_type="body",
+                parser_name="docling",
+                parser_version=_package_version("docling"),
+            )
         )
-        elements.append(DocumentElement(source_id=source_id, text=text, locator=locator))
+        elements.append(
+            DocumentElement(source_id=source_id, text=text, locator=locator)
+        )
 
     tables: list[str] = []
     for index, table in enumerate(getattr(document, "tables", []) or []):
@@ -116,11 +143,27 @@ def _elements_from_docling(document, file_id: str | None = None) -> tuple[list[D
         provenance_items = list(getattr(table, "prov", []) or [])
         provenance = provenance_items[0] if provenance_items else None
         locator = (
-            _locator(document, provenance, file_id=file_id, source_id=source_id, element_type="table", table_index=index)
+            _locator(
+                document,
+                provenance,
+                file_id=file_id,
+                source_id=source_id,
+                element_type="table",
+                table_index=index,
+            )
             if provenance is not None
-            else SourceLocator(file_id=file_id, source_id=source_id, element_type="table", table_index=index, parser_name="docling", parser_version=_package_version("docling"))
+            else SourceLocator(
+                file_id=file_id,
+                source_id=source_id,
+                element_type="table",
+                table_index=index,
+                parser_name="docling",
+                parser_version=_package_version("docling"),
+            )
         )
-        elements.append(DocumentElement(source_id=source_id, text=text, locator=locator))
+        elements.append(
+            DocumentElement(source_id=source_id, text=text, locator=locator)
+        )
     return elements, tables
 
 
@@ -176,18 +219,20 @@ def _convert_pdf_text_fallback(file_path: str, file_id: str | None = None) -> Pa
             continue
         source_id = f"page-{index}"
         markdown_pages.append(f"## Page {index}\n\n{text}")
-        elements.append(DocumentElement(
-            source_id=source_id,
-            text=text,
-            locator=SourceLocator(
-                file_id=file_id,
+        elements.append(
+            DocumentElement(
                 source_id=source_id,
-                page_number=index,
-                element_type="body",
-                parser_name="pypdfium2",
-                parser_version=_package_version("pypdfium2"),
-            ),
-        ))
+                text=text,
+                locator=SourceLocator(
+                    file_id=file_id,
+                    source_id=source_id,
+                    page_number=index,
+                    element_type="body",
+                    parser_name="pypdfium2",
+                    parser_version=_package_version("pypdfium2"),
+                ),
+            )
+        )
     return ParsedPDF(
         filename=Path(file_path).name,
         file_id=file_id,
@@ -205,7 +250,9 @@ def parse_pdf(file_path: str, file_id: str | None = None) -> ParsedPDF:
         try:
             return _convert_pdf(file_path, do_ocr=False, file_id=file_id)
         except Exception as error:
-            logger.warning("Docling parse without OCR failed for %s: %s", file_path, error)
+            logger.warning(
+                "Docling parse without OCR failed for %s: %s", file_path, error
+            )
             return _convert_pdf_text_fallback(file_path, file_id)
     try:
         return _convert_pdf(file_path, do_ocr=True, file_id=file_id)
@@ -220,7 +267,9 @@ def parse_pdf(file_path: str, file_id: str | None = None) -> ParsedPDF:
             return _convert_pdf_text_fallback(file_path, file_id)
 
 
-def parse_pdfs(file_paths: list[str], file_ids: list[str] | None = None) -> list[ParsedPDF]:
+def parse_pdfs(
+    file_paths: list[str], file_ids: list[str] | None = None
+) -> list[ParsedPDF]:
     global _LAST_OCR_FALLBACK_FILES
     _LAST_OCR_FALLBACK_FILES = []
     ids = file_ids or [None] * len(file_paths)

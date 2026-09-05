@@ -1,15 +1,3 @@
-"""
-Stage 1 — PICOS structured extraction prompt.
-
-Pure information extraction: the LLM reads title + abstract and extracts
-Population, Intervention, Comparison, Outcome, Study design into a
-structured JSON via function calling.  NO eligibility judgment is made here.
-"""
-
-# ---------------------------------------------------------------------------
-# Prompt template
-# ---------------------------------------------------------------------------
-
 PICOS_EXTRACTION_PROMPT = """\
 # ROLE
 You are a biomedical information extraction specialist.
@@ -34,9 +22,6 @@ For each PICOS element, extract the relevant information DIRECTLY from the text.
 Call the function `submit_picos` with the extracted information.
 """
 
-# ---------------------------------------------------------------------------
-# Function-calling tool schema
-# ---------------------------------------------------------------------------
 
 PICOS_EXTRACTION_TOOL = {
     "type": "function",

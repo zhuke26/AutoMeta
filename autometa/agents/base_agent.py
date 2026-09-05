@@ -1,7 +1,3 @@
-"""
-BaseAgent — shared state tracking and logging for all AutoMeta agents.
-"""
-
 import logging
 import time
 from dataclasses import dataclass, field
@@ -11,7 +7,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class StepRecord:
     name: str
-    status: str          # "ok" | "failed" | "skipped"
+    status: str
     elapsed_s: float
     detail: Optional[str] = None
 
@@ -22,7 +18,9 @@ class AgentState:
     start_time: float = field(default_factory=time.time)
 
     def record(self, name: str, status: str, elapsed_s: float, detail: str = None):
-        self.steps.append(StepRecord(name=name, status=status, elapsed_s=elapsed_s, detail=detail))
+        self.steps.append(
+            StepRecord(name=name, status=status, elapsed_s=elapsed_s, detail=detail)
+        )
 
     @property
     def elapsed(self) -> float:
@@ -53,10 +51,7 @@ class BaseAgent:
         self.state = AgentState()
 
     def _run_step(self, step_name: str, fn, *args, **kwargs):
-        """
-        Execute fn(*args, **kwargs), record timing + outcome, propagate exceptions.
-        Use this wrapper for every logical step inside an agent's run() method.
-        """
+
         self.logger.info("[%s] → %s", self.name, step_name)
         t0 = time.time()
         try:

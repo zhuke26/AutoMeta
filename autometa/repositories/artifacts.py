@@ -22,7 +22,9 @@ class ArtifactRepository:
 
     @staticmethod
     def list_for_review(session: Session, review_id: str) -> list[Artifact]:
-        return list(session.scalars(select(Artifact).where(Artifact.review_id == review_id)))
+        return list(
+            session.scalars(select(Artifact).where(Artifact.review_id == review_id))
+        )
 
     @staticmethod
     def version(session: Session, version_id: str | None) -> ArtifactVersion | None:
@@ -30,7 +32,9 @@ class ArtifactRepository:
 
     @staticmethod
     def versions_query(artifact_id: str) -> Select:
-        return select(ArtifactVersion.id).where(ArtifactVersion.artifact_id == artifact_id)
+        return select(ArtifactVersion.id).where(
+            ArtifactVersion.artifact_id == artifact_id
+        )
 
     @staticmethod
     def list_versions(session: Session, artifact_id: str) -> list[ArtifactVersion]:

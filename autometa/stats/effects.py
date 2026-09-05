@@ -47,8 +47,7 @@ def continuous_effect(
     difference = experimental_mean - control_mean
     if measure == EffectMeasure.MD:
         variance = (
-            experimental_sd**2 / experimental_total
-            + control_sd**2 / control_total
+            experimental_sd**2 / experimental_total + control_sd**2 / control_total
         )
         return StudyEstimate(effect=difference, variance=variance)
     pooled_variance = (
@@ -67,11 +66,9 @@ def continuous_effect(
         standardized *= correction
     elif measure != EffectMeasure.SMD:
         raise ValueError(f"Unsupported continuous effect measure: {measure}")
-    variance = (
-        (experimental_total + control_total)
-        / (experimental_total * control_total)
-        + standardized**2 / (2 * (experimental_total + control_total))
-    )
+    variance = (experimental_total + control_total) / (
+        experimental_total * control_total
+    ) + standardized**2 / (2 * (experimental_total + control_total))
     return StudyEstimate(effect=standardized, variance=variance)
 
 
@@ -116,7 +113,8 @@ def dichotomous_effect(
     if measure == EffectMeasure.RD:
         return StudyEstimate(
             effect=p1 - p0,
-            variance=(p1 * (1 - p1) / experimental_total) + (p0 * (1 - p0) / control_total),
+            variance=(p1 * (1 - p1) / experimental_total)
+            + (p0 * (1 - p0) / control_total),
         )
     raise ValueError(f"Unsupported dichotomous effect measure: {measure}")
 

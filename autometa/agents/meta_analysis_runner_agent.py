@@ -1,5 +1,3 @@
-"""Run approved meta-analysis plans through the shared statistical engine."""
-
 from __future__ import annotations
 
 import json
@@ -18,8 +16,6 @@ from autometa.stats import run_analysis
 
 
 class MetaAnalysisRunnerAgent(BaseAgent):
-    """Generate auditable scripts and calculate results without executing model code."""
-
     def __init__(self):
         super().__init__("MetaAnalysisRunnerAgent")
 
@@ -51,7 +47,7 @@ class MetaAnalysisRunnerAgent(BaseAgent):
             sort_keys=True,
         )
         engine_version = json.dumps(__version__)
-        return f'''# Auto-generated deterministic AutoMeta calculation
+        return f"""# Auto-generated deterministic AutoMeta calculation
 # Dataset and outcome are defined in the validated PLAN below.
 
 from pathlib import Path
@@ -75,4 +71,4 @@ CSV_PATH = Path(__file__).resolve().with_name(PLAN.csv_file)
 frame = pd.read_csv(CSV_PATH, encoding="utf-8-sig")
 result = run_analysis(PLAN, frame)
 print(result.model_dump_json(indent=2))
-'''
+"""

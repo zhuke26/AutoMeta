@@ -13,7 +13,7 @@ class StudyEstimate:
 
     @property
     def standard_error(self) -> float:
-        return self.variance ** 0.5
+        return self.variance**0.5
 
 
 @dataclass(frozen=True)

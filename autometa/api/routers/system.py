@@ -30,12 +30,7 @@ def system_status(
     settings: Settings = Depends(get_app_settings),
 ) -> SystemStatus:
     models = {"default": settings.llm_model}
-    models.update(
-        {
-            stage.value: settings.model_for(stage)
-            for stage in AgentStage
-        }
-    )
+    models.update({stage.value: settings.model_for(stage) for stage in AgentStage})
     return SystemStatus(
         product="AutoMeta",
         version=__version__,

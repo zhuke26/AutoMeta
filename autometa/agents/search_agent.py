@@ -1,18 +1,3 @@
-"""
-SearchAgent — orchestrates the full literature search pipeline.
-
-Mirrors TrialMind's SearchQueryGeneration + PubmedAPIWrapper flow but wrapped
-in an agent class with state tracking and structured output.
-
-Pipeline:
-  1. Generate initial search terms from PICO          (call_llm → PRIMARY_TERM_EXTRACTION)
-  2. Fetch 7 reference papers from PubMed             (ReqPubmedID + ReqPubmedFull)
-  3. Refine + expand terms using reference context    (call_llm → SEARCH_TERM_EXTRACTION)
-  4. Build keyword_map and run main PubMed search     (PubmedAPIWrapper)
-  5. Fetch full metadata for retrieved PMIDs          (pmid2papers)
-  6. Return structured SearchResult
-"""
-
 import json
 import logging
 import re
@@ -49,27 +34,22 @@ from autometa.tools.pubmed import (
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# JSON parsing helper (adapted from TrialMind's parse_json_outputs)
-# ---------------------------------------------------------------------------
-
 def _extract_json(text: str) -> Optional[dict]:
-    """Try to extract a JSON object from LLM response text."""
-    # 1. ```json ... ```
+
     m = re.search(r"```json\s*([\s\S]*?)\s*```", text)
     if m:
         try:
             return json.loads(m.group(1))
         except json.JSONDecodeError:
             pass
-    # 2. First { … } block
+
     m = re.search(r"\{[\s\S]*\}", text)
     if m:
         try:
             return json.loads(m.group(0))
         except json.JSONDecodeError:
             pass
-    # 3. Whole text
+
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -77,17 +57,6 @@ def _extract_json(text: str) -> Optional[dict]:
 
 
 class SearchAgent(BaseAgent):
-    """
-    Runs the full literature search pipeline for a given PICO definition.
-
-    Usage::
-
-        agent = SearchAgent()
-        result = agent.run(pico, retmax=1000)
-        # result.papers  → list of Paper objects
-        # result.search_terms → populations / interventions / outcomes
-    """
-
     def __init__(self):
         super().__init__("SearchAgent")
         self._settings = get_settings()
@@ -95,10 +64,6 @@ class SearchAgent(BaseAgent):
         self._req_id = ReqPubmedID()
         self._req_full = ReqPubmedFull()
         self._wrapper = PubmedAPIWrapper()
-
-    # ------------------------------------------------------------------
-    # Public entry point
-    # ------------------------------------------------------------------
 
     def run(
         self,
@@ -108,7 +73,7 @@ class SearchAgent(BaseAgent):
         max_year: Optional[int] = None,
         fetch_all: bool = False,
     ) -> SearchResult:
-        """Backward-compatible full pipeline: generate terms, then search."""
+
         self.reset()
         search_terms = self._generate_terms_for_pico(pico)
         return self._search_with_terms(
@@ -120,11 +85,7 @@ class SearchAgent(BaseAgent):
         )
 
     def generate_terms(self, pico: PICODefinition) -> SearchTerms:
-        """Generate reviewable PubMed search terms without running the search.
 
-        This preview path avoids PubMed reference fetching so the user can review
-        terms quickly before the expensive search step.
-        """
         self.reset()
         pico_dict = {"P": pico.P, "I": pico.I, "C": pico.C, "O": pico.O}
         return self._run_step(
@@ -142,7 +103,7 @@ class SearchAgent(BaseAgent):
         max_year: Optional[int] = None,
         fetch_all: bool = False,
     ) -> SearchResult:
-        """Run PubMed search using human-reviewed search terms."""
+
         self.reset()
         return self._search_with_terms(
             search_terms=search_terms,
@@ -161,7 +122,7 @@ class SearchAgent(BaseAgent):
         fetch_all: bool = False,
         search_terms: Optional[SearchTerms] = None,
     ) -> SearchResult:
-        """Run PubMed search using a complete raw PubMed query string."""
+
         self.reset()
         pmid_list, query_url, total_count = self._run_step(
             "pubmed_raw_search",
@@ -180,7 +141,9 @@ class SearchAgent(BaseAgent):
         papers = self._run_step(
             "apply_publication_year_filter",
             self._filter_papers_by_year,
-            papers, min_year, max_year,
+            papers,
+            min_year,
+            max_year,
         )
         return SearchResult(
             query_url=query_url,
@@ -197,12 +160,13 @@ class SearchAgent(BaseAgent):
         appendix_query: str = "",
         baseline_notes: str = "",
     ) -> SearchStrategy:
-        """Generate broad/balanced/narrow complete PubMed queries."""
+
         self.reset()
         pico_dict = {"P": pico.P, "I": pico.I, "C": pico.C, "O": pico.O}
         inputs = {
             **pico_dict,
-            "included_studies_text": included_studies_text or "(No included-study anchors provided.)",
+            "included_studies_text": included_studies_text
+            or "(No included-study anchors provided.)",
             "appendix_query": appendix_query or "(No appendix query provided.)",
             "baseline_notes": baseline_notes or "(No prior diagnostics provided.)",
         }
@@ -219,13 +183,20 @@ class SearchAgent(BaseAgent):
         evaluations: list[SearchQueryEvaluation],
         included_studies_text: str = "",
     ) -> SearchStrategy:
-        """Ask the LLM to revise a generated strategy using count/recall feedback."""
+
         pico_dict = {"P": pico.P, "I": pico.I, "C": pico.C, "O": pico.O}
         inputs = {
             **pico_dict,
-            "included_studies_text": included_studies_text or "(No included-study anchors provided.)",
-            "strategy_json": json.dumps(self._model_to_dict(strategy), ensure_ascii=False, indent=2),
-            "evaluation_json": json.dumps([self._model_to_dict(e) for e in evaluations], ensure_ascii=False, indent=2),
+            "included_studies_text": included_studies_text
+            or "(No included-study anchors provided.)",
+            "strategy_json": json.dumps(
+                self._model_to_dict(strategy), ensure_ascii=False, indent=2
+            ),
+            "evaluation_json": json.dumps(
+                [self._model_to_dict(e) for e in evaluations],
+                ensure_ascii=False,
+                indent=2,
+            ),
         }
         raw = self._run_step(
             "repair_field_tagged_strategy",
@@ -242,7 +213,7 @@ class SearchAgent(BaseAgent):
         min_year: int | None,
         max_year: int | None,
     ) -> SearchExpansionResult:
-        """Generate, probe, and refine a transparent PubMed strategy."""
+
         seed_strategy = self.generate_field_tagged_strategy(pico)
         seed_result = self.search_with_raw_query(
             raw_query=seed_strategy.balanced.query,
@@ -258,10 +229,13 @@ class SearchAgent(BaseAgent):
             min_date=str(min_year) if min_year else None,
             max_date=str(max_year) if max_year else None,
         )
-        seed_context = "\n\n".join(
-            f"{index}. {paper.title}\nAbstract: {paper.abstract}"
-            for index, paper in enumerate(seed_result.papers, start=1)
-        ) or "(No seed records were retrieved.)"
+        seed_context = (
+            "\n\n".join(
+                f"{index}. {paper.title}\nAbstract: {paper.abstract}"
+                for index, paper in enumerate(seed_result.papers, start=1)
+            )
+            or "(No seed records were retrieved.)"
+        )
         expanded_strategy = self.generate_field_tagged_strategy(
             pico,
             included_studies_text=seed_context,
@@ -282,15 +256,25 @@ class SearchAgent(BaseAgent):
         comparison = diff_queries(
             seed_strategy.balanced.query,
             expanded_strategy.balanced.query,
-        ).model_copy(update={
-            "seed_result_count": seed_balanced.total_count,
-            "expanded_result_count": expanded_balanced.total_count,
-            "known_study_total": len(included_pmids),
-            "seed_known_hits": seed_balanced.included_hits if included_pmids else None,
-            "expanded_known_hits": expanded_balanced.included_hits if included_pmids else None,
-            "seed_known_recall": seed_balanced.included_recall if included_pmids else None,
-            "expanded_known_recall": expanded_balanced.included_recall if included_pmids else None,
-        })
+        ).model_copy(
+            update={
+                "seed_result_count": seed_balanced.total_count,
+                "expanded_result_count": expanded_balanced.total_count,
+                "known_study_total": len(included_pmids),
+                "seed_known_hits": seed_balanced.included_hits
+                if included_pmids
+                else None,
+                "expanded_known_hits": expanded_balanced.included_hits
+                if included_pmids
+                else None,
+                "seed_known_recall": seed_balanced.included_recall
+                if included_pmids
+                else None,
+                "expanded_known_recall": expanded_balanced.included_recall
+                if included_pmids
+                else None,
+            }
+        )
         return SearchExpansionResult(
             seed=SearchStrategySnapshot(
                 strategy=seed_strategy,
@@ -322,7 +306,7 @@ class SearchAgent(BaseAgent):
         min_date: Optional[str] = None,
         max_date: Optional[str] = None,
     ) -> SearchQueryEvaluation:
-        """Count a PubMed raw query and compute query-level included PMID recall."""
+
         preview_pmids, query_url, total_count = self._wrapper.search_raw(
             query,
             retmax=retmax,
@@ -367,7 +351,7 @@ class SearchAgent(BaseAgent):
         min_date: Optional[str] = None,
         max_date: Optional[str] = None,
     ) -> list[SearchQueryEvaluation]:
-        """Evaluate broad/balanced/narrow strategy variants against included PMIDs."""
+
         evaluations: list[SearchQueryEvaluation] = []
         for variant in [strategy.broad, strategy.balanced, strategy.narrow]:
             evaluations.append(
@@ -392,7 +376,9 @@ class SearchAgent(BaseAgent):
     def _parse_search_strategy(raw: str) -> SearchStrategy:
         parsed = _extract_json(raw)
         if not parsed:
-            logger.warning("FIELD_TAGGED_SEARCH_STRATEGY returned unparseable JSON; using empty queries")
+            logger.warning(
+                "FIELD_TAGGED_SEARCH_STRATEGY returned unparseable JSON; using empty queries"
+            )
             parsed = {}
 
         def variant(name: str) -> SearchQueryVariant:
@@ -471,7 +457,9 @@ class SearchAgent(BaseAgent):
         papers = self._run_step(
             "apply_publication_year_filter",
             self._filter_papers_by_year,
-            papers, min_year, max_year,
+            papers,
+            min_year,
+            max_year,
         )
 
         logger.info(
@@ -489,18 +477,17 @@ class SearchAgent(BaseAgent):
             search_terms=search_terms,
         )
 
-    # ------------------------------------------------------------------
-    # Step implementations
-    # ------------------------------------------------------------------
-
     def _generate_initial_terms(self, pico_dict: dict) -> list:
         raw = call_llm(PRIMARY_TERM_EXTRACTION, pico_dict, model=self._model)
         parsed = _extract_json(raw)
         terms = parsed.get("terms", []) if parsed else []
         if not terms:
-            # Fallback: use PICO elements as rough terms
             logger.warning("PRIMARY_TERM_EXTRACTION returned no terms; using fallback")
-            terms = [pico_dict["I"].split()[0]] if pico_dict.get("I") else ["systematic review"]
+            terms = (
+                [pico_dict["I"].split()[0]]
+                if pico_dict.get("I")
+                else ["systematic review"]
+            )
         logger.info("Initial search terms: %s", terms)
         return terms
 
@@ -515,7 +502,7 @@ class SearchAgent(BaseAgent):
             return "(No reference papers retrieved)"
         papers = self._req_full.run(pmids)
         lines = [
-            f"{i+1}. {p['title']}\nAbstract: {p['abstract']}"
+            f"{i + 1}. {p['title']}\nAbstract: {p['abstract']}"
             for i, p in enumerate(papers)
         ]
         return "\n\n".join(lines)
@@ -526,23 +513,33 @@ class SearchAgent(BaseAgent):
         parsed = _extract_json(raw)
 
         if not parsed:
-            logger.warning("SEARCH_TERM_EXTRACTION returned unparseable JSON; using empty terms")
+            logger.warning(
+                "SEARCH_TERM_EXTRACTION returned unparseable JSON; using empty terms"
+            )
             return SearchTerms()
 
         step2 = parsed.get("step 2", {})
         step3 = parsed.get("step 3", {})
 
-        populations   = list(set(step2.get("CORE_POPULATION",   []) + step3.get("EXPAND_POPULATION",   [])))
-        interventions = list(set(step2.get("CORE_INTERVENTION", []) + step3.get("EXPAND_INTERVENTION", [])))
+        populations = list(
+            set(step2.get("CORE_POPULATION", []) + step3.get("EXPAND_POPULATION", []))
+        )
+        interventions = list(
+            set(
+                step2.get("CORE_INTERVENTION", [])
+                + step3.get("EXPAND_INTERVENTION", [])
+            )
+        )
 
         logger.info(
             "Refined terms — pop: %d, int: %d",
-            len(populations), len(interventions),
+            len(populations),
+            len(interventions),
         )
         return SearchTerms(
             populations=populations,
             interventions=interventions,
-            outcomes=[],  # outcomes not extracted for search (used in screening only)
+            outcomes=[],
         )
 
     def _pubmed_raw_search(
@@ -577,12 +574,7 @@ class SearchAgent(BaseAgent):
         max_year: Optional[int] = None,
         fetch_all: bool = False,
     ):
-        # Search strategy: P + I only.
-        # Outcome terms are intentionally excluded from the query to maximise
-        # recall — many studies measure the target outcome without naming it
-        # explicitly in the title/abstract (Cochrane Handbook recommendation).
-        # Outcomes are still extracted and displayed in the UI, and are used
-        # in full during the screening phase.
+
         keyword_map = {}
         if search_terms.populations:
             keyword_map["population"] = search_terms.populations
@@ -659,6 +651,9 @@ class SearchAgent(BaseAgent):
 
         logger.info(
             "Applied local publication year filter min=%s max=%s: kept=%d dropped=%d",
-            min_year, max_year, len(filtered), dropped,
+            min_year,
+            max_year,
+            len(filtered),
+            dropped,
         )
         return filtered

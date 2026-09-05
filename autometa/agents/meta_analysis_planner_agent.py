@@ -1,10 +1,3 @@
-"""
-MetaAnalysisPlannerAgent — generates user-reviewable meta-analysis method plans.
-
-Inputs are cleaned CSV summaries plus the review PICO context. The planner does
-not execute calculations; it only proposes structured plans for user review.
-"""
-
 import json
 import logging
 from typing import List
@@ -29,15 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 class MetaAnalysisPlannerAgent(BaseAgent):
-    """
-    Generate one MethodPlan per cleaned CSV file.
-
-    Usage::
-
-        agent = MetaAnalysisPlannerAgent()
-        response = agent.run(pico, csv_summaries)
-    """
-
     def __init__(self):
         super().__init__("MetaAnalysisPlannerAgent")
         self._model = get_settings().model_for(AgentStage.META_ANALYSIS)
@@ -95,7 +79,9 @@ class MetaAnalysisPlannerAgent(BaseAgent):
         plans = self._parse_plans(raw_plans)
         plans = self._ensure_one_plan_per_csv(plans, csv_summaries)
 
-        logger.info("[MetaAnalysisPlannerAgent] Generated %d method plan(s)", len(plans))
+        logger.info(
+            "[MetaAnalysisPlannerAgent] Generated %d method plan(s)", len(plans)
+        )
         return MetaAnalysisPlanResponse(plans=plans)
 
     def _parse_plans(self, raw_plans: list) -> List[MetaAnalysisMethodPlan]:
@@ -114,10 +100,7 @@ class MetaAnalysisPlannerAgent(BaseAgent):
         plans: List[MetaAnalysisMethodPlan],
         csv_summaries: List[CSVSummary],
     ) -> List[MetaAnalysisMethodPlan]:
-        """
-        Keep valid model output auditable. If a CSV is missing, attach a warning
-        to the first plan rather than silently pretending all files were covered.
-        """
+
         expected = {summary.csv_file for summary in csv_summaries}
         seen = {plan.csv_file for plan in plans}
         missing = sorted(expected - seen)
@@ -125,9 +108,7 @@ class MetaAnalysisPlannerAgent(BaseAgent):
         if not missing:
             return plans
 
-        warning = (
-            "Planner did not return method plans for: " + ", ".join(missing)
-        )
+        warning = "Planner did not return method plans for: " + ", ".join(missing)
         logger.warning(warning)
 
         if plans:

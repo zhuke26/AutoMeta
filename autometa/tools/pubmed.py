@@ -1,14 +1,3 @@
-"""
-PubMed API tool layer for AutoMeta.
-
-Adapted directly from TrialMind's pubmed.py.
-Changes:
-  - Import api_key from our settings instead of os.environ directly
-  - Keep the PubMed API key wrapped until an outbound request is built
-  - Removed BioC/PMC helpers (not needed for title+abstract workflow)
-  - Kept: ReqPubmedID, ReqPubmedFull, PubmedAPIWrapper, pmid2papers
-"""
-
 import copy
 import json
 import logging
@@ -31,8 +20,12 @@ from autometa.config import get_settings
 logger = logging.getLogger(__name__)
 
 ESEARCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-PMID_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term="
-PUBMED_EFETCH_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id="
+PMID_BASE_URL = (
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term="
+)
+PUBMED_EFETCH_BASE_URL = (
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id="
+)
 DEFAULT_MAX_PAGE_SIZE = 100
 BATCH_REQUEST_SIZE = 100
 PUBMED_ESEARCH_MAX_WINDOW = 9999
@@ -55,13 +48,15 @@ def _sanitize_url(url: str, *, remove_sensitive_params: bool = False) -> str:
                 query.append((key, REDACTED_VALUE))
             continue
         query.append((key, value))
-    return urllib.parse.urlunsplit((
-        parts.scheme,
-        parts.netloc,
-        parts.path,
-        urllib.parse.urlencode(query),
-        parts.fragment,
-    ))
+    return urllib.parse.urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urllib.parse.urlencode(query),
+            parts.fragment,
+        )
+    )
 
 
 def _sanitize_sensitive_text(value: object) -> str:
@@ -84,10 +79,6 @@ def _sanitized_request_exception(
 ) -> requests.exceptions.RequestException:
     return requests.exceptions.RequestException(_sanitize_sensitive_text(exc))
 
-
-# ---------------------------------------------------------------------------
-# HTTP helpers
-# ---------------------------------------------------------------------------
 
 def _request_with_retry(
     method: str,
@@ -114,8 +105,7 @@ def _request_with_retry(
     for attempt in range(1, max_retries + 1):
         try:
             resp = session.request(method, url, headers=headers, **kwargs)
-            # Force response body loading inside the retry loop so broken
-            # chunked transfers are retried instead of surfacing to callers.
+
             _ = resp.content
             return resp
         except requests.exceptions.RequestException as exc:
@@ -125,7 +115,11 @@ def _request_with_retry(
             sleep_s = min(2 ** (attempt - 1), 10)
             logger.warning(
                 "HTTP %s failed on attempt %d/%d: %s; retrying in %ss",
-                method, attempt, max_retries, last_exc, sleep_s,
+                method,
+                attempt,
+                max_retries,
+                last_exc,
+                sleep_s,
             )
             time.sleep(sleep_s)
     raise last_exc
@@ -138,10 +132,6 @@ def _get_with_retry(url: str, max_retries: int = 5) -> requests.Response:
 def _post_with_retry(url: str, max_retries: int = 5, **kwargs) -> requests.Response:
     return _request_with_retry("POST", url, max_retries=max_retries, **kwargs)
 
-
-# ---------------------------------------------------------------------------
-# XML parsers (adapted from TrialMind)
-# ---------------------------------------------------------------------------
 
 def _parse_xml_recursively(element):
     child_dict = {}
@@ -235,10 +225,6 @@ def _parse_book_xml_to_dict(book) -> dict:
     return results
 
 
-# ---------------------------------------------------------------------------
-# Batch abstract retrieval (used for main paper fetch)
-# ---------------------------------------------------------------------------
-
 def _parse_efetch_xml(text: str) -> list:
     records = []
     tree = ET.fromstring(text)
@@ -264,50 +250,57 @@ def _retrieve_abstract_batch(batch: list, api_key: str, batch_offset: int) -> li
 
     logger.info(
         "Fetching abstracts batch offset=%d size=%d first_pmid=%s last_pmid=%s",
-        batch_offset, len(batch), batch[0] if batch else "", batch[-1] if batch else "",
+        batch_offset,
+        len(batch),
+        batch[0] if batch else "",
+        batch[-1] if batch else "",
     )
     try:
         resp = _post_with_retry(url, data=data, params=params)
         if resp.status_code != 200:
             logger.warning(
                 "efetch returned %d for batch offset=%d size=%d",
-                resp.status_code, batch_offset, len(batch),
+                resp.status_code,
+                batch_offset,
+                len(batch),
             )
             if len(batch) > 25:
                 mid = len(batch) // 2
-                return (
-                    _retrieve_abstract_batch(batch[:mid], api_key, batch_offset)
-                    + _retrieve_abstract_batch(batch[mid:], api_key, batch_offset + mid)
-                )
+                return _retrieve_abstract_batch(
+                    batch[:mid], api_key, batch_offset
+                ) + _retrieve_abstract_batch(batch[mid:], api_key, batch_offset + mid)
             return []
         records = _parse_efetch_xml(resp.text)
         if not records and len(batch) > 25:
             logger.warning(
                 "efetch parsed zero records for batch offset=%d size=%d; splitting batch",
-                batch_offset, len(batch),
+                batch_offset,
+                len(batch),
             )
             mid = len(batch) // 2
-            return (
-                _retrieve_abstract_batch(batch[:mid], api_key, batch_offset)
-                + _retrieve_abstract_batch(batch[mid:], api_key, batch_offset + mid)
-            )
+            return _retrieve_abstract_batch(
+                batch[:mid], api_key, batch_offset
+            ) + _retrieve_abstract_batch(batch[mid:], api_key, batch_offset + mid)
         return records
     except (requests.exceptions.RequestException, ET.ParseError) as exc:
         if len(batch) <= 25:
             logger.warning(
                 "efetch failed for small batch offset=%d size=%d: %s",
-                batch_offset, len(batch), _sanitize_sensitive_text(exc),
+                batch_offset,
+                len(batch),
+                _sanitize_sensitive_text(exc),
             )
             return []
         mid = len(batch) // 2
         logger.warning(
             "efetch failed for batch offset=%d size=%d: %s; splitting batch",
-            batch_offset, len(batch), _sanitize_sensitive_text(exc),
+            batch_offset,
+            len(batch),
+            _sanitize_sensitive_text(exc),
         )
-        return (
-            _retrieve_abstract_batch(batch[:mid], api_key, batch_offset)
-            + _retrieve_abstract_batch(batch[mid:], api_key, batch_offset + mid)
-        )
+        return _retrieve_abstract_batch(
+            batch[:mid], api_key, batch_offset
+        ) + _retrieve_abstract_batch(batch[mid:], api_key, batch_offset + mid)
 
 
 def _retrieve_abstracts(pmids: list, api_key: str = "") -> pd.DataFrame:
@@ -316,28 +309,31 @@ def _retrieve_abstracts(pmids: list, api_key: str = "") -> pd.DataFrame:
         batch = pmids[i : i + BATCH_REQUEST_SIZE]
         all_records.extend(_retrieve_abstract_batch(batch, api_key, i))
     if not all_records:
-        return pd.DataFrame(columns=["PMID", "Title", "Abstract", "Authors", "Year", "Journal", "PublicationType"])
+        return pd.DataFrame(
+            columns=[
+                "PMID",
+                "Title",
+                "Abstract",
+                "Authors",
+                "Year",
+                "Journal",
+                "PublicationType",
+            ]
+        )
     return pd.DataFrame.from_records(all_records)
 
 
 def pmid2papers(pmid_list: list, api_key: str = "") -> pd.DataFrame:
-    """Fetch full metadata for a list of PMIDs. Returns a DataFrame."""
+
     if not pmid_list:
         return pd.DataFrame()
     return _retrieve_abstracts(pmid_list, api_key)
 
 
-# ---------------------------------------------------------------------------
-# ReqPubmedID – search for PMIDs by keyword term
-# ---------------------------------------------------------------------------
-
 class ReqPubmedID:
-    """Fetch PubMed article IDs by keyword search (esearch API)."""
-
     def run(self, term: str, field: str = "Title/Abstract", retmax: int = 100) -> list:
         api_key = get_settings().pubmed_api_key.get_secret_value()
-        # Only attach [field] filter if field is set AND term is a single token (no boolean ops)
-        # For combined AND/OR queries, skip the field filter to avoid malformed syntax
+
         has_boolean = any(op in term for op in [" AND ", " OR ", "+AND+", "+OR+"])
         term_with_field = term if has_boolean or not field else f"{term}[{field}]"
         params = {
@@ -348,7 +344,10 @@ class ReqPubmedID:
         }
         if api_key:
             params["api_key"] = api_key
-        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?" + urllib.parse.urlencode(params)
+        url = (
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"
+            + urllib.parse.urlencode(params)
+        )
         try:
             resp = requests.get(url, headers={"User-Agent": "AutoMeta/1.0"})
             soup = BeautifulSoup(resp.text, "xml")
@@ -361,14 +360,7 @@ class ReqPubmedID:
             return []
 
 
-# ---------------------------------------------------------------------------
-# ReqPubmedFull – fetch title + abstract for a small set of PMIDs
-# (used for reference paper context in search term generation)
-# ---------------------------------------------------------------------------
-
 class ReqPubmedFull:
-    """Fetch title + abstract for a small list of PMIDs (efetch API)."""
-
     def run(self, pmids: list) -> list:
         if not pmids:
             return []
@@ -380,7 +372,10 @@ class ReqPubmedFull:
         }
         if api_key:
             params["api_key"] = api_key
-        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?" + urllib.parse.urlencode(params)
+        url = (
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?"
+            + urllib.parse.urlencode(params)
+        )
         try:
             resp = requests.get(url, headers={"User-Agent": "AutoMeta/1.0"})
             soup = BeautifulSoup(resp.text, "xml")
@@ -392,11 +387,13 @@ class ReqPubmedFull:
                 for aid in art.select("ArticleId"):
                     if aid.get("IdType") == "pubmed":
                         pubmed_id = aid.text
-                records.append({
-                    "title": title.text if title else "",
-                    "abstract": abstract,
-                    "pubmed_id": pubmed_id,
-                })
+                records.append(
+                    {
+                        "title": title.text if title else "",
+                        "abstract": abstract,
+                        "pubmed_id": pubmed_id,
+                    }
+                )
             return records
         except Exception:
             logger.error(
@@ -405,11 +402,6 @@ class ReqPubmedFull:
             )
             return []
 
-
-# ---------------------------------------------------------------------------
-# PubmedAPIWrapper – builds boolean query and retrieves PMIDs
-# (mirrors TrialMind's PubmedAPIWrapper, streamlined for our use case)
-# ---------------------------------------------------------------------------
 
 def _format_pubmed_date(value: str, end: bool = False) -> str:
     text = str(value).strip()
@@ -425,8 +417,6 @@ def _build_date_params(d: dict) -> dict:
     if min_date:
         date_params["mindate"] = _format_pubmed_date(min_date)
     elif max_date:
-        # PubMed ignores maxdate-only pdat filters in practice. Add an
-        # inception-like lower bound so max-year searches are actually bounded.
         date_params["mindate"] = "1800/01/01"
     if max_date:
         date_params["maxdate"] = _format_pubmed_date(max_date, end=True)
@@ -436,25 +426,6 @@ def _build_date_params(d: dict) -> dict:
 
 
 class PubmedAPIWrapper:
-    """
-    Builds a PubMed boolean query from a keyword_map and retrieves PMIDs.
-
-    Expected input dict::
-
-        {
-            "keyword_map": {
-                "population":     ["term1", "term2"],
-                "intervention":   ["term3", "term4"],
-                "outcome":        ["term5", "term6"],
-            },
-            "page_size": 1000,          # optional, default 1000
-            "min_date":  "2000",        # optional
-            "max_date":  "2024",        # optional
-        }
-
-    The query structure: within each group → OR; across groups → AND.
-    """
-
     @tenacity.retry(
         wait=tenacity.wait_fixed(2),
         stop=tenacity.stop_after_attempt(3),
@@ -529,7 +500,7 @@ class PubmedAPIWrapper:
         return json.loads(resp.text, strict=False)
 
     def search_count(self, inputs: dict) -> tuple[int, str]:
-        """Return only the PubMed total_count for a keyword_map or raw_query."""
+
         params = self.build_query_params(inputs, page_size=0)
         query_url = _sanitize_url(
             ESEARCH_URL + "?" + urllib.parse.urlencode(params),
@@ -552,15 +523,12 @@ class PubmedAPIWrapper:
         min_date: Optional[str] = None,
         max_date: Optional[str] = None,
     ) -> tuple[int, str]:
-        """Count a complete PubMed query string without fetching PMIDs."""
+
         inputs = {"raw_query": query, "min_date": min_date, "max_date": max_date}
         return self.search_count(inputs)
 
     def search(self, inputs: dict):
-        """
-        Returns (pmid_list, query_url, total_count).
-        pmid_list may be capped at page_size (default 1000).
-        """
+
         params = self.build_query_params(inputs)
         query_url = _sanitize_url(
             ESEARCH_URL + "?" + urllib.parse.urlencode(params),
@@ -573,7 +541,8 @@ class PubmedAPIWrapper:
             pmid_list = list(dict.fromkeys(pmid_list))
             logger.info(
                 "Retrieved %d PMIDs (total in PubMed: %d)",
-                len(pmid_list), total_count,
+                len(pmid_list),
+                total_count,
             )
             return pmid_list, query_url, total_count
         except Exception:
@@ -590,7 +559,7 @@ class PubmedAPIWrapper:
         min_date: Optional[str] = None,
         max_date: Optional[str] = None,
     ):
-        """Run a complete PubMed query string and return PMIDs/count."""
+
         inputs = {
             "raw_query": query,
             "page_size": retmax,
@@ -601,18 +570,9 @@ class PubmedAPIWrapper:
         return self.search(inputs)
 
     def search_all(self, inputs: dict):
-        """
-        Fetch ALL PMIDs matching the query using retstart pagination.
-        Ignores page_size in inputs; uses PAGE_SIZE=10000 per request.
-        Returns (pmid_list, query_url, total_count).
 
-        Note: for very large result sets (>50k) this may take a while —
-        each page is a separate HTTP request.
-        """
         PAGE_SIZE = PUBMED_ESEARCH_MAX_WINDOW
 
-        # Plain PubMed esearch only exposes a limited result window. For larger
-        # searches, the correct strategy is to narrow terms or use History/WebEnv.
         paged_inputs = dict(inputs)
         paged_inputs["page_size"] = PAGE_SIZE
         base_params = self.build_query_params(paged_inputs)
@@ -636,13 +596,16 @@ class PubmedAPIWrapper:
                 logger.warning(
                     "search_all requested %d PubMed records; ordinary esearch is capped at %d records. "
                     "Returning the first %d PMIDs. Narrow the query or disable retrieve-all for faster searches.",
-                    total_count, PUBMED_ESEARCH_MAX_WINDOW, len(all_pmids),
+                    total_count,
+                    PUBMED_ESEARCH_MAX_WINDOW,
+                    len(all_pmids),
                 )
 
             all_pmids = list(dict.fromkeys(all_pmids))
             logger.info(
                 "search_all complete: %d unique PMIDs returned (PubMed total: %d)",
-                len(all_pmids), total_count,
+                len(all_pmids),
+                total_count,
             )
             return all_pmids, query_url, total_count
 
@@ -651,4 +614,4 @@ class PubmedAPIWrapper:
                 "PubMed search_all failed: %s",
                 _sanitize_sensitive_text(traceback.format_exc()),
             )
-            return all_pmids if 'all_pmids' in dir() else [], query_url, 0
+            return all_pmids if "all_pmids" in dir() else [], query_url, 0

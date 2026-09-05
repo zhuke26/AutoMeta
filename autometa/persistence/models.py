@@ -115,7 +115,10 @@ class FileRecord(TimestampMixin, Base):
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     kind: Mapped[str] = mapped_column(String(16), default="pdf", nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    parse_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    parse_status: Mapped[str] = mapped_column(
+        String(32), default="pending", nullable=False
+    )
+
 
 class Job(TimestampMixin, Base):
     __tablename__ = "jobs"
@@ -212,7 +215,9 @@ class Approval(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
     artifact_version_id: Mapped[str] = mapped_column(
-        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     status: Mapped[str] = mapped_column(String(32), default="approved", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -273,7 +278,9 @@ class ResearcherEdit(Base):
         ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True
     )
     to_version_id: Mapped[str] = mapped_column(
-        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     changed_paths: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -292,10 +299,14 @@ class ProvenanceEdge(Base):
         ForeignKey("reviews.id", ondelete="CASCADE"), index=True, nullable=False
     )
     source_version_id: Mapped[str] = mapped_column(
-        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     target_version_id: Mapped[str] = mapped_column(
-        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     relation: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(

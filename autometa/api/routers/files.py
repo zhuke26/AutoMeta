@@ -56,7 +56,9 @@ def read_review_pdf(
         record = storage.get_review_file(review_id, file_id, kind="pdf")
         path = storage.resolve(record)
     except StoredFileNotFound as exc:
-        raise HTTPException(status_code=404, detail=f"File not found: {file_id}") from exc
+        raise HTTPException(
+            status_code=404, detail=f"File not found: {file_id}"
+        ) from exc
     return FileResponse(
         path,
         media_type="application/pdf",
@@ -78,8 +80,7 @@ async def upload_review_datasets(
 ) -> list[FileView]:
     try:
         records = [
-            await storage.save_dataset_upload(review_id, upload)
-            for upload in files
+            await storage.save_dataset_upload(review_id, upload) for upload in files
         ]
     except StoredFileNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -129,7 +130,9 @@ def read_review_figure(
         record = storage.get_review_file(review_id, file_id, kind="figure")
         path = storage.resolve(record)
     except StoredFileNotFound as exc:
-        raise HTTPException(status_code=404, detail=f"Figure not found: {file_id}") from exc
+        raise HTTPException(
+            status_code=404, detail=f"Figure not found: {file_id}"
+        ) from exc
     return FileResponse(
         path,
         media_type=record.mime_type,

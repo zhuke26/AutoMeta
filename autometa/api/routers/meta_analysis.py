@@ -1,9 +1,3 @@
-"""
-Meta-analysis planning API.
-
-POST /api/v1/meta/plan — cleaned CSV files + PICO → user-reviewable method plans.
-"""
-
 import logging
 from typing import List
 
@@ -66,15 +60,23 @@ async def _summarize_csv(file: UploadFile, sample_rows: int) -> CSVSummary:
     )
 
 
-@router.post("/plan", summary="Generate meta-analysis method plans from cleaned CSV files")
+@router.post(
+    "/plan", summary="Generate meta-analysis method plans from cleaned CSV files"
+)
 async def plan_meta_analysis(
-    files: List[UploadFile] = File(..., description="Cleaned CSV files, one per meta-analysis dataset"),
-    metadata: str = Form(..., description="JSON string with pico and optional user_hint"),
+    files: List[UploadFile] = File(
+        ..., description="Cleaned CSV files, one per meta-analysis dataset"
+    ),
+    metadata: str = Form(
+        ..., description="JSON string with pico and optional user_hint"
+    ),
 ):
     try:
         meta = MetaAnalysisPlanMetadata.model_validate_json(metadata)
     except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Invalid metadata JSON: {exc}") from exc
+        raise HTTPException(
+            status_code=422, detail=f"Invalid metadata JSON: {exc}"
+        ) from exc
 
     if not files:
         raise HTTPException(status_code=422, detail="At least one CSV file is required")
@@ -102,18 +104,26 @@ async def plan_meta_analysis(
     return response.model_dump()
 
 
-@router.post("/run", summary="Run meta-analysis calculations from confirmed method plans")
+@router.post(
+    "/run", summary="Run meta-analysis calculations from confirmed method plans"
+)
 async def run_meta_analysis(
-    files: List[UploadFile] = File(..., description="CSV files referenced by the confirmed method plans"),
+    files: List[UploadFile] = File(
+        ..., description="CSV files referenced by the confirmed method plans"
+    ),
     metadata: str = Form(..., description="JSON string with pico and confirmed plans"),
 ):
     try:
         meta = MetaAnalysisRunMetadata.model_validate_json(metadata)
     except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Invalid metadata JSON: {exc}") from exc
+        raise HTTPException(
+            status_code=422, detail=f"Invalid metadata JSON: {exc}"
+        ) from exc
 
     if not meta.plans:
-        raise HTTPException(status_code=422, detail="At least one meta-analysis plan is required")
+        raise HTTPException(
+            status_code=422, detail="At least one meta-analysis plan is required"
+        )
 
     logger.info("POST /api/v1/meta/run files=%d plans=%d", len(files), len(meta.plans))
 

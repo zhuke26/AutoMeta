@@ -1,15 +1,3 @@
-"""
-ScreeningAgentV2 — four-stage PICOS-based literature screening pipeline.
-
-Stage 0  Rule-based pre-filtering   (publication type + study design filter)
-Stage 1  PICOS structured extraction (LLM extracts P/I/C/O/S from title+abstract)
-         + study-design cross-validation
-Stage 2  Criteria-based matching     (generate criteria once → per-paper CoT matching)
-         + high-recall decision rule
-Stage 3  Uncertain-paper review      (stronger model re-evaluates borderline papers,
-                                      optionally with user-uploaded full-text PDF)
-"""
-
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -56,66 +44,67 @@ from autometa.tools.llm import batch_function_call_llm, function_call_llm
 
 logger = logging.getLogger(__name__)
 
-# ===========================================================================
-# Stage 0 constants
-# ===========================================================================
 
 EXCLUDED_PUB_TYPES = {
-    "review", "systematic review", "meta-analysis",
-    "guideline", "practice guideline",
-    "editorial", "letter", "comment",
-    "case reports", "news",
-    "biography", "published erratum",
-    "retracted publication", "retraction of publication",
+    "review",
+    "systematic review",
+    "meta-analysis",
+    "guideline",
+    "practice guideline",
+    "editorial",
+    "letter",
+    "comment",
+    "case reports",
+    "news",
+    "biography",
+    "published erratum",
+    "retracted publication",
+    "retraction of publication",
 }
 
 RCT_PUB_TYPES = {
-    "randomized controlled trial", "clinical trial",
-    "clinical trial, phase i", "clinical trial, phase ii",
-    "clinical trial, phase iii", "clinical trial, phase iv",
-    "controlled clinical trial", "pragmatic clinical trial",
+    "randomized controlled trial",
+    "clinical trial",
+    "clinical trial, phase i",
+    "clinical trial, phase ii",
+    "clinical trial, phase iii",
+    "clinical trial, phase iv",
+    "controlled clinical trial",
+    "pragmatic clinical trial",
     "equivalence trial",
 }
 
 OBSERVATIONAL_PUB_TYPES = {
-    "observational study", "cohort study",
-    "case-control study", "cross-sectional study",
-    "comparative study", "multicenter study",
-    "twin study", "validation study", "longitudinal study",
+    "observational study",
+    "cohort study",
+    "case-control study",
+    "cross-sectional study",
+    "comparative study",
+    "multicenter study",
+    "twin study",
+    "validation study",
+    "longitudinal study",
 }
 
-# Study designs (from LLM extraction) that map to RCT / observational
+
 _RCT_DESIGNS = {"RCT", "Quasi-experimental"}
 _OBS_DESIGNS = {"Cohort", "Case-control", "Cross-sectional", "Before-after"}
 
 
-# ===========================================================================
-# Decision rule (deterministic — no LLM involvement)
-# ===========================================================================
-
 def _decide_v2(dimensions: Dict[str, str]) -> str:
-    """
-    High-recall decision rule.
 
-    - Only P or I MISMATCH → EXCLUDE
-    - P+I MATCH with no MISMATCH elsewhere → INCLUDE
-    - Everything else → UNCERTAIN (sent to Stage 3)
-    """
     p = dimensions.get("P", "UNCERTAIN")
     i = dimensions.get("I", "UNCERTAIN")
     c = dimensions.get("C", "UNCERTAIN")
     o = dimensions.get("O", "UNCERTAIN")
     s = dimensions.get("S", "UNCERTAIN")
 
-    # Hard exclude: P or I clearly mismatched
     if p == "MISMATCH" or i == "MISMATCH":
         return "EXCLUDE"
 
-    # Strong include: P+I match and nothing else mismatched
     if p == "MATCH" and i == "MATCH" and "MISMATCH" not in [c, o, s]:
         return "INCLUDE"
 
-    # Everything else → borderline, needs Stage 3
     return "UNCERTAIN"
 
 
@@ -125,15 +114,25 @@ _BASE_SCORE_WEIGHTS = {"P": 1, "I": 1, "C": 1, "O": 1}
 
 def _empty_matching_criteria() -> MatchingCriteria:
     return MatchingCriteria(
-        P_criteria=DimensionCriteria(core="", acceptable_variations="", exclusion_boundary=""),
-        I_criteria=DimensionCriteria(core="", acceptable_variations="", exclusion_boundary=""),
-        C_criteria=DimensionCriteria(core="", acceptable_variations="", exclusion_boundary=""),
-        O_criteria=DimensionCriteria(core="", acceptable_variations="", exclusion_boundary=""),
+        P_criteria=DimensionCriteria(
+            core="", acceptable_variations="", exclusion_boundary=""
+        ),
+        I_criteria=DimensionCriteria(
+            core="", acceptable_variations="", exclusion_boundary=""
+        ),
+        C_criteria=DimensionCriteria(
+            core="", acceptable_variations="", exclusion_boundary=""
+        ),
+        O_criteria=DimensionCriteria(
+            core="", acceptable_variations="", exclusion_boundary=""
+        ),
         S_criteria=StudyDesignCriteria(),
     )
 
 
-def _score_weights(study_design_filter: StudyDesignFilter = StudyDesignFilter.BOTH) -> Dict[str, int]:
+def _score_weights(
+    study_design_filter: StudyDesignFilter = StudyDesignFilter.BOTH,
+) -> Dict[str, int]:
     return dict(_BASE_SCORE_WEIGHTS)
 
 
@@ -165,19 +164,21 @@ def _normalize_confidence(value) -> float:
     return max(0.0, min(1.0, confidence))
 
 
-
-def _build_score_result(raw: dict, study_design_filter: StudyDesignFilter) -> DimensionScoreResult:
+def _build_score_result(
+    raw: dict, study_design_filter: StudyDesignFilter
+) -> DimensionScoreResult:
     raw_scores = raw.get("scores") or {}
     raw_confidence = raw.get("confidence") or {}
     raw_evidence = raw.get("evidence") or {}
 
     scores = {dim: _normalize_score(raw_scores.get(dim, 0)) for dim in _SCORE_DIMS}
     confidence = {
-        dim: _normalize_confidence(raw_confidence.get(dim, 0.0))
-        for dim in _SCORE_DIMS
+        dim: _normalize_confidence(raw_confidence.get(dim, 0.0)) for dim in _SCORE_DIMS
     }
     evidence = {
-        dim: str(raw_evidence.get(dim, "No evidence provided") or "No evidence provided")
+        dim: str(
+            raw_evidence.get(dim, "No evidence provided") or "No evidence provided"
+        )
         for dim in _SCORE_DIMS
     }
     weights = _score_weights(study_design_filter)
@@ -203,12 +204,8 @@ def _decide_scored(score_result: DimensionScoreResult) -> str:
     return "RANKED"
 
 
-# ===========================================================================
-# Helper: parse publication types from PubMed metadata
-# ===========================================================================
-
 def _parse_pub_types(raw: Optional[str]) -> set:
-    """Parse semicolon/comma-separated publication_type string into a lowercase set."""
+
     if not raw:
         return set()
     separators_replaced = raw.replace(";", ",")
@@ -216,33 +213,32 @@ def _parse_pub_types(raw: Optional[str]) -> set:
 
 
 def _has_primary_study_signal(paper: Paper, pub_types: set) -> bool:
-    """Return True when a record looks like original human research.
 
-    PubMed publication types can contain broad or noisy labels. For high-recall
-    screening, a primary-study signal should override an otherwise excluded
-    label and let the LLM judge the record.
-    """
     if pub_types & (RCT_PUB_TYPES | OBSERVATIONAL_PUB_TYPES):
         return True
 
     text = f"{paper.title or ''} {paper.abstract or ''}".lower()
     primary_study_terms = (
-        "randomized", "randomised", "randomly assigned", "controlled trial",
-        "clinical trial", "single-blind", "double-blind", "pilot trial",
-        "cohort", "case-control", "cross-sectional", "prospective study",
-        "retrospective study", "before-after", "pre-post",
+        "randomized",
+        "randomised",
+        "randomly assigned",
+        "controlled trial",
+        "clinical trial",
+        "single-blind",
+        "double-blind",
+        "pilot trial",
+        "cohort",
+        "case-control",
+        "cross-sectional",
+        "prospective study",
+        "retrospective study",
+        "before-after",
+        "pre-post",
     )
     return any(term in text for term in primary_study_terms)
 
 
-
-# ===========================================================================
-# Per-paper screening sub-agent
-# ===========================================================================
-
 class ScreeningPaperSubAgent:
-    """Screen one paper end-to-end after shared criteria are generated."""
-
     def __init__(
         self,
         criteria: MatchingCriteria,
@@ -341,7 +337,11 @@ class ScreeningPaperSubAgent:
         for dim in ("P", "I", "C", "O", "S"):
             if dim not in reasoning:
                 reasoning[dim] = "No reasoning provided"
-            if dim not in dimensions or dimensions[dim] not in ("MATCH", "MISMATCH", "UNCERTAIN"):
+            if dim not in dimensions or dimensions[dim] not in (
+                "MATCH",
+                "MISMATCH",
+                "UNCERTAIN",
+            ):
                 dimensions[dim] = "UNCERTAIN"
 
         return DimensionResult(
@@ -351,13 +351,7 @@ class ScreeningPaperSubAgent:
         )
 
 
-# ===========================================================================
-# Direct-scoring per-paper sub-agent
-# ===========================================================================
-
 class ScoredScreeningPaperSubAgent:
-    """Screen one paper with a single direct PICO scoring call."""
-
     def __init__(
         self,
         pico: PICODefinition,
@@ -413,32 +407,10 @@ class ScoredScreeningPaperSubAgent:
         return "Both randomized and observational studies are allowed"
 
 
-# ===========================================================================
-# ScreeningAgentV2
-# ===========================================================================
-
 class ScreeningAgentV2(BaseAgent):
-    """
-    Four-stage literature screening agent.
-
-    Usage::
-
-        agent = ScreeningAgentV2()
-
-        # Full screening (Stages 0-2, returns UNCERTAIN papers for optional Stage 3)
-        result = agent.run(papers, pico, study_design_filter)
-
-        # Stage 3 review of uncertain papers
-        reviewed = agent.review(uncertain_decisions, pico, criteria, pdf_map)
-    """
-
     def __init__(self):
         super().__init__("ScreeningAgentV2")
         self._model = get_settings().model_for(AgentStage.SCREENING)
-
-    # ------------------------------------------------------------------
-    # Public: full screening (Stage 0 → 1 → 2)
-    # ------------------------------------------------------------------
 
     def run(
         self,
@@ -447,17 +419,13 @@ class ScreeningAgentV2(BaseAgent):
         study_design_filter: StudyDesignFilter = StudyDesignFilter.BOTH,
         max_concurrency: int = 50,
     ) -> ScreeningResultV2:
-        """Backward-compatible entry point; legacy criteria matching is disabled."""
+
         return self.run_scored_direct(
             papers=papers,
             pico=pico,
             study_design_filter=StudyDesignFilter.BOTH,
             max_concurrency=max_concurrency,
         )
-
-    # ------------------------------------------------------------------
-    # Public: fast direct-scoring screening
-    # ------------------------------------------------------------------
 
     def run_scored_direct(
         self,
@@ -466,7 +434,7 @@ class ScreeningAgentV2(BaseAgent):
         study_design_filter: StudyDesignFilter = StudyDesignFilter.BOTH,
         max_concurrency: int = 50,
     ) -> ScreeningResultV2:
-        """Run the one-call-per-paper direct PICO scoring pipeline."""
+
         self.reset()
         criteria = _empty_matching_criteria()
 
@@ -475,29 +443,44 @@ class ScreeningAgentV2(BaseAgent):
                 criteria=criteria,
                 decisions=[],
                 summary=ScreeningSummaryV2(
-                    total=0, stage0_excluded=0, stage1_excluded=0,
-                    stage2_included=0, stage2_excluded=0,
-                    stage3_reviewed=0, stage3_included=0, stage3_excluded=0,
-                    uncertain=0, final_included=0, final_excluded=0,
+                    total=0,
+                    stage0_excluded=0,
+                    stage1_excluded=0,
+                    stage2_included=0,
+                    stage2_excluded=0,
+                    stage3_reviewed=0,
+                    stage3_included=0,
+                    stage3_excluded=0,
+                    uncertain=0,
+                    final_included=0,
+                    final_excluded=0,
                 ),
                 screening_mode="pico_ranking",
             )
 
         kept_papers, stage0_decisions = self._run_step(
             "stage0_filter",
-            self._stage0_filter, papers, study_design_filter,
+            self._stage0_filter,
+            papers,
+            study_design_filter,
         )
         child_decisions = self._run_step(
             "screen_paper_scored_direct",
             self._score_papers_parallel,
-            kept_papers, pico, study_design_filter, max_concurrency,
+            kept_papers,
+            pico,
+            study_design_filter,
+            max_concurrency,
         )
         all_decisions = self._sort_ranked_decisions(stage0_decisions + child_decisions)
         summary = self._compute_summary(all_decisions)
 
         logger.info(
             "[ScreeningAgentScored] Done: %d papers ranked with %d retained / %d excluded (%.1fs)",
-            len(papers), summary.final_included, summary.final_excluded, self.state.elapsed,
+            len(papers),
+            summary.final_included,
+            summary.final_excluded,
+            self.state.elapsed,
         )
         return ScreeningResultV2(
             criteria=criteria,
@@ -513,18 +496,25 @@ class ScreeningAgentV2(BaseAgent):
         study_design_filter: StudyDesignFilter = StudyDesignFilter.BOTH,
         max_concurrency: int = 50,
     ) -> Generator[dict, None, None]:
-        """Streaming version of the direct scoring pipeline."""
+
         self.reset()
 
         if not papers:
-            yield {"type": "summary", "data": {
-                "total": 0, "final_included": 0, "final_excluded": 0,
-            }}
+            yield {
+                "type": "summary",
+                "data": {
+                    "total": 0,
+                    "final_included": 0,
+                    "final_excluded": 0,
+                },
+            }
             yield {"type": "done"}
             return
 
         try:
-            kept_papers, stage0_decisions = self._stage0_filter(papers, study_design_filter)
+            kept_papers, stage0_decisions = self._stage0_filter(
+                papers, study_design_filter
+            )
         except Exception as exc:
             logger.exception("run_scored_direct_stream: stage0 failed")
             yield {"type": "error", "data": str(exc)}
@@ -558,13 +548,17 @@ class ScreeningAgentV2(BaseAgent):
         child_decisions = []
         try:
             for _, dec in self._iter_score_papers_parallel(
-                kept_papers, pico, study_design_filter, max_concurrency,
+                kept_papers,
+                pico,
+                study_design_filter,
+                max_concurrency,
             ):
                 child_decisions.append(dec)
                 if len(child_decisions) == 1 or len(child_decisions) % 25 == 0:
                     logger.info(
                         "[ScreeningAgentScored] Streamed %d/%d ranked papers",
-                        len(child_decisions), len(kept_papers),
+                        len(child_decisions),
+                        len(kept_papers),
                     )
                 yield {"type": "paper_decided", "data": dec.model_dump()}
         except Exception as exc:
@@ -576,14 +570,12 @@ class ScreeningAgentV2(BaseAgent):
         summary = self._compute_summary(all_decisions)
         logger.info(
             "[ScreeningAgentScored] Stream done: %d/%d papers ranked (%.1fs)",
-            len(all_decisions), len(papers), self.state.elapsed,
+            len(all_decisions),
+            len(papers),
+            self.state.elapsed,
         )
         yield {"type": "summary", "data": summary.model_dump()}
         yield {"type": "done"}
-
-    # ------------------------------------------------------------------
-    # Public: streaming entry (Stage 0 → 1 → 2)
-    # ------------------------------------------------------------------
 
     def run_stream(
         self,
@@ -592,21 +584,27 @@ class ScreeningAgentV2(BaseAgent):
         study_design_filter: StudyDesignFilter = StudyDesignFilter.BOTH,
         max_concurrency: int = 50,
     ) -> Generator[dict, None, None]:
-        """Yields SSE-friendly progress events."""
+
         self.reset()
 
         if not papers:
-            yield {"type": "summary", "data": {
-                "total": 0, "final_included": 0, "final_excluded": 0,
-            }}
+            yield {
+                "type": "summary",
+                "data": {
+                    "total": 0,
+                    "final_included": 0,
+                    "final_excluded": 0,
+                },
+            }
             yield {"type": "done"}
             return
 
         pico_dict = {"P": pico.P, "I": pico.I, "C": pico.C, "O": pico.O}
 
-        # Stage 0
         try:
-            kept_papers, stage0_decisions = self._stage0_filter(papers, study_design_filter)
+            kept_papers, stage0_decisions = self._stage0_filter(
+                papers, study_design_filter
+            )
         except Exception as exc:
             logger.exception("run_stream: stage0 failed")
             yield {"type": "error", "data": str(exc)}
@@ -621,7 +619,6 @@ class ScreeningAgentV2(BaseAgent):
             },
         }
 
-        # Stage 2a — criteria generation
         try:
             criteria = self._stage2_generate_criteria(pico_dict, study_design_filter)
         except Exception as exc:
@@ -637,7 +634,10 @@ class ScreeningAgentV2(BaseAgent):
         child_decisions = []
         try:
             for _, dec in self._iter_screen_papers_parallel(
-                kept_papers, criteria, study_design_filter, max_concurrency,
+                kept_papers,
+                criteria,
+                study_design_filter,
+                max_concurrency,
             ):
                 child_decisions.append(dec)
                 yield {"type": "paper_decided", "data": dec.model_dump()}
@@ -652,10 +652,6 @@ class ScreeningAgentV2(BaseAgent):
         yield {"type": "summary", "data": summary.model_dump()}
         yield {"type": "done"}
 
-    # ------------------------------------------------------------------
-    # Public: Stage 3 review of uncertain papers
-    # ------------------------------------------------------------------
-
     def review(
         self,
         uncertain_decisions: List[PaperDecisionV2],
@@ -665,20 +661,7 @@ class ScreeningAgentV2(BaseAgent):
         pdf_map: Optional[Dict[str, str]] = None,
         max_concurrency: int = 10,
     ) -> List[PaperDecisionV2]:
-        """
-        Re-evaluate UNCERTAIN papers with a stronger model.
 
-        Args:
-            uncertain_decisions: PaperDecisionV2 items with decision_stage still pending.
-            papers_map: {pmid: Paper} for original title+abstract.
-            pico: Review PICO definition.
-            criteria: Matching criteria from Stage 2a.
-            pdf_map: Optional {pmid: fulltext_content_string} for papers with uploaded PDFs.
-            max_concurrency: Parallel review requests.
-
-        Returns:
-            Updated PaperDecisionV2 list with final_decision set to INCLUDE or EXCLUDE.
-        """
         if not uncertain_decisions:
             return []
 
@@ -689,8 +672,12 @@ class ScreeningAgentV2(BaseAgent):
         review_results = self._run_step(
             "stage3_review",
             self._stage3_review_batch,
-            uncertain_decisions, papers_map, pico_dict,
-            criteria_json, pdf_map, max_concurrency,
+            uncertain_decisions,
+            papers_map,
+            pico_dict,
+            criteria_json,
+            pdf_map,
+            max_concurrency,
         )
 
         updated = []
@@ -710,7 +697,7 @@ class ScreeningAgentV2(BaseAgent):
         pdf_map: Optional[Dict[str, str]] = None,
         max_concurrency: int = 10,
     ) -> Generator[dict, None, None]:
-        """Streaming version of review()."""
+
         if not uncertain_decisions:
             yield {"type": "review_done", "data": {"included": 0, "excluded": 0}}
             return
@@ -721,8 +708,12 @@ class ScreeningAgentV2(BaseAgent):
 
         try:
             review_results = self._stage3_review_batch(
-                uncertain_decisions, papers_map, pico_dict,
-                criteria_json, pdf_map, max_concurrency,
+                uncertain_decisions,
+                papers_map,
+                pico_dict,
+                criteria_json,
+                pdf_map,
+                max_concurrency,
             )
         except Exception as exc:
             logger.exception("review_stream: stage3 failed")
@@ -741,11 +732,10 @@ class ScreeningAgentV2(BaseAgent):
                 excluded += 1
             yield {"type": "review_decided", "data": dec.model_dump()}
 
-        yield {"type": "review_done", "data": {"included": included, "excluded": excluded}}
-
-    # ==================================================================
-    # Parallel per-paper screening
-    # ==================================================================
+        yield {
+            "type": "review_done",
+            "data": {"included": included, "excluded": excluded},
+        }
 
     def _screen_papers_parallel(
         self,
@@ -754,9 +744,14 @@ class ScreeningAgentV2(BaseAgent):
         study_design_filter: StudyDesignFilter,
         max_concurrency: int,
     ) -> List[PaperDecisionV2]:
-        indexed_decisions = list(self._iter_screen_papers_parallel(
-            papers, criteria, study_design_filter, max_concurrency,
-        ))
+        indexed_decisions = list(
+            self._iter_screen_papers_parallel(
+                papers,
+                criteria,
+                study_design_filter,
+                max_concurrency,
+            )
+        )
         indexed_decisions.sort(key=lambda item: item[0])
         return [decision for _, decision in indexed_decisions]
 
@@ -773,7 +768,8 @@ class ScreeningAgentV2(BaseAgent):
         max_workers = max(1, min(max_concurrency, len(papers)))
         logger.info(
             "[SubAgents] Screening %d papers with %d parallel child agents",
-            len(papers), max_workers,
+            len(papers),
+            max_workers,
         )
 
         def _run_one(index: int, paper: Paper) -> tuple[int, PaperDecisionV2]:
@@ -801,9 +797,14 @@ class ScreeningAgentV2(BaseAgent):
         study_design_filter: StudyDesignFilter,
         max_concurrency: int,
     ) -> List[PaperDecisionV2]:
-        indexed_decisions = list(self._iter_score_papers_parallel(
-            papers, pico, study_design_filter, max_concurrency,
-        ))
+        indexed_decisions = list(
+            self._iter_score_papers_parallel(
+                papers,
+                pico,
+                study_design_filter,
+                max_concurrency,
+            )
+        )
         indexed_decisions.sort(key=lambda item: item[0])
         return [decision for _, decision in indexed_decisions]
 
@@ -820,7 +821,8 @@ class ScreeningAgentV2(BaseAgent):
         max_workers = max(1, min(max_concurrency, len(papers)))
         logger.info(
             "[ScoredSubAgents] Ranking %d papers with %d parallel agents",
-            len(papers), max_workers,
+            len(papers),
+            max_workers,
         )
 
         def _run_one(index: int, paper: Paper) -> tuple[int, PaperDecisionV2]:
@@ -841,9 +843,10 @@ class ScreeningAgentV2(BaseAgent):
             for future in as_completed(futures):
                 yield future.result()
 
-
     @staticmethod
-    def _sort_ranked_decisions(decisions: List[PaperDecisionV2]) -> List[PaperDecisionV2]:
+    def _sort_ranked_decisions(
+        decisions: List[PaperDecisionV2],
+    ) -> List[PaperDecisionV2]:
         def key(decision: PaperDecisionV2):
             score = decision.score_result
             weighted = score.weighted_score if score else -999
@@ -855,28 +858,24 @@ class ScreeningAgentV2(BaseAgent):
 
         return sorted(decisions, key=key)
 
-    # ==================================================================
-    # Stage 0: Rule-based pre-filtering
-    # ==================================================================
-
     def _stage0_filter(
         self,
         papers: List[Paper],
         study_design_filter: StudyDesignFilter,
     ) -> tuple:
-        """
-        Ranking mode keeps every candidate record. Publication type and study
-        design metadata are not used for hard exclusion in screening.
-        """
-        logger.info("[Stage 0] Ranking mode retained all %d candidate papers", len(papers))
+
+        logger.info(
+            "[Stage 0] Ranking mode retained all %d candidate papers", len(papers)
+        )
         return list(papers), []
 
     @staticmethod
     def _stage0_classify(paper: Paper, sdf: StudyDesignFilter) -> str:
         pub_types = _parse_pub_types(paper.publication_type)
 
-        # Hard exclusion, with a high-recall guard for noisy PubMed labels.
-        if pub_types & EXCLUDED_PUB_TYPES and not _has_primary_study_signal(paper, pub_types):
+        if pub_types & EXCLUDED_PUB_TYPES and not _has_primary_study_signal(
+            paper, pub_types
+        ):
             return "EXCLUDED_pub_type"
 
         if sdf == StudyDesignFilter.BOTH:
@@ -897,18 +896,13 @@ class ScreeningAgentV2(BaseAgent):
 
         return "KEEP"
 
-    # ==================================================================
-    # Stage 1: PICOS extraction
-    # ==================================================================
-
     def _stage1_extract_picos(
         self,
         papers: List[Paper],
         max_concurrency: int,
     ) -> List[PICOSProfile]:
         batch_inputs = [
-            {"title": p.title, "abstract": p.abstract or ""}
-            for p in papers
+            {"title": p.title, "abstract": p.abstract or ""} for p in papers
         ]
 
         raw_results = batch_function_call_llm(
@@ -921,15 +915,17 @@ class ScreeningAgentV2(BaseAgent):
 
         profiles = []
         for raw in raw_results:
-            profiles.append(PICOSProfile(
-                P_population=raw.get("P_population", "Not reported"),
-                I_intervention=raw.get("I_intervention", "Not reported"),
-                C_comparison=raw.get("C_comparison", "Not reported"),
-                O_outcome=raw.get("O_outcome", "Not reported"),
-                S_study_design=raw.get("S_study_design", "Not reported"),
-                sample_size=raw.get("sample_size", "Not reported"),
-                duration=raw.get("duration", "Not reported"),
-            ))
+            profiles.append(
+                PICOSProfile(
+                    P_population=raw.get("P_population", "Not reported"),
+                    I_intervention=raw.get("I_intervention", "Not reported"),
+                    C_comparison=raw.get("C_comparison", "Not reported"),
+                    O_outcome=raw.get("O_outcome", "Not reported"),
+                    S_study_design=raw.get("S_study_design", "Not reported"),
+                    sample_size=raw.get("sample_size", "Not reported"),
+                    duration=raw.get("duration", "Not reported"),
+                )
+            )
 
         logger.info("[Stage 1] PICOS extraction done for %d papers", len(profiles))
         return profiles
@@ -940,14 +936,7 @@ class ScreeningAgentV2(BaseAgent):
         picos_list: List[PICOSProfile],
         study_design_filter: StudyDesignFilter,
     ) -> tuple:
-        """
-        Cross-validate extracted study design against user's filter.
-        Only excludes papers whose pub_type was empty (passed Stage 0 by default)
-        but whose extracted design clearly contradicts the filter.
 
-        Returns:
-            (kept_papers, kept_picos, excluded_decisions)
-        """
         if study_design_filter == StudyDesignFilter.BOTH:
             return papers, picos_list, []
 
@@ -957,42 +946,50 @@ class ScreeningAgentV2(BaseAgent):
 
         for paper, picos in zip(papers, picos_list):
             pub_types = _parse_pub_types(paper.publication_type)
-            # Only apply cross-validation if Stage 0 couldn't determine design
+
             has_known_type = bool(pub_types & (RCT_PUB_TYPES | OBSERVATIONAL_PUB_TYPES))
 
             if has_known_type:
-                # Stage 0 already made the call; keep this paper
                 kept_papers.append(paper)
                 kept_picos.append(picos)
                 continue
 
             design = picos.S_study_design
             if design in {"Not reported", "Other", "Mixed methods", "Qualitative"}:
-                # Can't determine → keep (conservative)
                 kept_papers.append(paper)
                 kept_picos.append(picos)
                 continue
 
-            if study_design_filter == StudyDesignFilter.RCT_ONLY and design in _OBS_DESIGNS:
-                excluded_decisions.append(PaperDecisionV2(
-                    pmid=paper.pmid,
-                    title=paper.title,
-                    stage0_result="KEEP",
-                    picos_profile=picos,
-                    final_decision="EXCLUDE",
-                    decision_stage="stage1",
-                ))
+            if (
+                study_design_filter == StudyDesignFilter.RCT_ONLY
+                and design in _OBS_DESIGNS
+            ):
+                excluded_decisions.append(
+                    PaperDecisionV2(
+                        pmid=paper.pmid,
+                        title=paper.title,
+                        stage0_result="KEEP",
+                        picos_profile=picos,
+                        final_decision="EXCLUDE",
+                        decision_stage="stage1",
+                    )
+                )
                 continue
 
-            if study_design_filter == StudyDesignFilter.OBSERVATIONAL_ONLY and design in _RCT_DESIGNS:
-                excluded_decisions.append(PaperDecisionV2(
-                    pmid=paper.pmid,
-                    title=paper.title,
-                    stage0_result="KEEP",
-                    picos_profile=picos,
-                    final_decision="EXCLUDE",
-                    decision_stage="stage1",
-                ))
+            if (
+                study_design_filter == StudyDesignFilter.OBSERVATIONAL_ONLY
+                and design in _RCT_DESIGNS
+            ):
+                excluded_decisions.append(
+                    PaperDecisionV2(
+                        pmid=paper.pmid,
+                        title=paper.title,
+                        stage0_result="KEEP",
+                        picos_profile=picos,
+                        final_decision="EXCLUDE",
+                        decision_stage="stage1",
+                    )
+                )
                 continue
 
             kept_papers.append(paper)
@@ -1000,13 +997,10 @@ class ScreeningAgentV2(BaseAgent):
 
         logger.info(
             "[Stage 1 cross-val] %d kept, %d excluded by design check",
-            len(kept_papers), len(excluded_decisions),
+            len(kept_papers),
+            len(excluded_decisions),
         )
         return kept_papers, kept_picos, excluded_decisions
-
-    # ==================================================================
-    # Stage 2: Criteria generation + matching + decision
-    # ==================================================================
 
     def _stage2_generate_criteria(
         self,
@@ -1033,21 +1027,55 @@ class ScreeningAgentV2(BaseAgent):
         )[0]
 
         criteria = MatchingCriteria(
-            P_criteria=DimensionCriteria(**raw.get("P_criteria", {
-                "core": "", "acceptable_variations": "", "exclusion_boundary": "",
-            })),
-            I_criteria=DimensionCriteria(**raw.get("I_criteria", {
-                "core": "", "acceptable_variations": "", "exclusion_boundary": "",
-            })),
-            C_criteria=DimensionCriteria(**raw.get("C_criteria", {
-                "core": "", "acceptable_variations": "", "exclusion_boundary": "",
-            })),
-            O_criteria=DimensionCriteria(**raw.get("O_criteria", {
-                "core": "", "acceptable_variations": "", "exclusion_boundary": "",
-            })),
-            S_criteria=StudyDesignCriteria(**raw.get("S_criteria", {
-                "acceptable_designs": [], "excluded_designs": [],
-            })),
+            P_criteria=DimensionCriteria(
+                **raw.get(
+                    "P_criteria",
+                    {
+                        "core": "",
+                        "acceptable_variations": "",
+                        "exclusion_boundary": "",
+                    },
+                )
+            ),
+            I_criteria=DimensionCriteria(
+                **raw.get(
+                    "I_criteria",
+                    {
+                        "core": "",
+                        "acceptable_variations": "",
+                        "exclusion_boundary": "",
+                    },
+                )
+            ),
+            C_criteria=DimensionCriteria(
+                **raw.get(
+                    "C_criteria",
+                    {
+                        "core": "",
+                        "acceptable_variations": "",
+                        "exclusion_boundary": "",
+                    },
+                )
+            ),
+            O_criteria=DimensionCriteria(
+                **raw.get(
+                    "O_criteria",
+                    {
+                        "core": "",
+                        "acceptable_variations": "",
+                        "exclusion_boundary": "",
+                    },
+                )
+            ),
+            S_criteria=StudyDesignCriteria(
+                **raw.get(
+                    "S_criteria",
+                    {
+                        "acceptable_designs": [],
+                        "excluded_designs": [],
+                    },
+                )
+            ),
         )
 
         logger.info("[Stage 2a] Matching criteria generated")
@@ -1064,17 +1092,19 @@ class ScreeningAgentV2(BaseAgent):
 
         batch_inputs = []
         for paper, picos in zip(papers, picos_list):
-            batch_inputs.append({
-                "criteria_json": criteria_json,
-                "study_P": picos.P_population,
-                "study_I": picos.I_intervention,
-                "study_C": picos.C_comparison,
-                "study_O": picos.O_outcome,
-                "study_S": picos.S_study_design,
-                "study_sample_size": picos.sample_size,
-                "study_duration": picos.duration,
-                "title": paper.title,
-            })
+            batch_inputs.append(
+                {
+                    "criteria_json": criteria_json,
+                    "study_P": picos.P_population,
+                    "study_I": picos.I_intervention,
+                    "study_C": picos.C_comparison,
+                    "study_O": picos.O_outcome,
+                    "study_S": picos.S_study_design,
+                    "study_sample_size": picos.sample_size,
+                    "study_duration": picos.duration,
+                    "title": paper.title,
+                }
+            )
 
         raw_results = batch_function_call_llm(
             PICOS_MATCHING_PROMPT,
@@ -1088,20 +1118,28 @@ class ScreeningAgentV2(BaseAgent):
         for raw in raw_results:
             reasoning = raw.get("reasoning", {})
             dimensions = raw.get("dimensions", {})
-            # Normalize missing dimensions to UNCERTAIN
+
             for dim in ("P", "I", "C", "O", "S"):
                 if dim not in reasoning:
                     reasoning[dim] = "No reasoning provided"
-                if dim not in dimensions or dimensions[dim] not in ("MATCH", "MISMATCH", "UNCERTAIN"):
+                if dim not in dimensions or dimensions[dim] not in (
+                    "MATCH",
+                    "MISMATCH",
+                    "UNCERTAIN",
+                ):
                     dimensions[dim] = "UNCERTAIN"
 
-            dim_results.append(DimensionResult(
-                reasoning=reasoning,
-                dimensions=dimensions,
-                overall_decision=raw.get("overall_decision", "UNCERTAIN"),
-            ))
+            dim_results.append(
+                DimensionResult(
+                    reasoning=reasoning,
+                    dimensions=dimensions,
+                    overall_decision=raw.get("overall_decision", "UNCERTAIN"),
+                )
+            )
 
-        logger.info("[Stage 2b] Dimension matching done for %d papers", len(dim_results))
+        logger.info(
+            "[Stage 2b] Dimension matching done for %d papers", len(dim_results)
+        )
         return dim_results
 
     def _stage2_build_decisions(
@@ -1112,39 +1150,37 @@ class ScreeningAgentV2(BaseAgent):
     ) -> List[PaperDecisionV2]:
         decisions = []
         for paper, picos, dr in zip(papers, picos_list, dim_results):
-            # Apply deterministic decision rule (overrides LLM's overall_decision)
             rule_decision = _decide_v2(dr.dimensions)
 
             if rule_decision == "UNCERTAIN":
-                # Will be resolved in Stage 3; mark as UNCERTAIN for now
                 final = "UNCERTAIN"
                 stage = "stage2"
             else:
                 final = rule_decision
                 stage = "stage2"
 
-            decisions.append(PaperDecisionV2(
-                pmid=paper.pmid,
-                title=paper.title,
-                stage0_result="KEEP",
-                picos_profile=picos,
-                dimension_result=dr,
-                final_decision=final,
-                decision_stage=stage,
-            ))
+            decisions.append(
+                PaperDecisionV2(
+                    pmid=paper.pmid,
+                    title=paper.title,
+                    stage0_result="KEEP",
+                    picos_profile=picos,
+                    dimension_result=dr,
+                    final_decision=final,
+                    decision_stage=stage,
+                )
+            )
 
         inc = sum(1 for d in decisions if d.final_decision == "INCLUDE")
         exc = sum(1 for d in decisions if d.final_decision == "EXCLUDE")
         unc = sum(1 for d in decisions if d.final_decision == "UNCERTAIN")
         logger.info(
             "[Stage 2c] Decisions: %d included, %d excluded, %d uncertain",
-            inc, exc, unc,
+            inc,
+            exc,
+            unc,
         )
         return decisions
-
-    # ==================================================================
-    # Stage 3: Uncertain-paper review (stronger model)
-    # ==================================================================
 
     def _stage3_review_batch(
         self,
@@ -1161,16 +1197,18 @@ class ScreeningAgentV2(BaseAgent):
             picos = dec.picos_profile
             dr = dec.dimension_result
 
-            # Identify which dimensions are uncertain
             uncertain_dims = []
             if dr:
                 for dim_key, dim_val in dr.dimensions.items():
                     if dim_val != "MATCH":
                         reason = dr.reasoning.get(dim_key, "No details")
                         uncertain_dims.append(f"- {dim_key}: {dim_val} — {reason}")
-            uncertain_detail = "\n".join(uncertain_dims) if uncertain_dims else "No specific uncertain dimensions recorded."
+            uncertain_detail = (
+                "\n".join(uncertain_dims)
+                if uncertain_dims
+                else "No specific uncertain dimensions recorded."
+            )
 
-            # Full text section (optional)
             fulltext = pdf_map.get(dec.pmid, "")
             fulltext_section = ""
             if fulltext:
@@ -1179,24 +1217,28 @@ class ScreeningAgentV2(BaseAgent):
                     f"{fulltext}\n"
                 )
 
-            batch_inputs.append({
-                **pico_dict,
-                "criteria_json": criteria_json,
-                "title": paper.title if paper else dec.title,
-                "abstract": paper.abstract if paper else "",
-                "study_P": picos.P_population if picos else "Not reported",
-                "study_I": picos.I_intervention if picos else "Not reported",
-                "study_C": picos.C_comparison if picos else "Not reported",
-                "study_O": picos.O_outcome if picos else "Not reported",
-                "study_S": picos.S_study_design if picos else "Not reported",
-                "study_sample_size": picos.sample_size if picos else "Not reported",
-                "study_duration": picos.duration if picos else "Not reported",
-                "stage2_reasoning_json": json.dumps(
-                    dr.reasoning if dr else {}, indent=2, ensure_ascii=False,
-                ),
-                "uncertain_dimensions_detail": uncertain_detail,
-                "fulltext_section": fulltext_section,
-            })
+            batch_inputs.append(
+                {
+                    **pico_dict,
+                    "criteria_json": criteria_json,
+                    "title": paper.title if paper else dec.title,
+                    "abstract": paper.abstract if paper else "",
+                    "study_P": picos.P_population if picos else "Not reported",
+                    "study_I": picos.I_intervention if picos else "Not reported",
+                    "study_C": picos.C_comparison if picos else "Not reported",
+                    "study_O": picos.O_outcome if picos else "Not reported",
+                    "study_S": picos.S_study_design if picos else "Not reported",
+                    "study_sample_size": picos.sample_size if picos else "Not reported",
+                    "study_duration": picos.duration if picos else "Not reported",
+                    "stage2_reasoning_json": json.dumps(
+                        dr.reasoning if dr else {},
+                        indent=2,
+                        ensure_ascii=False,
+                    ),
+                    "uncertain_dimensions_detail": uncertain_detail,
+                    "fulltext_section": fulltext_section,
+                }
+            )
 
         raw_results = batch_function_call_llm(
             UNCERTAIN_REVIEW_PROMPT,
@@ -1215,14 +1257,16 @@ class ScreeningAgentV2(BaseAgent):
 
             final = raw.get("final_decision", "INCLUDE")
             if final not in ("INCLUDE", "EXCLUDE"):
-                final = "INCLUDE"  # Default to INCLUDE per Cochrane principle
+                final = "INCLUDE"
 
-            review_results.append(ReviewResult(
-                review_reasoning=raw.get("review_reasoning", ""),
-                resolved_dimensions=resolved,
-                final_decision=final,
-                confidence=raw.get("confidence", "LOW"),
-            ))
+            review_results.append(
+                ReviewResult(
+                    review_reasoning=raw.get("review_reasoning", ""),
+                    resolved_dimensions=resolved,
+                    final_decision=final,
+                    confidence=raw.get("confidence", "LOW"),
+                )
+            )
 
         logger.info(
             "[Stage 3] Reviewed %d papers: %d included, %d excluded",
@@ -1232,13 +1276,13 @@ class ScreeningAgentV2(BaseAgent):
         )
         return review_results
 
-    # ==================================================================
-    # Summary computation
-    # ==================================================================
-
     @staticmethod
     def _compute_summary(decisions: List[PaperDecisionV2]) -> ScreeningSummaryV2:
-        ranked = sum(1 for d in decisions if d.final_decision == "RANKED" or d.decision_stage == "ranking")
+        ranked = sum(
+            1
+            for d in decisions
+            if d.final_decision == "RANKED" or d.decision_stage == "ranking"
+        )
         if ranked:
             return ScreeningSummaryV2(
                 total=len(decisions),
@@ -1256,16 +1300,31 @@ class ScreeningAgentV2(BaseAgent):
 
         s0_exc = sum(1 for d in decisions if d.decision_stage == "stage0")
         s1_exc = sum(1 for d in decisions if d.decision_stage == "stage1")
-        s2_inc = sum(1 for d in decisions
-                     if d.decision_stage == "stage2" and d.final_decision == "INCLUDE")
-        s2_exc = sum(1 for d in decisions
-                     if d.decision_stage == "stage2" and d.final_decision == "EXCLUDE")
-        s2_unc = sum(1 for d in decisions
-                     if d.decision_stage == "stage2" and d.final_decision == "UNCERTAIN")
-        s3_inc = sum(1 for d in decisions
-                     if d.decision_stage == "stage3" and d.final_decision == "INCLUDE")
-        s3_exc = sum(1 for d in decisions
-                     if d.decision_stage == "stage3" and d.final_decision == "EXCLUDE")
+        s2_inc = sum(
+            1
+            for d in decisions
+            if d.decision_stage == "stage2" and d.final_decision == "INCLUDE"
+        )
+        s2_exc = sum(
+            1
+            for d in decisions
+            if d.decision_stage == "stage2" and d.final_decision == "EXCLUDE"
+        )
+        s2_unc = sum(
+            1
+            for d in decisions
+            if d.decision_stage == "stage2" and d.final_decision == "UNCERTAIN"
+        )
+        s3_inc = sum(
+            1
+            for d in decisions
+            if d.decision_stage == "stage3" and d.final_decision == "INCLUDE"
+        )
+        s3_exc = sum(
+            1
+            for d in decisions
+            if d.decision_stage == "stage3" and d.final_decision == "EXCLUDE"
+        )
 
         final_inc = s2_inc + s3_inc + s2_unc
         final_exc = s0_exc + s1_exc + s2_exc + s3_exc

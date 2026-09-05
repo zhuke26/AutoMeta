@@ -30,16 +30,23 @@ def render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
         original_level = fonttools_logger.level
         fonttools_logger.setLevel(max(original_level, logging.WARNING))
         try:
-            with matplotlib.rc_context({
-                "font.family": "sans-serif",
-                "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans", "sans-serif"],
-                "font.size": 7,
-                "axes.spines.right": False,
-                "axes.spines.top": False,
-                "svg.hashsalt": "autometa-forest-plot",
-                "svg.fonttype": "none",
-                "pdf.fonttype": 42,
-            }):
+            with matplotlib.rc_context(
+                {
+                    "font.family": "sans-serif",
+                    "font.sans-serif": [
+                        "Arial",
+                        "Helvetica",
+                        "DejaVu Sans",
+                        "sans-serif",
+                    ],
+                    "font.size": 7,
+                    "axes.spines.right": False,
+                    "axes.spines.top": False,
+                    "svg.hashsalt": "autometa-forest-plot",
+                    "svg.fonttype": "none",
+                    "pdf.fonttype": 42,
+                }
+            ):
                 return _render_forest_plot(result)
         finally:
             fonttools_logger.setLevel(original_level)
@@ -48,7 +55,9 @@ def render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
 def _render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
     studies = result.study_effects
     height = max(3.2, 1.6 + len(studies) * 0.38)
-    figure, axis = plt.subplots(figsize=(183 / MM_PER_INCH, height), constrained_layout=True)
+    figure, axis = plt.subplots(
+        figsize=(183 / MM_PER_INCH, height), constrained_layout=True
+    )
     positions = list(range(len(studies), 0, -1))
     for position, study in zip(positions, studies):
         size = 18 + 1.8 * (study.weight_percent or 0) ** 0.5
@@ -59,7 +68,7 @@ def _render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
             fmt="s",
             color="#243757",
             ecolor="#7f8998",
-            elinewidth=.9,
+            elinewidth=0.9,
             capsize=2,
             markersize=size / 4,
         )
@@ -68,9 +77,9 @@ def _render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
     diamond = Polygon(
         [
             (pooled.ci_lower, diamond_y),
-            (pooled.effect, diamond_y + .22),
+            (pooled.effect, diamond_y + 0.22),
             (pooled.ci_upper, diamond_y),
-            (pooled.effect, diamond_y - .22),
+            (pooled.effect, diamond_y - 0.22),
         ],
         closed=True,
         facecolor="#2b4acc",
@@ -80,7 +89,7 @@ def _render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
     if result.prediction_interval is not None:
         axis.plot(
             [result.prediction_interval.lower, result.prediction_interval.upper],
-            [-.48, -.48],
+            [-0.48, -0.48],
             color="#a9741f",
             linewidth=2,
             marker="|",
@@ -89,15 +98,24 @@ def _render_forest_plot(result: MetaAnalysisDatasetResult) -> dict[str, bytes]:
         )
     ratio = pooled.effect_measure in {EffectMeasure.OR, EffectMeasure.RR}
     null = 1.0 if ratio else 0.0
-    axis.axvline(null, color="#98a1b0", linestyle="--", linewidth=.9)
-    axis.text(null, len(studies) + .55, f"Null = {null:g}", ha="center", va="bottom", color="#6a7484")
+    axis.axvline(null, color="#98a1b0", linestyle="--", linewidth=0.9)
+    axis.text(
+        null,
+        len(studies) + 0.55,
+        f"Null = {null:g}",
+        ha="center",
+        va="bottom",
+        color="#6a7484",
+    )
     if ratio:
         axis.set_xscale("log")
-    axis.set_yticks(positions + [0], [study.study_label for study in studies] + ["Pooled"])
-    axis.set_ylim(-.8, len(studies) + .9)
+    axis.set_yticks(
+        positions + [0], [study.study_label for study in studies] + ["Pooled"]
+    )
+    axis.set_ylim(-0.8, len(studies) + 0.9)
     axis.set_xlabel(f"Effect ({pooled.effect_measure.value})")
     axis.set_title(result.outcome_name or "Meta-analysis", loc="left", weight="bold")
-    axis.grid(axis="x", color="#e3e7ed", linewidth=.6)
+    axis.grid(axis="x", color="#e3e7ed", linewidth=0.6)
     if result.prediction_interval is not None:
         axis.legend(loc="lower right")
 

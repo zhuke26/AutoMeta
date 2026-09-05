@@ -1,17 +1,3 @@
-"""
-Stage 2a — PICOS matching criteria generation prompt.
-
-Given a review's PICO definition and study-design requirement, the LLM
-produces structured matching criteria (core / acceptable_variations /
-exclusion_boundary) for each of the five PICOS dimensions.
-
-This prompt is called ONCE per screening task (not per paper).
-"""
-
-# ---------------------------------------------------------------------------
-# Prompt template
-# ---------------------------------------------------------------------------
-
 CRITERIA_GENERATION_V2_PROMPT = """\
 # ROLE
 You are a systematic review methodologist with expertise in designing eligibility criteria.
@@ -43,9 +29,6 @@ reproducible screening decisions.
 Call the function `submit_criteria` with the generated criteria.
 """
 
-# ---------------------------------------------------------------------------
-# Function-calling tool schema
-# ---------------------------------------------------------------------------
 
 _DIM_CRITERIA_SCHEMA = {
     "type": "object",

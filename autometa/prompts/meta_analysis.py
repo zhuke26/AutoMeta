@@ -1,8 +1,3 @@
-"""
-Prompt templates and tool schemas for meta-analysis planning.
-"""
-
-
 META_ANALYSIS_PLAN_PROMPT = """\
 You are a senior biostatistician helping plan a meta-analysis.
 

@@ -1,15 +1,8 @@
-"""
-Shared Pydantic data models for AutoMeta.
-"""
-
 from enum import Enum
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-# ---------------------------------------------------------------------------
-# Input models
-# ---------------------------------------------------------------------------
 
 class PICODefinition(BaseModel):
     P: str = Field(description="Population / Problem")
@@ -17,10 +10,6 @@ class PICODefinition(BaseModel):
     C: str = Field(description="Comparison / Control")
     O: str = Field(description="Outcome")
 
-
-# ---------------------------------------------------------------------------
-# Paper models
-# ---------------------------------------------------------------------------
 
 class Paper(BaseModel):
     pmid: str
@@ -31,10 +20,6 @@ class Paper(BaseModel):
     journal: Optional[str] = None
     publication_type: Optional[str] = None
 
-
-# ---------------------------------------------------------------------------
-# Search result models
-# ---------------------------------------------------------------------------
 
 class SearchTerms(BaseModel):
     populations: List[str] = Field(default_factory=list)
@@ -52,9 +37,13 @@ class SearchResult(BaseModel):
 
 class SearchQueryVariant(BaseModel):
     name: str = Field(description="Strategy label: broad, balanced, or narrow")
-    query: str = Field(description="Complete PubMed query string with explicit field tags")
+    query: str = Field(
+        description="Complete PubMed query string with explicit field tags"
+    )
     rationale: str = Field(default="", description="Why this variant should work")
-    expected_scope: str = Field(default="", description="Expected recall/precision trade-off")
+    expected_scope: str = Field(
+        default="", description="Expected recall/precision trade-off"
+    )
 
 
 class SearchStrategy(BaseModel):
@@ -107,10 +96,6 @@ class SearchExpansionResult(BaseModel):
     comparison: SearchStrategyComparison
 
 
-# ---------------------------------------------------------------------------
-# Screening result models
-# ---------------------------------------------------------------------------
-
 class CriteriaSet(BaseModel):
     title_criteria: List[str] = Field(default_factory=list)
     content_criteria: List[str] = Field(default_factory=list)
@@ -137,21 +122,13 @@ class ScreeningResult(BaseModel):
     summary: ScreeningSummary
 
 
-# ===========================================================================
-# Screening v2 models (four-stage PICOS-based pipeline)
-# ===========================================================================
-
 class StudyDesignFilter(str, Enum):
-    """User-specified study design inclusion scope."""
     RCT_ONLY = "rct_only"
     OBSERVATIONAL_ONLY = "obs_only"
     BOTH = "both"
 
 
-# ---- Stage 1: PICOS extraction ----
-
 class PICOSProfile(BaseModel):
-    """Structured PICOS summary extracted from title + abstract."""
     P_population: str = Field(description="Study population / participants")
     I_intervention: str = Field(description="Intervention or exposure")
     C_comparison: str = Field(description="Comparator or control")
@@ -161,23 +138,18 @@ class PICOSProfile(BaseModel):
     duration: str = Field(default="Not reported")
 
 
-# ---- Stage 2: criteria & matching ----
-
 class DimensionCriteria(BaseModel):
-    """Matching criteria for a single PICO dimension."""
     core: str = Field(description="Essential requirement")
     acceptable_variations: str = Field(description="Broader scope that still qualifies")
     exclusion_boundary: str = Field(description="What clearly does NOT match")
 
 
 class StudyDesignCriteria(BaseModel):
-    """Matching criteria for study design dimension."""
     acceptable_designs: List[str] = Field(default_factory=list)
     excluded_designs: List[str] = Field(default_factory=list)
 
 
 class MatchingCriteria(BaseModel):
-    """Complete set of PICOS matching criteria (generated once per review)."""
     P_criteria: DimensionCriteria
     I_criteria: DimensionCriteria
     C_criteria: DimensionCriteria
@@ -186,7 +158,6 @@ class MatchingCriteria(BaseModel):
 
 
 class DimensionResult(BaseModel):
-    """Per-paper dimension matching result from Stage 2."""
     reasoning: Dict[str, str] = Field(
         description="CoT reasoning per dimension: {P: '...', I: '...', ...}"
     )
@@ -197,7 +168,6 @@ class DimensionResult(BaseModel):
 
 
 class DimensionScoreResult(BaseModel):
-    """Direct per-paper PICO scoring result for fast screening."""
     scores: Dict[str, int] = Field(
         description="Dimension scores: {P: 1, I: 0, ...}; values are -1, 0, or 1"
     )
@@ -207,19 +177,14 @@ class DimensionScoreResult(BaseModel):
     evidence: Dict[str, str] = Field(
         description="Short evidence or missing-information note per dimension"
     )
-    weights: Dict[str, int] = Field(
-        description="Weights used for weighted_score"
-    )
+    weights: Dict[str, int] = Field(description="Weights used for weighted_score")
     weighted_score: int = Field(description="Weighted PICO score")
     max_score: int = Field(description="Maximum possible weighted score")
     threshold_rule: str = Field(description="Deterministic decision rule applied")
     reasoning: str = Field(description="Brief overall rationale")
 
 
-# ---- Stage 3: uncertain review ----
-
 class ReviewResult(BaseModel):
-    """Stage 3 review result for borderline papers."""
     review_reasoning: str = Field(description="Detailed reasoning for final decision")
     resolved_dimensions: Dict[str, str] = Field(
         description="{P: 'MATCH', I: 'STILL_UNCERTAIN', ...}"
@@ -228,29 +193,22 @@ class ReviewResult(BaseModel):
     confidence: str = Field(description="HIGH | MEDIUM | LOW")
 
 
-# ---- Final decision record ----
-
 class PaperDecisionV2(BaseModel):
-    """Full auditable decision record for a single paper."""
     pmid: str
     title: str
 
-    # Stage 0
-    stage0_result: str = Field(description="KEEP | EXCLUDED_pub_type | EXCLUDED_study_design")
+    stage0_result: str = Field(
+        description="KEEP | EXCLUDED_pub_type | EXCLUDED_study_design"
+    )
 
-    # Stage 1 (only for stage0=KEEP papers)
     picos_profile: Optional[PICOSProfile] = None
 
-    # Stage 2 (only for papers passing Stage 1)
     dimension_result: Optional[DimensionResult] = None
 
-    # Fast direct-scoring mode (only for scored_direct papers)
     score_result: Optional[DimensionScoreResult] = None
 
-    # Stage 3 (only for UNCERTAIN papers)
     review_result: Optional[ReviewResult] = None
 
-    # Final
     final_decision: str = Field(description="INCLUDE | EXCLUDE | UNCERTAIN")
     decision_stage: str = Field(
         description="Stage where final decision was made: stage0 | stage1 | stage2 | stage3"
@@ -258,22 +216,26 @@ class PaperDecisionV2(BaseModel):
 
 
 class ScreeningSummaryV2(BaseModel):
-    """Aggregated screening statistics."""
     total: int
-    stage0_excluded: int = Field(description="Excluded by publication type / study design rules")
-    stage1_excluded: int = Field(description="Excluded by study design cross-validation")
+    stage0_excluded: int = Field(
+        description="Excluded by publication type / study design rules"
+    )
+    stage1_excluded: int = Field(
+        description="Excluded by study design cross-validation"
+    )
     stage2_included: int = Field(description="Directly included at Stage 2")
     stage2_excluded: int = Field(description="Directly excluded at Stage 2")
     stage3_reviewed: int = Field(description="Papers sent to Stage 3 review")
     stage3_included: int = Field(description="Included after Stage 3 review")
     stage3_excluded: int = Field(description="Excluded after Stage 3 review")
-    uncertain: int = Field(default=0, description="Papers retained as unresolved UNCERTAIN")
+    uncertain: int = Field(
+        default=0, description="Papers retained as unresolved UNCERTAIN"
+    )
     final_included: int
     final_excluded: int
 
 
 class ScreeningResultV2(BaseModel):
-    """Complete screening output with full audit trail."""
     criteria: MatchingCriteria
     decisions: List[PaperDecisionV2]
     summary: ScreeningSummaryV2

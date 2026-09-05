@@ -29,10 +29,12 @@ def validate_source_reference(
             and chunk.locator is not None
             and normalized_quote in _normalized(chunk.text)
         ):
-            return chunk.locator.model_copy(update={
-                "source_id": source_id,
-                "quotation": quotation,
-            })
+            return chunk.locator.model_copy(
+                update={
+                    "source_id": source_id,
+                    "quotation": quotation,
+                }
+            )
         return _quotation_only(quotation)
     matches = [
         chunk
@@ -40,8 +42,10 @@ def validate_source_reference(
         if chunk.locator is not None and normalized_quote in _normalized(chunk.text)
     ]
     if len(matches) == 1:
-        return matches[0].locator.model_copy(update={
-            "source_id": matches[0].source_id or None,
-            "quotation": quotation,
-        })
+        return matches[0].locator.model_copy(
+            update={
+                "source_id": matches[0].source_id or None,
+                "quotation": quotation,
+            }
+        )
     return _quotation_only(quotation)

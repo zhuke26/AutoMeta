@@ -1,7 +1,3 @@
-"""
-ProtocolAgent - drafts PICO and recommended outcomes from a natural-language question.
-"""
-
 import logging
 from typing import List
 
@@ -29,8 +25,6 @@ class ProtocolDraft(BaseModel):
 
 
 class ProtocolAgent(BaseAgent):
-    """Draft a review protocol from a natural-language research question."""
-
     def __init__(self):
         super().__init__("ProtocolAgent")
         self._model = get_settings().model_for(AgentStage.PROTOCOL)

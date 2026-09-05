@@ -16,8 +16,6 @@ RUN apt-get update \
 
 COPY pyproject.toml README.md LICENSE ./
 COPY autometa ./autometa
-COPY alembic.ini ./
-COPY migrations ./migrations
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install . \
@@ -32,4 +30,4 @@ EXPOSE 8016
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=6 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8016/api/v1/health', timeout=3)"
 
-CMD ["/bin/sh", "-c", "python -m alembic upgrade head && exec python -m autometa serve"]
+CMD ["python", "-m", "autometa", "serve"]

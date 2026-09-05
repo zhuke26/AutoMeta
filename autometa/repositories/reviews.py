@@ -22,7 +22,9 @@ class ReviewRepository:
             statement = select(Review)
             if query:
                 statement = statement.where(Review.name.ilike(f"%{query}%"))
-            statement = statement.order_by(Review.updated_at.desc(), Review.created_at.desc())
+            statement = statement.order_by(
+                Review.updated_at.desc(), Review.created_at.desc()
+            )
             return list(session.scalars(statement))
 
     def get(self, review_id: str) -> Review | None:

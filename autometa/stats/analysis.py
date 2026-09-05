@@ -36,7 +36,7 @@ def run_analysis(
     plan: MetaAnalysisMethodPlan | dict,
     frame: pd.DataFrame,
 ) -> MetaAnalysisDatasetResult:
-    """Run one approved method plan with the shared deterministic engine."""
+
     validated_plan = MetaAnalysisMethodPlan.model_validate(plan)
     warnings = list(validated_plan.warnings)
     logs = [f"Loaded {len(frame)} row(s) from {validated_plan.csv_file}"]
@@ -58,19 +58,21 @@ def run_analysis(
         subgroup_result = _subgroups(validated_plan, estimates)
         output_csv = None
         if validated_plan.output.include_output_csv:
-            output_csv = pd.DataFrame([
-                {
-                    "study_label": item.study_label,
-                    "year": item.year or "",
-                    "outcome": item.outcome or "",
-                    "effect": item.effect,
-                    "standard_error": item.standard_error,
-                    "ci_lower": item.ci_lower,
-                    "ci_upper": item.ci_upper,
-                    "weight_percent": item.weight_percent,
-                }
-                for item in study_results
-            ]).to_csv(index=False)
+            output_csv = pd.DataFrame(
+                [
+                    {
+                        "study_label": item.study_label,
+                        "year": item.year or "",
+                        "outcome": item.outcome or "",
+                        "effect": item.effect,
+                        "standard_error": item.standard_error,
+                        "ci_lower": item.ci_lower,
+                        "ci_upper": item.ci_upper,
+                        "weight_percent": item.weight_percent,
+                    }
+                    for item in study_results
+                ]
+            ).to_csv(index=False)
         logs.append(f"Analyzed {len(study_results)} study effect(s)")
         return MetaAnalysisDatasetResult(
             csv_file=validated_plan.csv_file,
@@ -105,15 +107,20 @@ def _derive_estimates(
     for row_number, (_, row) in enumerate(frame.iterrows(), start=1):
         try:
             estimate = _estimate_from_row(plan, row)
-            estimates.append(StudyEstimate(
-                effect=estimate.effect,
-                variance=estimate.variance,
-                study_label=str(_cell(row, plan.columns.study_label) or f"Row {row_number}"),
-                year=_optional_str(_cell(row, plan.columns.year)),
-                title=_optional_str(_cell(row, plan.columns.title)),
-                outcome=_optional_str(_cell(row, plan.columns.outcome)) or plan.outcome_name,
-                metadata={"subgroup": str(_cell(row, plan.subgroup_column) or "")},
-            ))
+            estimates.append(
+                StudyEstimate(
+                    effect=estimate.effect,
+                    variance=estimate.variance,
+                    study_label=str(
+                        _cell(row, plan.columns.study_label) or f"Row {row_number}"
+                    ),
+                    year=_optional_str(_cell(row, plan.columns.year)),
+                    title=_optional_str(_cell(row, plan.columns.title)),
+                    outcome=_optional_str(_cell(row, plan.columns.outcome))
+                    or plan.outcome_name,
+                    metadata={"subgroup": str(_cell(row, plan.subgroup_column) or "")},
+                )
+            )
         except Exception as exc:
             raise ValueError(f"Invalid data in row {row_number}: {exc}") from exc
     return estimates
@@ -194,17 +201,19 @@ def _study_results(
             estimate.effect - _Z * estimate.standard_error,
             estimate.effect + _Z * estimate.standard_error,
         )
-        results.append(StudyEffectResult(
-            study_label=estimate.study_label,
-            year=estimate.year,
-            title=estimate.title,
-            outcome=estimate.outcome,
-            effect=effect,
-            standard_error=estimate.standard_error,
-            ci_lower=lower,
-            ci_upper=upper,
-            weight_percent=weight if plan.output.include_weights else None,
-        ))
+        results.append(
+            StudyEffectResult(
+                study_label=estimate.study_label,
+                year=estimate.year,
+                title=estimate.title,
+                outcome=estimate.outcome,
+                effect=effect,
+                standard_error=estimate.standard_error,
+                ci_lower=lower,
+                ci_upper=upper,
+                weight_percent=weight if plan.output.include_weights else None,
+            )
+        )
     return results
 
 

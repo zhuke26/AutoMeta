@@ -44,7 +44,9 @@ class SecretRedactor:
                 )
                 for key, item in value.items()
             }
-        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        if isinstance(value, Sequence) and not isinstance(
+            value, (str, bytes, bytearray)
+        ):
             return [self.payload(item) for item in value]
         return value
 

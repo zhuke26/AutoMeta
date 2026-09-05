@@ -1,16 +1,3 @@
-"""
-Stage 3 — Uncertain-paper review prompt.
-
-A stronger model (Claude Sonnet) re-evaluates borderline papers that
-Stage 2 could not confidently classify.  The review has access to the
-full Stage 1 PICOS profile, Stage 2 reasoning chain, the original
-title + abstract, and optionally user-uploaded full-text PDF content.
-"""
-
-# ---------------------------------------------------------------------------
-# Prompt template
-# ---------------------------------------------------------------------------
-
 UNCERTAIN_REVIEW_PROMPT = """\
 # ROLE
 You are a senior systematic review expert performing a careful secondary review
@@ -66,9 +53,6 @@ Abstract: {abstract}
 Call the function `submit_review` with your final determination.
 """
 
-# ---------------------------------------------------------------------------
-# Function-calling tool schema
-# ---------------------------------------------------------------------------
 
 _RESOLVED_ENUM = {"type": "string", "enum": ["MATCH", "MISMATCH", "STILL_UNCERTAIN"]}
 

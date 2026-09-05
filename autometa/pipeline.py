@@ -1,7 +1,3 @@
-"""
-AutoMeta pipeline — chains SearchAgent and ScreeningAgentV2 for a complete run.
-"""
-
 import logging
 
 from autometa.agents.screening_agent_v2 import ScreeningAgentV2
@@ -17,15 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class AutoMetaPipeline:
-    """
-    Run the full AutoMeta pipeline: Search → Screen (Stages 0-2).
-
-    Usage::
-
-        pipeline = AutoMetaPipeline()
-        search_result, screen_result = pipeline.run(pico)
-    """
-
     def __init__(self):
         self.search_agent = SearchAgent()
         self.screening_agent = ScreeningAgentV2()

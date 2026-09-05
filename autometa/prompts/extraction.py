@@ -1,16 +1,3 @@
-"""
-Extraction prompt templates for the ExtractionAgent.
-
-Prompts:
-  1. STUDY_CHARACTERISTICS_EXTRACTION — extract study-level characteristics (one row per paper)
-  2. RESULT_TARGET_PLANNING — identify outcome/timepoint/subgroup result rows before extraction
-  3. STUDY_RESULTS_EXTRACTION — extract quantitative results against planned rows
-"""
-
-# ---------------------------------------------------------------------------
-# Study Characteristics Extraction
-# ---------------------------------------------------------------------------
-
 STUDY_CHARACTERISTICS_EXTRACTION = """\
 You are a systematic review data extraction specialist. Your task is to extract \
 structured study characteristics from a research paper.
@@ -43,10 +30,6 @@ Fields:
 - Respond by calling the `submit_characteristics` function.
 """
 
-
-# ---------------------------------------------------------------------------
-# Result Target Planning
-# ---------------------------------------------------------------------------
 
 RESULT_TARGET_PLANNING = """\
 You are a systematic review data extraction specialist. Your task is to identify
@@ -109,7 +92,15 @@ RESULT_TARGET_PLANNING_TOOL = {
                                 "description": "Short note on exactly what values should be extracted for this row.",
                             },
                         },
-                        "required": ["outcome_label", "outcome", "timepoint", "comparison", "population_or_subgroup", "source_ids", "extraction_focus"],
+                        "required": [
+                            "outcome_label",
+                            "outcome",
+                            "timepoint",
+                            "comparison",
+                            "population_or_subgroup",
+                            "source_ids",
+                            "extraction_focus",
+                        ],
                     },
                 },
                 "missing_note": {
@@ -122,9 +113,6 @@ RESULT_TARGET_PLANNING_TOOL = {
     },
 }
 
-# ---------------------------------------------------------------------------
-# Study Results Extraction
-# ---------------------------------------------------------------------------
 
 STUDY_RESULTS_EXTRACTION = """\
 You are a systematic review data extraction specialist. Your task is to extract \

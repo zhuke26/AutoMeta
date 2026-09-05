@@ -1,8 +1,3 @@
-"""
-POST /api/v1/extract        — Extract data from uploaded PDFs
-POST /api/v1/extract/stream — Same with SSE streaming progress
-"""
-
 import json
 import logging
 import os
@@ -27,21 +22,15 @@ router = APIRouter(prefix="/extract", tags=["extraction"])
 UPLOAD_DIR = Path(__file__).parent.parent.parent.parent / "data" / "uploads"
 
 
-# ---------------------------------------------------------------------------
-# Request metadata (sent as JSON string in Form field alongside file uploads)
-# ---------------------------------------------------------------------------
-
 class ExtractionMetadata(BaseModel):
     pico: PICODefinition
-    study_characteristics_fields: List[ExtractionFieldDefinition] = Field(default_factory=list)
+    study_characteristics_fields: List[ExtractionFieldDefinition] = Field(
+        default_factory=list
+    )
     study_results_fields: List[ExtractionFieldDefinition] = Field(default_factory=list)
     top_k: int = Field(default=15, ge=1, le=30)
     max_concurrency: int = Field(default=10, ge=1, le=50)
 
-
-# ---------------------------------------------------------------------------
-# Helper: save uploaded files, return paths
-# ---------------------------------------------------------------------------
 
 async def _save_uploads(files: List[UploadFile]) -> List[str]:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -79,27 +68,27 @@ def _cleanup(paths: List[str]):
             pass
 
 
-# ---------------------------------------------------------------------------
-# POST /api/v1/extract — full response (non-streaming)
-# ---------------------------------------------------------------------------
-
 @router.post("", summary="Extract data from uploaded PDFs")
 async def extract_data(
     files: List[UploadFile] = File(..., description="PDF files to extract from"),
     metadata: str = Form(..., description="JSON string with pico, fields, and options"),
 ):
-    # Parse metadata JSON
+
     try:
         meta = ExtractionMetadata.model_validate_json(metadata)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid metadata JSON: {e}")
 
     if not meta.study_characteristics_fields and not meta.study_results_fields:
-        raise HTTPException(status_code=422, detail="At least one extraction field must be defined")
+        raise HTTPException(
+            status_code=422, detail="At least one extraction field must be defined"
+        )
 
     logger.info(
         "POST /api/v1/extract  files=%d  char_fields=%d  result_fields=%d",
-        len(files), len(meta.study_characteristics_fields), len(meta.study_results_fields),
+        len(files),
+        len(meta.study_characteristics_fields),
+        len(meta.study_results_fields),
     )
 
     file_paths = await _save_uploads(files)
@@ -124,27 +113,27 @@ async def extract_data(
     return result.model_dump()
 
 
-# ---------------------------------------------------------------------------
-# POST /api/v1/extract/stream — SSE streaming progress
-# ---------------------------------------------------------------------------
-
 @router.post("/stream", summary="Extract data with real-time SSE progress")
 async def extract_data_stream(
     files: List[UploadFile] = File(..., description="PDF files to extract from"),
     metadata: str = Form(..., description="JSON string with pico, fields, and options"),
 ):
-    # Parse metadata JSON
+
     try:
         meta = ExtractionMetadata.model_validate_json(metadata)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid metadata JSON: {e}")
 
     if not meta.study_characteristics_fields and not meta.study_results_fields:
-        raise HTTPException(status_code=422, detail="At least one extraction field must be defined")
+        raise HTTPException(
+            status_code=422, detail="At least one extraction field must be defined"
+        )
 
     logger.info(
         "POST /api/v1/extract/stream  files=%d  char_fields=%d  result_fields=%d",
-        len(files), len(meta.study_characteristics_fields), len(meta.study_results_fields),
+        len(files),
+        len(meta.study_characteristics_fields),
+        len(meta.study_results_fields),
     )
 
     file_paths = await _save_uploads(files)

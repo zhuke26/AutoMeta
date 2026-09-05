@@ -1,5 +1,3 @@
-"""Text chunking and BM25 retrieval with source provenance."""
-
 from __future__ import annotations
 
 from autometa.schemas.extraction_models import ParsedPDF, SourceLocator, TextChunk
@@ -33,19 +31,27 @@ def chunk_text(
         stripped = chunk_str.strip()
         if stripped:
             chunk_id = f"{source_id}:{len(chunks)}"
-            chunk_locator = locator.model_copy(update={
-                "source_id": chunk_id,
-                "text_start": start,
-                "text_end": end,
-            }) if locator else None
-            chunks.append(TextChunk(
-                text=stripped,
-                source=source,
-                start_char=start,
-                end_char=end,
-                source_id=chunk_id,
-                locator=chunk_locator,
-            ))
+            chunk_locator = (
+                locator.model_copy(
+                    update={
+                        "source_id": chunk_id,
+                        "text_start": start,
+                        "text_end": end,
+                    }
+                )
+                if locator
+                else None
+            )
+            chunks.append(
+                TextChunk(
+                    text=stripped,
+                    source=source,
+                    start_char=start,
+                    end_char=end,
+                    source_id=chunk_id,
+                    locator=chunk_locator,
+                )
+            )
         next_start = end - overlap
         start = end if next_start <= start else next_start
     return chunks
@@ -62,26 +68,32 @@ def chunk_document(
         table_chunks: list[TextChunk] = []
         elements = document.elements
         if not elements and document.markdown_text:
-            return chunk_document(document.markdown_text, document.tables, chunk_size, overlap)
+            return chunk_document(
+                document.markdown_text, document.tables, chunk_size, overlap
+            )
         for element in elements:
             if element.locator.element_type == "table":
-                table_chunks.append(TextChunk(
-                    text=element.text,
-                    source="table",
-                    start_char=0,
-                    end_char=len(element.text),
-                    source_id=element.source_id,
-                    locator=element.locator,
-                ))
+                table_chunks.append(
+                    TextChunk(
+                        text=element.text,
+                        source="table",
+                        start_char=0,
+                        end_char=len(element.text),
+                        source_id=element.source_id,
+                        locator=element.locator,
+                    )
+                )
             else:
-                body_chunks.extend(chunk_text(
-                    element.text,
-                    chunk_size,
-                    overlap,
-                    source="body",
-                    source_id=element.source_id,
-                    locator=element.locator,
-                ))
+                body_chunks.extend(
+                    chunk_text(
+                        element.text,
+                        chunk_size,
+                        overlap,
+                        source="body",
+                        source_id=element.source_id,
+                        locator=element.locator,
+                    )
+                )
         return body_chunks, table_chunks
     body_chunks = chunk_text(document, chunk_size, overlap, source="body")
     table_chunks = [
@@ -109,7 +121,9 @@ def retrieve_relevant_chunks(
         return []
     corpus = [chunk.text.lower().split() for chunk in body_chunks]
     scores = BM25Okapi(corpus).get_scores(query.lower().split())
-    indices = sorted(range(len(scores)), key=lambda index: scores[index], reverse=True)[:top_k]
+    indices = sorted(range(len(scores)), key=lambda index: scores[index], reverse=True)[
+        :top_k
+    ]
     return [body_chunks[index] for index in indices]
 
 

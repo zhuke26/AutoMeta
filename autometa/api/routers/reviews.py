@@ -33,7 +33,9 @@ def create_review(
     request: ReviewCreate,
     service: ReviewService = Depends(get_review_service),
 ) -> ReviewSummary:
-    return ReviewSummary.model_validate(service.create(request.name, request.entry_mode))
+    return ReviewSummary.model_validate(
+        service.create(request.name, request.entry_mode)
+    )
 
 
 @router.get("", response_model=ReviewList)

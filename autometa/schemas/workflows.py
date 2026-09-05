@@ -78,7 +78,9 @@ class ExtractionFieldInput(BaseModel):
 
 class ExtractionWorkflowRequest(BaseModel):
     file_ids: list[str] = Field(min_length=1)
-    study_characteristics_fields: list[ExtractionFieldInput] = Field(default_factory=list)
+    study_characteristics_fields: list[ExtractionFieldInput] = Field(
+        default_factory=list
+    )
     study_results_fields: list[ExtractionFieldInput] = Field(default_factory=list)
     top_k: int = Field(default=15, ge=1, le=30)
     max_concurrency: int = Field(default=10, ge=1, le=50)

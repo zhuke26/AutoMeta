@@ -20,9 +20,7 @@ def serve() -> None:
     settings = get_settings()
     options = build_uvicorn_options(settings)
     if options["host"] not in _LOOPBACK_HOSTS:
-        LOGGER.warning(
-            "AutoMeta is listening beyond localhost without authentication."
-        )
+        LOGGER.warning("AutoMeta is listening beyond localhost without authentication.")
     uvicorn.run("autometa.api.main:app", reload=False, **options)
 
 

@@ -1,7 +1,3 @@
-"""
-Protocol drafting prompts for research-question to PICO generation.
-"""
-
 PROTOCOL_DRAFT_PROMPT = """\
 You are a systematic review methodologist. Convert the user's natural-language
 research question into a reviewable PICO protocol and recommended outcome list.
@@ -34,9 +30,15 @@ PROTOCOL_DRAFT_TOOL = {
                     "type": "object",
                     "properties": {
                         "P": {"type": "string", "description": "Population / problem"},
-                        "I": {"type": "string", "description": "Intervention / exposure"},
+                        "I": {
+                            "type": "string",
+                            "description": "Intervention / exposure",
+                        },
                         "C": {"type": "string", "description": "Comparison / control"},
-                        "O": {"type": "string", "description": "Primary and secondary outcomes"},
+                        "O": {
+                            "type": "string",
+                            "description": "Primary and secondary outcomes",
+                        },
                     },
                     "required": ["P", "I", "C", "O"],
                 },
@@ -47,13 +49,24 @@ PROTOCOL_DRAFT_TOOL = {
                         "type": "object",
                         "properties": {
                             "name": {"type": "string"},
-                            "type": {"type": "string", "enum": ["primary", "secondary", "safety", "exploratory"]},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "primary",
+                                    "secondary",
+                                    "safety",
+                                    "exploratory",
+                                ],
+                            },
                             "rationale": {"type": "string"},
                         },
                         "required": ["name", "type", "rationale"],
                     },
                 },
-                "rationale": {"type": "string", "description": "Brief explanation of the draft and any ambiguity."},
+                "rationale": {
+                    "type": "string",
+                    "description": "Brief explanation of the draft and any ambiguity.",
+                },
             },
             "required": ["pico", "recommended_outcomes", "rationale"],
         },

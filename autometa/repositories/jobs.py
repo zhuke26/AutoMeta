@@ -118,7 +118,9 @@ class JobRepository:
             statement = select(Job).where(Job.review_id == review_id)
             if stage is not None:
                 statement = statement.where(Job.stage == stage)
-            statement = statement.order_by(Job.created_at.desc(), Job.id.desc()).limit(limit)
+            statement = statement.order_by(Job.created_at.desc(), Job.id.desc()).limit(
+                limit
+            )
             return list(session.scalars(statement))
 
     @staticmethod

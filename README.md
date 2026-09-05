@@ -25,9 +25,6 @@ AutoMeta listens on `127.0.0.1:8016` by default. Set `AUTOMETA_HOST=0.0.0.0`
 only when local-network access is intentional; the first release does not
 provide authentication.
 
-The approved product direction and repository architecture are documented in
-the [AutoMeta web application redesign specification](docs/superpowers/specs/2026-09-05-autometa-web-application-redesign.md).
-
 ## Requirements
 
 - Python 3.11 or 3.12
@@ -37,9 +34,7 @@ GPU acceleration is optional and is not part of the default installation. The
 base package does not use a CUDA-specific package index or require a
 GPU-specific PyTorch build.
 
-The foundation test suite runs on macOS and Windows with both supported Python
-versions. Linux packaging will be verified through Docker during release
-hardening.
+Linux packaging is verified through Docker during release hardening.
 
 ## Install
 
@@ -50,7 +45,6 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
-python -m alembic upgrade head
 ```
 
 On Windows PowerShell, activate the environment with:
@@ -60,7 +54,6 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
-python -m alembic upgrade head
 ```
 
 Copy `.env.example` to `.env` and configure the OpenAI-compatible endpoint,
@@ -86,8 +79,8 @@ docker run --rm --name autometa \
   autometa:local
 ```
 
-The host-side port remains bound to `127.0.0.1`. The container applies pending
-SQLite migrations before starting AutoMeta and exposes a local health check at
+The host-side port remains bound to `127.0.0.1`. The container initializes the
+local SQLite schema when AutoMeta starts and exposes a local health check at
 `/api/v1/health`.
 
 ## Review workflow
@@ -122,92 +115,6 @@ while Uvicorn remains running. Reopening the Review restores its latest job.
 After a server restart, unfinished jobs are marked `interrupted`; review the
 saved inputs and run the stage again.
 
-## Statistical methods and figures
-
-AutoMeta derives mean differences (MD), standardized mean differences (SMD),
-Hedges' g, odds ratios (OR), risk ratios (RR), and risk differences (RD) from
-declared arm-level columns. It can also use a reported effect with a 95% CI,
-standard error, or variance. Ratio measures are analyzed on the log scale and
-back-transformed for presentation; for reported OR/RR inputs, standard errors
-and variances are therefore expected on the log scale, while CI endpoints are
-entered on the ratio scale. Zero-cell continuity correction is used only when
-it is explicitly present in the approved method plan.
-
-Pooling choices are fixed inverse variance, DerSimonian-Laird random effects,
-and restricted maximum likelihood (REML) random effects. Results report the
-pooled 95% normal-theory CI, Cochran's Q and p-value, I², tau², and tau. A
-normal-reference prediction interval is reported for random-effects analyses
-with at least three studies. Leave-one-out estimates and subgroup pools call the
-same engine with the approved effect scale and model; subgroup analysis requires
-a populated subgroup column with at least two groups.
-
-Advanced outputs are explicit plan choices. Forest plots accept at most 100
-studies and leave-one-out diagnostics at most 200 studies, preventing accidental
-unbounded raster allocation or quadratic refitting on very large uploads.
-
-Invalid inputs or REML non-convergence stop the analysis with an explicit error.
-AutoMeta never silently changes the effect measure, source columns, pooling
-model, heterogeneity estimator, continuity correction, or subgroup field.
-
-Each successful analysis stores deterministic Review-owned forest plots in SVG,
-PNG, and PDF under `data/reviews/<review-id>/figures/`. The result artifact keeps
-only file IDs, names, and media types; the files are served through Review-scoped
-local endpoints and are included by metadata and hash in the audit export.
-End-user calculation and figure generation require Python only. R is not a
-runtime dependency; the repository records constructed `metafor` reference
-values solely for numeric cross-checking in the test suite.
-
-The generated calculation script reads the corresponding CSV from its own
-directory and calls the same `autometa.stats.run_analysis` function used by the
-server, so its JSON result can be compared directly with the persisted result
-artifact.
-
-## Provenance and reruns
-
-Open **Evidence provenance** from the bottom rail of any Review to inspect its
-append-only timeline. AutoMeta records artifact versions, researcher edits,
-approvals and revocations, stale transitions, stage runs, failures, and rerun
-lineage. The version comparison panel shows deterministic field-level changes
-between two saved versions.
-
-A completed workflow event can be rerun from the timeline after confirmation.
-The rerun uses the original request and exact historical input versions, then
-creates a new job, stage run, output versions, and provenance links. It never
-overwrites the source event or its artifacts. Events from older installations
-that do not contain a registered operation descriptor remain visible but are
-not rerunnable.
-
-**Download audit JSON** exports Review metadata, file metadata and hashes,
-artifact versions, approvals, jobs, events, edits, graph edges, and rerun
-relationships. It excludes uploaded file contents, local storage paths, and
-credentials.
-
-## Privacy and local files
-
-- The API key is read only from `.env` into server memory. It is never accepted
-  by the browser, stored in SQLite, or returned by System Status.
-- PDFs remain under `data/reviews/<review-id>/uploads/` until the Review is
-  permanently deleted.
-- CSV datasets remain under `data/reviews/<review-id>/datasets/`.
-- Before the first Extraction run, AutoMeta explicitly asks you to acknowledge
-  that relevant PDF text passages will be sent to your configured model
-  service. The acknowledgement is stored locally.
-- Deleting a Review requires its exact name and permanently removes its
-  database records and Review directory.
-- Binding `AUTOMETA_HOST=0.0.0.0` exposes an unauthenticated local service to
-  the network. Use the default `127.0.0.1` unless that exposure is intentional.
-
-## Source-linked PDF evidence
-
-Extraction citations may include parser-verified source metadata: Review file,
-page, element type, table index, and bounding box. **View source** opens a
-locally bundled PDF.js reader against the Review-owned PDF endpoint. When a
-validated bounding box exists AutoMeta highlights it; with page-only metadata
-it opens that page beside the quotation; with quotation-only evidence it states
-`Exact page location unavailable`. AutoMeta never asks the model to invent page
-or coordinate data, and rejects source IDs whose quotation is not present in
-the supplied extraction chunk.
-
 ## Frontend development
 
 The committed frontend build lets ordinary users run AutoMeta without Node.js.
@@ -239,12 +146,6 @@ npm run build
 
 The build writes directly to `autometa/static/`; those generated files are part
 of the published Python package and must remain synchronized with the source.
-
-Backend checks run with:
-
-```bash
-python -m pytest tests -q
-```
 
 The supported product interface starts at 1024 px wide. Phone layouts are not
 part of the first release.

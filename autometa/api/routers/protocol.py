@@ -1,9 +1,3 @@
-"""
-Protocol drafting API.
-
-POST /api/v1/protocol/draft - natural-language research question -> PICO + outcomes.
-"""
-
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -19,9 +13,15 @@ class ProtocolDraftRequest(BaseModel):
     research_question: str = Field(min_length=10, max_length=4000)
 
 
-@router.post("/draft", response_model=ProtocolDraft, summary="Draft PICO from a research question")
+@router.post(
+    "/draft",
+    response_model=ProtocolDraft,
+    summary="Draft PICO from a research question",
+)
 def draft_protocol(request: ProtocolDraftRequest):
-    logger.info("POST /api/v1/protocol/draft question_len=%d", len(request.research_question))
+    logger.info(
+        "POST /api/v1/protocol/draft question_len=%d", len(request.research_question)
+    )
     try:
         agent = ProtocolAgent()
         return agent.run(request.research_question.strip())

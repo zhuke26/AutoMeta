@@ -1,19 +1,3 @@
-"""
-AutoMeta FastAPI application entry point.
-
-Start with:
-    uvicorn autometa.api.main:app --reload --port 8000
-
-Pages:
-    GET  /          → Web UI (autometa/static/index.html)
-    GET  /docs      → Swagger UI
-
-API:
-    POST /api/v1/search  — PICO → candidate papers
-    POST /api/v1/screen  — papers + PICO → inclusion decisions
-    GET  /api/v1/health  — health check
-"""
-
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -58,9 +42,6 @@ from autometa.services.settings import LocalSettingsService
 from autometa.services.workflow_operations import WorkflowOperationRegistry
 from autometa.services.workflows import WorkflowCoordinator
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
@@ -93,9 +74,7 @@ def create_app(
         application.state.settings = resolved_settings
         application.state.job_manager = active_manager
         application.state.file_storage = file_storage
-        local_settings = LocalSettingsService(
-            LocalSettingsRepository(active_database)
-        )
+        local_settings = LocalSettingsService(LocalSettingsRepository(active_database))
         application.state.local_settings = local_settings
         provenance_service = ProvenanceService(ProvenanceRepository(active_database))
         artifact_service = ArtifactService(
