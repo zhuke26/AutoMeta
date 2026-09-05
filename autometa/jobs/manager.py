@@ -8,6 +8,7 @@ from threading import Event, RLock
 from autometa.persistence.models import JobState
 from autometa.repositories.jobs import JobRepository
 from autometa.schemas.jobs import JobEventView, JobView
+from autometa.security import SecretRedactor
 
 
 class JobNotFound(LookupError):
@@ -48,6 +49,7 @@ class JobManager:
         self._futures: dict[str, Future] = {}
         self._cancellations: dict[str, Event] = {}
         self._closed = False
+        self._redactor = SecretRedactor(repository.database.settings)
 
     @property
     def closed(self) -> bool:
@@ -209,28 +211,7 @@ class JobManager:
             return JobEventView.model_validate(event)
 
     def _safe_error(self, error: Exception) -> str:
-        return self._redact_text(str(error))[:4000]
+        return self._redactor.text(str(error))[:4000]
 
     def _sanitize_payload(self, value):
-        if isinstance(value, str):
-            return self._redact_text(value)
-        if isinstance(value, dict):
-            return {
-                self._redact_text(str(key)): self._sanitize_payload(item)
-                for key, item in value.items()
-            }
-        if isinstance(value, (list, tuple)):
-            return [self._sanitize_payload(item) for item in value]
-        return value
-
-    def _redact_text(self, text: str) -> str:
-        settings = self.repository.database.settings
-        for value in (settings.llm_api_key, settings.pubmed_api_key):
-            secret = (
-                value.get_secret_value()
-                if hasattr(value, "get_secret_value")
-                else str(value or "")
-            )
-            if secret:
-                text = text.replace(secret, "[REDACTED]")
-        return text
+        return self._redactor.payload(value)

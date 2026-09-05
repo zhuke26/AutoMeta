@@ -134,7 +134,7 @@ git commit -m "feat: add provenance persistence schema"
 - Produces: `Producer = researcher | agent | system` and typed event/edge/edit/rerun views.
 - Consumes: `Settings` only inside the server-side redactor.
 
-- [ ] **Step 1: Write failing ledger and redaction tests**
+- [x] **Step 1: Write failing ledger and redaction tests**
 
 Cover monotonic per-Review sequence numbers, Review isolation, stable
 newest/oldest pagination, all foreign-key ownership checks, concurrent event
@@ -155,13 +155,13 @@ def test_event_payload_never_persists_credentials(provenance, settings, review) 
     }
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `.venv/bin/python -m pytest tests/services/test_provenance.py -q`
 
 Expected: import failure because the provenance repository/service do not exist.
 
-- [ ] **Step 3: Implement one shared recursive redactor**
+- [x] **Step 3: Implement one shared recursive redactor**
 
 Move the existing JobManager secret-value replacement behind:
 
@@ -176,13 +176,13 @@ Redact configured secret values and keys matching `api_key`, `authorization`,
 `cookie`, `password`, `secret`, or `token` case-insensitively. Reuse this class
 for job events/errors and provenance payloads so the two stores cannot diverge.
 
-- [ ] **Step 4: Implement repository/service ordering and ownership checks**
+- [x] **Step 4: Implement repository/service ordering and ownership checks**
 
 `record()` allocates `sequence = max(sequence) + 1` in the same SQLite write
 transaction and retries once on a unique-sequence collision. All referenced
 artifact versions, jobs, and stage runs must belong to the same Review.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run:
 
