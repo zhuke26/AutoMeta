@@ -98,16 +98,16 @@ SearchAgent.expand_with_retrieval_feedback(
 - Saves a draft `query` payload with keys `seed`, `expanded`, `comparison`,
   `included_pmids`, `generated_raw_query`, and `raw_query`.
 
-- [ ] Write failing API tests for approved-PICO gating, immediate Job response,
+- [x] Write failing API tests for approved-PICO gating, immediate Job response,
   seed/result persistence, count and coverage fields, safe failure, concurrent
   Search conflict, and rerun from the completed provenance event.
-- [ ] Verify RED with the focused API/rerun tests.
-- [ ] Implement the registered operation and route. Persist the request and exact
+- [x] Verify RED with the focused API/rerun tests.
+- [x] Implement the registered operation and route. Persist the request and exact
   PICO version through the Phase 2A coordinator and save the Query with agent
   provenance context.
-- [ ] Keep `search.query` for a fast no-retrieval draft; `search.expand` is an
+- [x] Keep `search.query` for a fast no-retrieval draft; `search.expand` is an
   explicit researcher choice and never runs implicitly.
-- [ ] Run complete backend tests and Ruff; commit as
+- [x] Run complete backend tests and Ruff; commit as
   `feat: add durable retrieval feedback workflow`.
 
 ### Task 4: Build the query comparison and feedback UI

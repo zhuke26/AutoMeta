@@ -23,6 +23,7 @@ from autometa.schemas.workflows import (
     MetaRunWorkflowRequest,
     ProtocolWorkflowRequest,
     ScreeningRunWorkflowRequest,
+    SearchExpansionRequest,
     SearchQueryWorkflowRequest,
     SearchRunWorkflowRequest,
 )
@@ -94,6 +95,7 @@ class WorkflowOperationRegistry:
     def _register_defaults(self) -> None:
         self.register("protocol.draft", self._protocol_draft)
         self.register("search.query", self._search_query)
+        self.register("search.expand", self._search_expand)
         self.register("search.run", self._search_run)
         self.register("screening.run", self._screening_run)
         self.register("extraction.run", self._extraction_run)
@@ -180,6 +182,39 @@ class WorkflowOperationRegistry:
                 "strategy_mode": "field_tagged_balanced",
                 "raw_query": raw_query,
             },
+            context=execution.context.artifact_context(),
+        )
+        return self._saved(execution.context, output)
+
+    def _search_expand(self, execution: WorkflowExecution) -> dict:
+        artifacts, _ = self._require_services()
+        request = SearchExpansionRequest.model_validate(execution.request_payload)
+        pico = PICODefinition.model_validate(
+            self._artifact(execution, "question_pico").payload.get("pico")
+        )
+        execution.context.emit(
+            "seed_retrieval",
+            {"message": "Retrieving a bounded seed set from PubMed"},
+        )
+        result = SearchAgent().expand_with_retrieval_feedback(
+            pico,
+            seed_retmax=request.seed_retmax,
+            included_pmids=request.included_pmids,
+            min_year=request.min_year,
+            max_year=request.max_year,
+        )
+        payload = result.model_dump()
+        payload.update({
+            "strategy_mode": "retrieval_informed",
+            "included_pmids": request.included_pmids,
+            "generated_raw_query": result.expanded.strategy.balanced.query,
+            "raw_query": result.expanded.strategy.balanced.query,
+            "strategy": result.expanded.strategy.model_dump(),
+        })
+        output = artifacts.save_draft(
+            execution.review_id,
+            "query",
+            payload,
             context=execution.context.artifact_context(),
         )
         return self._saved(execution.context, output)

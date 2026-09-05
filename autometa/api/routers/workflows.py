@@ -19,6 +19,7 @@ from autometa.schemas.workflows import (
     ProtocolWorkflowRequest,
     ScreeningRecordsImportRequest,
     ScreeningRunWorkflowRequest,
+    SearchExpansionRequest,
     SearchQueryWorkflowRequest,
     SearchRunWorkflowRequest,
 )
@@ -216,6 +217,37 @@ def run_search(
         inputs,
         operations.operation("search.run", review_id, request_payload, inputs),
         operation_kind="search.run",
+        request_payload=request_payload,
+    )
+
+
+@router.post("/search/expand", response_model=JobView, status_code=202)
+def expand_search_query(
+    review_id: str,
+    request: SearchExpansionRequest,
+    coordinator: WorkflowCoordinator = Depends(get_workflow_coordinator),
+    operations: WorkflowOperationRegistry = Depends(get_workflow_operations),
+    reviews: ReviewService = Depends(get_review_service),
+) -> JobView:
+    _require_review(review_id, reviews)
+    try:
+        inputs = coordinator.require_approved(review_id, ("question_pico",))
+        PICODefinition.model_validate(inputs[0].payload.get("pico"))
+    except WorkflowInputConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Approved PICO artifact is invalid",
+        ) from exc
+    request_payload = request.model_dump(mode="json")
+    return _submit_or_conflict(
+        coordinator,
+        review_id,
+        "search",
+        inputs,
+        operations.operation("search.expand", review_id, request_payload, inputs),
+        operation_kind="search.expand",
         request_payload=request_payload,
     )
 
