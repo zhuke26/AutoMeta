@@ -164,17 +164,17 @@
 - Produces a locally mergeable Phase 2C branch and leaves expanded statistics as
   the final feature plan.
 
-- [ ] Add an integration test that parses a generated two-page PDF, extracts from
+- [x] Add an integration test that parses a generated two-page PDF, extracts from
   supplied fake model output, persists a locator, serves the PDF with range
   requests, and returns the locator in provenance/audit export.
-- [ ] Document parser provenance, privacy disclosure, source-ID validation, PDF.js
+- [x] Document parser provenance, privacy disclosure, source-ID validation, PDF.js
   local assets, and the strict degradation policy.
-- [ ] Run complete Python/frontend/Ruff/typecheck/deterministic-build/package gates
+- [x] Run complete Python/frontend/Ruff/typecheck/deterministic-build/package gates
   and scan for PDF text or credentials in logs/events.
-- [ ] Start Uvicorn with a temporary Review and generated PDF; browser-test bbox,
+- [x] Start Uvicorn with a temporary Review and generated PDF; browser-test bbox,
   page-only, and quotation-only modes at 1024/1280/1440/1920 and inspect rendered
   pages for clipping, overlap, highlight alignment, and console/network errors.
-- [ ] Record results, verify no remote, commit, use verification and finishing
+- [x] Record results, verify no remote, commit, use verification and finishing
   skills, and merge locally without pushing.
 
 ## Completion Criteria
@@ -187,3 +187,18 @@
 - PDF byte serving is Review-scoped, range-capable, and path-safe.
 - PDF contents and credentials never enter logs, events, provenance metadata, or
   browser storage.
+
+## Verification Record (2026-09-05)
+
+- `.venv/bin/python -m pytest tests -q`: 146 tests passed.
+- `.venv/bin/ruff check .`: passed.
+- `npm test -- --run`: 18 files and 61 tests passed.
+- `npm run typecheck` and two deterministic production builds passed without a
+  main-bundle size warning; PDF.js and its worker are local split assets.
+- A generated two-page PDF was parsed with pypdfium2 into page-only elements;
+  parser/chunker and locator tests covered Docling bbox/table metadata and strict
+  quotation ambiguity handling.
+- Wheel and sdist builds included the PDF.js runtime and worker assets.
+- A temporary Uvicorn Review served the generated PDF through the scoped content
+  endpoint. The in-app browser opened page 2, rendered a 612 x 792 canvas, and
+  displayed the expected bbox highlight with no console warnings/errors.

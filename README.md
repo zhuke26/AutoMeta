@@ -135,6 +135,17 @@ credentials.
 - Binding `AUTOMETA_HOST=0.0.0.0` exposes an unauthenticated local service to
   the network. Use the default `127.0.0.1` unless that exposure is intentional.
 
+## Source-linked PDF evidence
+
+Extraction citations may include parser-verified source metadata: Review file,
+page, element type, table index, and bounding box. **View source** opens a
+locally bundled PDF.js reader against the Review-owned PDF endpoint. When a
+validated bounding box exists AutoMeta highlights it; with page-only metadata
+it opens that page beside the quotation; with quotation-only evidence it states
+`Exact page location unavailable`. AutoMeta never asks the model to invent page
+or coordinate data, and rejects source IDs whose quotation is not present in
+the supplied extraction chunk.
+
 ## Frontend development
 
 The committed frontend build lets ordinary users run AutoMeta without Node.js.
