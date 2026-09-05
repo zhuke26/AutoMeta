@@ -17,7 +17,7 @@ const plan: ArtifactView = {
 };
 const result: ArtifactView = {
   artifact_id: "result-1", review_id: review.id, stage: "meta_analysis", kind: "result", state: "draft", version: 1, content_hash: "hash", created_at: "2026-09-05T09:00:00Z", approved: false,
-  payload: { results: [{ csv_file: "effects.csv", outcome_name: "Recovery", pooled_effect: { model_used: "fixed", effect_measure: "MD", effect: 2, standard_error: 0.2, ci_lower: 1.6, ci_upper: 2.4, z_value: 10, p_value: 0.001 }, heterogeneity: { q: 1, df: 1, p_value: 0.3, i2_percent: 0, tau2: 0 }, study_effects: [{ study_label: "Study A", effect: 2, standard_error: 0.3, ci_lower: 1.4, ci_upper: 2.6, weight_percent: 50 }], output_csv: "study,effect\nStudy A,2\n", logs: ["Validated 2 studies"], warnings: [] }] },
+  payload: { results: [{ csv_file: "effects.csv", outcome_name: "Recovery", pooled_effect: { model_used: "random", effect_measure: "MD", effect: 2, standard_error: 0.2, ci_lower: 1.6, ci_upper: 2.4, z_value: 10, p_value: 0.001 }, heterogeneity: { q: 1, df: 1, p_value: 0.3, i2_percent: 0, tau2: 0.01, tau: 0.1 }, prediction_interval: { lower: -0.1, upper: 4.1 }, study_effects: [{ study_label: "Study A", effect: 2, standard_error: 0.3, ci_lower: 1.4, ci_upper: 2.6, weight_percent: 50 }], leave_one_out: [{ omitted_study: "Study A", pooled_effect: { model_used: "random", effect_measure: "MD", effect: 2.2, standard_error: 0.3, ci_lower: 1.6, ci_upper: 2.8 }, heterogeneity: { q: 0.8, df: 1, p_value: 0.37, i2_percent: 0, tau2: 0, tau: 0 } }], subgroup_analysis: { groups: [{ label: "Early", study_count: 2, pooled_effect: { model_used: "random", effect_measure: "MD", effect: 1.8, standard_error: 0.3, ci_lower: 1.2, ci_upper: 2.4 }, heterogeneity: { q: 0.4, df: 1, p_value: 0.53, i2_percent: 0, tau2: 0, tau: 0 } }], between_group_q: 2.4, between_group_df: 1, between_group_p_value: 0.12 }, figure_files: [{ file_id: "svg-1", filename: "forest-plot-01.svg", mime_type: "image/svg+xml" }, { file_id: "png-1", filename: "forest-plot-01.png", mime_type: "image/png" }, { file_id: "pdf-1", filename: "forest-plot-01.pdf", mime_type: "application/pdf" }], output_csv: "study,effect\nStudy A,2\n", logs: ["Validated 2 studies"], warnings: [] }] },
 };
 const code: ArtifactView = { artifact_id: "code-1", review_id: review.id, stage: "meta_analysis", kind: "code", state: "draft", version: 1, content_hash: "hash", created_at: "2026-09-05T09:00:00Z", approved: false, payload: { generated_code: { "effects.csv": "print('validated')" } } };
 
@@ -113,9 +113,18 @@ describe("MetaAnalysisPage", () => {
     expect(within(summary).getByText("2.000")).toBeInTheDocument();
     expect(within(summary).getByText("1.600 to 2.400")).toBeInTheDocument();
     expect(within(summary).getByText("0.0%")).toBeInTheDocument();
+    expect(within(summary).getByText("-0.100 to 4.100")).toBeInTheDocument();
+    expect(within(summary).getByText("0.100")).toBeInTheDocument();
+    expect(within(summary).getByText("0.300")).toBeInTheDocument();
+    const influence = screen.getByLabelText("Leave-one-out sensitivity");
+    expect(within(influence).getByRole("cell", { name: "Study A" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Subgroup analysis" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Early" })).toBeInTheDocument();
+    expect(screen.getByText("Between-group Q 2.400 (df 1), p = 0.120")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Recovery forest plot" })).toHaveAttribute("src", "/api/v1/reviews/review-1/figures/svg-1/content");
+    expect(screen.getByRole("link", { name: "Download PDF" })).toHaveAttribute("download", "forest-plot-01.pdf");
     expect(screen.getByText("Validated 2 studies")).toBeInTheDocument();
     expect(screen.getByText("print('validated')")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export analysis JSON" })).toBeEnabled();
-    expect(screen.queryByText(/forest plot/i)).not.toBeInTheDocument();
   });
 });

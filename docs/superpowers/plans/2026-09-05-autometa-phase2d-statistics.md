@@ -153,14 +153,14 @@
 - Renders prediction interval, tau, Q p-value, leave-one-out, subgroups, and
   Review-owned plot previews/downloads from real result fields.
 
-- [ ] Write failing React tests for each statistic, undefined-value language,
+- [x] Write failing React tests for each statistic, undefined-value language,
   diagnostic tables, SVG preview, PNG/PDF downloads, and no fabricated plot.
-- [ ] Verify RED.
-- [ ] Implement dense accessible result panels with tabular numerals, semantic
+- [x] Verify RED.
+- [x] Implement dense accessible result panels with tabular numerals, semantic
   labels, horizontal table scrolling, and local figure URLs.
-- [ ] Keep sections absent or explicitly unavailable when the backend returns no
+- [x] Keep sections absent or explicitly unavailable when the backend returns no
   value; never substitute zero.
-- [ ] Run all frontend tests, typecheck, deterministic build, and commit source/
+- [x] Run all frontend tests, typecheck, deterministic build, and commit source/
   compiled assets as `feat: display advanced meta-analysis outputs`.
 
 ### Task 7: Phase 2D numeric, visual, package, and runtime gate

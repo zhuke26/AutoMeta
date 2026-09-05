@@ -100,7 +100,7 @@ export function MetaAnalysisPage() {
       {effectivePlan ? <ArtifactApprovalBar artifact={effectivePlan} canApprove={plans.length > 0} key={`${effectivePlan.artifact_id}:${effectivePlan.version}`} reviewId={review.id} /> : null}
       <div className="workflow-footer-actions"><button className="button button--primary" disabled={!effectivePlan?.approved || metaJob.isActive || runAnalysis.isPending} onClick={() => runAnalysis.mutate({ confirm_strict_execution: true })} type="button">Run meta-analysis</button></div>
 
-      {results.length ? <><div className="result-export"><button className="button" onClick={() => downloadJson({ results, generated_code: generatedCode })} type="button">Export analysis JSON</button></div><MetaResultsPanel generatedCode={generatedCode} results={results} /></> : null}
+      {results.length ? <><div className="result-export"><button className="button" onClick={() => downloadJson({ results, generated_code: generatedCode })} type="button">Export analysis JSON</button></div><MetaResultsPanel generatedCode={generatedCode} results={results} reviewId={review.id} /></> : null}
     </main>
   );
 }
