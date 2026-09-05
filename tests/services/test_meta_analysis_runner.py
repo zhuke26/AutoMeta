@@ -9,6 +9,7 @@ from autometa.schemas.meta_models import (
     MetaAnalysisMethodPlan,
     MetaAnalysisType,
     PoolingModelSpec,
+    RandomEffectsMethod,
 )
 
 
@@ -41,3 +42,42 @@ def test_invalid_row_stops_analysis_instead_of_being_skipped() -> None:
 
     with pytest.raises(ValueError, match="row 2"):
         MetaAnalysisRunnerAgent().run([_plan()], {"effects.csv": frame})
+
+
+def test_runner_returns_reml_prediction_influence_and_subgroups() -> None:
+    plan = MetaAnalysisMethodPlan(
+        csv_file="effects.csv",
+        outcome_name="Recovery",
+        method_text="REML generic effect with subgroup diagnostics.",
+        analysis_type=MetaAnalysisType.GENERIC_EFFECT,
+        effect_measure=EffectMeasure.MD,
+        effect_source=EffectSource.REPORTED_EFFECT_AND_VARIANCE,
+        model=PoolingModelSpec(
+            type="random",
+            random_method=RandomEffectsMethod.RESTRICTED_MAXIMUM_LIKELIHOOD,
+        ),
+        columns=MetaAnalysisColumns(
+            study_label="study",
+            effect="effect",
+            variance="variance",
+        ),
+        subgroup_column="group",
+    )
+    frame = pd.DataFrame([
+        {"study": "A", "effect": .2, "variance": .04, "group": "Early"},
+        {"study": "B", "effect": .5, "variance": .09, "group": "Early"},
+        {"study": "C", "effect": .1, "variance": .01, "group": "Late"},
+        {"study": "D", "effect": .8, "variance": .16, "group": "Late"},
+    ])
+
+    response = MetaAnalysisRunnerAgent().run([plan], {"effects.csv": frame})
+    result = response.results[0]
+
+    assert result.pooled_effect.model_used == "random"
+    assert result.heterogeneity.tau2 == pytest.approx(0.01432717, abs=2e-5)
+    assert result.heterogeneity.tau == pytest.approx(0.119696, abs=2e-5)
+    assert result.heterogeneity.p_value == pytest.approx(0.24164047, abs=2e-6)
+    assert result.prediction_interval is not None
+    assert len(result.leave_one_out) == 4
+    assert [group.label for group in result.subgroup_analysis.groups] == ["Early", "Late"]
+    assert "from autometa.stats import" in response.generated_code["effects.csv"]

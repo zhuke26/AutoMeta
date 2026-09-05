@@ -21,14 +21,21 @@ from autometa.schemas.meta_models import (
     EffectMeasure,
     EffectSource,
     HeterogeneityResult,
+    LeaveOneOutResult,
     MetaAnalysisDatasetResult,
     MetaAnalysisMethodPlan,
     MetaAnalysisRunResponse,
     MetaAnalysisType,
     MetaModelType,
     PooledEffectResult,
+    PredictionIntervalResult,
     StudyEffectResult,
+    SubgroupAnalysisResult,
+    SubgroupPoolResult,
 )
+from autometa.stats.diagnostics import leave_one_out, subgroup_analysis
+from autometa.stats.pooling import pool_effects
+from autometa.stats.types import PoolingResult, StudyEstimate
 
 _Z = 1.959963984540054
 
@@ -64,46 +71,15 @@ class MetaAnalysisRunnerAgent(BaseAgent):
 # CSV file: {plan.csv_file}
 # Outcome: {plan.outcome_name}
 
-import math
 import pandas as pd
+from autometa.stats import StudyEstimate, pool_effects
 
-Z = 1.959963984540054
 PLAN = {plan_json}
 
 
-def normal_two_sided_p(z):
-    return math.erfc(abs(z) / math.sqrt(2.0))
-
-
-def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
-    fixed_weights = [1.0 / v for v in variances]
-    fixed_effect = sum(w * y for w, y in zip(fixed_weights, effects)) / sum(fixed_weights)
-    q = sum(w * (y - fixed_effect) ** 2 for w, y in zip(fixed_weights, effects))
-    df = max(0, len(effects) - 1)
-    i2 = max(0.0, ((q - df) / q) * 100.0) if q > 0 and df > 0 else 0.0
-    c = sum(fixed_weights) - (sum(w * w for w in fixed_weights) / sum(fixed_weights))
-    tau2 = max(0.0, (q - df) / c) if c > 0 and df > 0 else 0.0
-    use_random = model == "random" or (model == "auto_by_i2" and i2 >= i2_threshold)
-    weights = [1.0 / (v + tau2) for v in variances] if use_random else fixed_weights
-    pooled = sum(w * y for w, y in zip(weights, effects)) / sum(weights)
-    se = math.sqrt(1.0 / sum(weights))
-    return {{
-        "model_used": "random" if use_random else "fixed",
-        "effect": pooled,
-        "standard_error": se,
-        "ci_lower": pooled - Z * se,
-        "ci_upper": pooled + Z * se,
-        "z_value": pooled / se if se > 0 else None,
-        "p_value": normal_two_sided_p(pooled / se) if se > 0 else None,
-        "heterogeneity": {{"q": q, "df": df, "i2_percent": i2, "tau2": tau2}},
-        "weights": weights,
-    }}
-
-
 # Load and prepare data, derive study-level effects from PLAN["columns"], then
-# call inverse_variance_pool(effects, variances, PLAN["model"]["type"],
-# PLAN["model"]["i2_threshold"]). The API response was calculated with this
-# same formula set and the confirmed plan above.
+# construct StudyEstimate objects and call pool_effects with the exact approved
+# model, random_method, and i2_threshold. The API response uses these functions.
 """
 
     def _run_one(self, plan: MetaAnalysisMethodPlan, df: pd.DataFrame) -> MetaAnalysisDatasetResult:
@@ -174,12 +150,68 @@ def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
                 output_csv = pd.DataFrame(output_rows).to_csv(index=False)
 
             logs.append(f"Analyzed {len(study_results)} study effect(s)")
+            estimates = self._estimates(effects)
+            prediction = None
+            if (
+                plan.output.include_prediction_interval
+                and pooled is not None
+                and pooled.get("prediction_lower") is not None
+            ):
+                lower, _, upper = self._from_analysis_scale(
+                    plan.effect_measure,
+                    pooled["prediction_lower"],
+                    pooled["prediction_lower"],
+                    pooled["prediction_upper"],
+                )
+                prediction = PredictionIntervalResult(lower=lower, upper=upper)
+            influence = []
+            if plan.output.include_leave_one_out and len(estimates) >= 2:
+                influence = [
+                    LeaveOneOutResult(
+                        omitted_study=item.omitted_study,
+                        pooled_effect=self._pooled_schema(plan, item.pool),
+                        heterogeneity=self._heterogeneity_schema(item.pool, len(estimates) - 1),
+                    )
+                    for item in leave_one_out(
+                        estimates,
+                        model=plan.model.type,
+                        random_method=plan.model.random_method,
+                        i2_threshold=plan.model.i2_threshold,
+                    )
+                ]
+            subgroup_result = None
+            if plan.output.include_subgroup and plan.subgroup_column:
+                labels = [str(item.get("subgroup") or "") for item in effects]
+                subgroup = subgroup_analysis(
+                    estimates,
+                    labels,
+                    model=plan.model.type,
+                    random_method=plan.model.random_method,
+                    i2_threshold=plan.model.i2_threshold,
+                )
+                subgroup_result = SubgroupAnalysisResult(
+                    groups=[
+                        SubgroupPoolResult(
+                            label=group.label,
+                            study_count=group.study_count,
+                            pooled_effect=self._pooled_schema(plan, group.pool),
+                            heterogeneity=self._heterogeneity_schema(group.pool, group.study_count),
+                        )
+                        for group in subgroup.groups
+                    ],
+                    between_group_q=subgroup.between_group_q,
+                    between_group_df=subgroup.between_group_df,
+                    between_group_p_value=subgroup.between_group_p_value,
+                )
             return MetaAnalysisDatasetResult(
                 csv_file=plan.csv_file,
                 outcome_name=plan.outcome_name,
                 study_effects=study_results if plan.output.include_study_effects else [],
                 pooled_effect=pooled_effect if plan.output.include_pooled_effect else None,
                 heterogeneity=heterogeneity if plan.output.include_heterogeneity else None,
+                prediction_interval=prediction,
+                leave_one_out=influence,
+                subgroup_analysis=subgroup_result,
                 output_csv=output_csv,
                 logs=logs,
                 warnings=warnings,
@@ -223,6 +255,7 @@ def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
                     "ci_lower": effect - _Z * se,
                     "ci_upper": effect + _Z * se,
                     "variance": se * se,
+                    "subgroup": self._cell(row, plan.subgroup_column),
                 })
             except Exception as exc:
                 raise ValueError(f"Invalid data in row {idx + 1}: {exc}") from exc
@@ -340,42 +373,55 @@ def inverse_variance_pool(effects, variances, model="fixed", i2_threshold=50.0):
         raise ValueError(f"Unsupported dichotomous effect measure: {plan.effect_measure}")
 
     def _pool_effects(self, plan: MetaAnalysisMethodPlan, effects: List[dict]):
-        ys = [item["effect"] for item in effects]
-        variances = [item["variance"] for item in effects]
-        fixed_weights = [1.0 / var for var in variances]
-        fixed_effect = sum(w * y for w, y in zip(fixed_weights, ys)) / sum(fixed_weights)
-        q = sum(w * ((y - fixed_effect) ** 2) for w, y in zip(fixed_weights, ys))
-        df = max(0, len(ys) - 1)
-        i2 = max(0.0, ((q - df) / q) * 100.0) if q > 0 and df > 0 else 0.0
-        sum_w = sum(fixed_weights)
-        c_value = sum_w - (sum(w * w for w in fixed_weights) / sum_w) if sum_w > 0 else 0.0
-        tau2 = max(0.0, (q - df) / c_value) if c_value > 0 and df > 0 else 0.0
-
-        use_random = plan.model.type == MetaModelType.RANDOM or (
-            plan.model.type == MetaModelType.AUTO_BY_I2 and i2 >= plan.model.i2_threshold
+        result = pool_effects(
+            self._estimates(effects),
+            model=plan.model.type,
+            random_method=plan.model.random_method,
+            i2_threshold=plan.model.i2_threshold,
         )
-        weights = [1.0 / (var + tau2) for var in variances] if use_random else fixed_weights
-        pooled = sum(w * y for w, y in zip(weights, ys)) / sum(weights)
-        se = math.sqrt(1.0 / sum(weights))
-        z_value = pooled / se if se > 0 else None
-
-        heterogeneity = HeterogeneityResult(
-            q=q,
-            df=df,
-            p_value=None,
-            i2_percent=i2,
-            tau2=tau2 if use_random else 0.0,
-        )
+        heterogeneity = self._heterogeneity_schema(result, len(effects))
         pooled_result = {
-            "model_used": MetaModelType.RANDOM if use_random else MetaModelType.FIXED,
-            "effect": pooled,
-            "standard_error": se,
-            "ci_lower": pooled - _Z * se,
-            "ci_upper": pooled + _Z * se,
-            "z_value": z_value,
-            "p_value": math.erfc(abs(z_value) / math.sqrt(2.0)) if z_value is not None else None,
+            "model_used": MetaModelType(result.model_used),
+            "effect": result.effect,
+            "standard_error": result.standard_error,
+            "ci_lower": result.ci_lower,
+            "ci_upper": result.ci_upper,
+            "z_value": result.effect / result.standard_error,
+            "p_value": math.erfc(abs(result.effect / result.standard_error) / math.sqrt(2.0)),
+            "prediction_lower": result.prediction_lower,
+            "prediction_upper": result.prediction_upper,
         }
-        return pooled_result, heterogeneity, weights
+        return pooled_result, heterogeneity, list(result.weights)
+
+    @staticmethod
+    def _estimates(effects: List[dict]) -> list[StudyEstimate]:
+        return [StudyEstimate(
+            effect=item["effect"], variance=item["variance"],
+            study_label=str(item.get("study_label") or ""),
+            year=MetaAnalysisRunnerAgent._optional_str(item.get("year")),
+            title=MetaAnalysisRunnerAgent._optional_str(item.get("title")),
+            outcome=MetaAnalysisRunnerAgent._optional_str(item.get("outcome")),
+            metadata={"subgroup": str(item.get("subgroup") or "")},
+        ) for item in effects]
+
+    def _pooled_schema(self, plan: MetaAnalysisMethodPlan, result: PoolingResult) -> PooledEffectResult:
+        effect, lower, upper = self._from_analysis_scale(
+            plan.effect_measure, result.effect, result.ci_lower, result.ci_upper,
+        )
+        z_value = result.effect / result.standard_error
+        return PooledEffectResult(
+            model_used=MetaModelType(result.model_used), effect_measure=plan.effect_measure,
+            effect=effect, standard_error=result.standard_error,
+            ci_lower=lower, ci_upper=upper, z_value=z_value,
+            p_value=math.erfc(abs(z_value) / math.sqrt(2)),
+        )
+
+    @staticmethod
+    def _heterogeneity_schema(result: PoolingResult, study_count: int) -> HeterogeneityResult:
+        return HeterogeneityResult(
+            q=result.q, df=max(0, study_count - 1), p_value=result.q_p_value,
+            i2_percent=result.i2_percent, tau2=result.tau2, tau=result.tau,
+        )
 
     @staticmethod
     def _from_analysis_scale(measure: EffectMeasure, effect: float, lower: float, upper: float):

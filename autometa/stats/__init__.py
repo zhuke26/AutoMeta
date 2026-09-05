@@ -3,6 +3,13 @@ from autometa.stats.effects import (
     dichotomous_effect,
     reported_effect,
 )
+from autometa.stats.pooling import pool_effects
 from autometa.stats.types import StudyEstimate
 
-__all__ = ["StudyEstimate", "continuous_effect", "dichotomous_effect", "reported_effect"]
+__all__ = [
+    "StudyEstimate",
+    "continuous_effect",
+    "dichotomous_effect",
+    "pool_effects",
+    "reported_effect",
+]

@@ -102,14 +102,14 @@
 - Generated scripts import `autometa.stats.run_analysis` with the approved
   serialized plan and never contain an independent formula copy.
 
-- [ ] Write failing regression tests for current fixed/DL outputs plus REML,
+- [x] Write failing regression tests for current fixed/DL outputs plus REML,
   prediction interval, leave-one-out, subgroup, and strict plan preservation.
-- [ ] Verify RED.
-- [ ] Refactor runner calls and enrich result payloads without altering existing
+- [x] Verify RED.
+- [x] Refactor runner calls and enrich result payloads without altering existing
   supported calculations.
-- [ ] Assert generated code references the shared engine and reproduces the same
+- [x] Assert generated code references the shared engine and reproduces the same
   JSON result for deterministic fixtures.
-- [ ] Run focused/full tests and Ruff; commit as `refactor: use shared statistics engine`.
+- [x] Run focused/full tests and Ruff; commit as `refactor: use shared statistics engine`.
 
 ### Task 5: Generate and persist Review-owned forest plots
 
