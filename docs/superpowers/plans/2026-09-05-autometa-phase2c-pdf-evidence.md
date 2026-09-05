@@ -143,15 +143,15 @@
 - Opens evidence from each citation into a split reader with page, zoom, search,
   quotation, metadata, and optional bbox highlight.
 
-- [ ] Add `pdfjs-dist` with the locked npm workflow; write failing tests with a
+- [x] Add `pdfjs-dist` with the locked npm workflow; write failing tests with a
   mocked PDF.js document for page navigation, zoom, search, bbox conversion,
   page-only degradation, quotation-only notice, close/reopen, and no storage.
-- [ ] Verify RED before adding viewer implementation.
-- [ ] Render only the Review-owned content URL. Convert PDF bottom-left bbox to
+- [x] Verify RED before adding viewer implementation.
+- [x] Render only the Review-owned content URL. Convert PDF bottom-left bbox to
   canvas top-left coordinates using the actual viewport transform and scale.
-- [ ] Add evidence buttons to extraction rows. Show filename, page, element/table
+- [x] Add evidence buttons to extraction rows. Show filename, page, element/table
   metadata, parser version, extraction type, derivation, and verbatim quotation.
-- [ ] Run all frontend tests, typecheck, build twice, and commit source/compiled
+- [x] Run all frontend tests, typecheck, build twice, and commit source/compiled
   assets as `feat: add source-linked PDF reader`.
 
 ### Task 6: Phase 2C integration and visual/runtime gate

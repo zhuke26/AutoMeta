@@ -6,9 +6,11 @@ import { artifactKeys, currentArtifact } from "../api/artifacts";
 import { fileKeys, useReviewFiles, useUploadReviewFiles } from "../api/files";
 import { usePdfDisclosure, useSetPdfDisclosure } from "../api/settings";
 import { useStartWorkflowJob } from "../api/workflows";
-import type { ArtifactView } from "../api/types";
+import type { ArtifactView, SourceLocator } from "../api/types";
 import { ArtifactApprovalBar } from "../components/ArtifactApprovalBar";
 import { JobProgressPanel } from "../components/JobProgressPanel";
+import { PdfEvidenceViewer } from "../components/PdfEvidenceViewer";
+import { SourceEvidenceButton } from "../components/SourceEvidenceButton";
 import { useAutosavedArtifact } from "../hooks/useAutosavedArtifact";
 import { useDurableJob } from "../hooks/useDurableJob";
 import { useReviewWorkspace } from "./ReviewWorkspace";
@@ -25,6 +27,7 @@ interface ExtractedField {
   citation: string;
   confidence: string;
   researcher_edited?: boolean;
+  source?: SourceLocator;
 }
 
 interface ExtractionRow {
@@ -149,6 +152,7 @@ export function ExtractionPage() {
   const [resultFields, setResultFields] = useState<FieldDefinition[]>(() => sourcesPayload(existingSources).study_results_fields);
   const [draft, setDraft] = useState(() => sourcesPayload(existingSources));
   const [resultsChanged, setResultsChanged] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<SourceLocator | null>(null);
   const hydratedVersion = useRef(existingSources?.version);
   const autosave = useAutosavedArtifact(review.id, "sources", draft, resultsChanged);
   const effectiveSources = currentArtifact(existingSources, autosave.artifact);
@@ -310,6 +314,7 @@ export function ExtractionPage() {
                       <blockquote>{field.citation || "Exact citation unavailable"}</blockquote>
                       <span className="confidence-label">{field.confidence} confidence</span>
                       {field.researcher_edited ? <span className="researcher-edit-badge">Researcher edited</span> : null}
+                      <SourceEvidenceButton citation={field.citation} onOpen={setSelectedSource} source={field.source} />
                     </div>
                   ))}
                 </article>
@@ -326,6 +331,7 @@ export function ExtractionPage() {
           reviewId={review.id}
         />
       ) : null}
+      {selectedSource ? <PdfEvidenceViewer locator={selectedSource} onClose={() => setSelectedSource(null)} reviewId={review.id} /> : null}
     </main>
   );
 }

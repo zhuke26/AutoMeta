@@ -7,6 +7,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import type { ArtifactView, FileView, JobView } from "../api/types";
 
+vi.mock("../components/PdfEvidenceViewer", () => ({
+  PdfEvidenceViewer: ({ locator }: { locator: { quotation: string } }) => (
+    <section aria-label="PDF evidence">{locator.quotation}</section>
+  ),
+}));
+
 
 const review = {
   id: "review-1", name: "Extraction review", entry_mode: "extraction", status: "active",
@@ -28,7 +34,7 @@ const sources: ArtifactView = {
     file_ids: [pdf.id],
     study_characteristics_fields: [{ name: "Sample size", description: "Participants randomized" }],
     study_results_fields: [{ name: "Mean difference", description: "Final follow-up" }],
-    characteristics: [{ filename: "study.pdf", extractions: [{ field_name: "Sample size", value: "120", citation: "We randomized 120 participants.", confidence: "HIGH" }] }],
+    characteristics: [{ filename: "study.pdf", extractions: [{ field_name: "Sample size", value: "120", citation: "We randomized 120 participants.", confidence: "HIGH", source: { file_id: "pdf-1", source_id: "body-1:0", page_number: 2, element_type: "body", parser_name: "docling", parser_version: "2.0", extraction_type: "direct", derivation: "", quotation: "We randomized 120 participants." } }] }],
     results: [{ filename: "study.pdf", outcome_label: "Recovery", selected_for_meta: false, extractions: [{ field_name: "Mean difference", value: "2.4", citation: "Mean difference was 2.4 points.", confidence: "HIGH" }] }],
   },
 };
@@ -135,6 +141,8 @@ describe("ExtractionPage", () => {
     const fetchMock = extractionFetch({ files: [pdf], artifacts: [pico, sources] });
     renderPage(fetchMock);
     expect(await screen.findByText("We randomized 120 participants.")).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "View source" })[0]);
+    expect(screen.getByLabelText("PDF evidence")).toHaveTextContent("We randomized 120 participants.");
     const value = screen.getByRole("textbox", { name: "Sample size for study.pdf" });
     await userEvent.clear(value);
     await userEvent.type(value, "118");

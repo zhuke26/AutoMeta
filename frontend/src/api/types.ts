@@ -135,6 +135,33 @@ export interface FileView {
   created_at: string;
 }
 
+export interface PdfBoundingBox {
+  left: number;
+  bottom: number;
+  right: number;
+  top: number;
+  page_width: number;
+  page_height: number;
+}
+
+export interface SourceLocator {
+  file_id?: string | null;
+  source_id?: string | null;
+  page_number?: number | null;
+  element_type: "body" | "table" | "unknown";
+  table_index?: number | null;
+  row_index?: number | null;
+  column_index?: number | null;
+  bbox?: PdfBoundingBox | null;
+  text_start?: number | null;
+  text_end?: number | null;
+  parser_name: string;
+  parser_version: string;
+  extraction_type: "direct" | "derived";
+  derivation: string;
+  quotation: string;
+}
+
 export interface SystemStatus {
   product: string;
   version: string;

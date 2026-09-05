@@ -1561,6 +1561,93 @@ a {
   justify-content: flex-end;
 }
 
+.pdf-dialog {
+  padding: 24px;
+}
+
+.pdf-viewer {
+  width: min(1320px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.pdf-viewer > header,
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 18px;
+}
+
+.pdf-viewer h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 17px;
+}
+
+.pdf-toolbar {
+  justify-content: flex-start;
+}
+
+.pdf-toolbar input {
+  min-height: 36px;
+  margin-left: auto;
+  border: 1px solid var(--line-strong);
+  padding: 6px 9px;
+}
+
+.pdf-reader-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, .8fr);
+  gap: 18px;
+  padding: 18px;
+}
+
+.pdf-canvas-wrap {
+  position: relative;
+  overflow: auto;
+  background: var(--canvas-deep);
+}
+
+.pdf-canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.pdf-highlight {
+  position: absolute;
+  border: 2px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 25%, transparent);
+  pointer-events: none;
+}
+
+.pdf-reader-body aside blockquote {
+  margin: 0 0 16px;
+  border-left: 3px solid var(--extraction);
+  padding-left: 12px;
+}
+
+.pdf-reader-body dl div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.pdf-reader-body dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.evidence-button {
+  white-space: nowrap;
+}
+
 @media (max-width: 1200px) {
   .brand__descriptor,
   .stage-card__tool {
