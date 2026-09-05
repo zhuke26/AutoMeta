@@ -22,7 +22,9 @@ def test_upload_list_and_read_pdf(client) -> None:
     assert listing.status_code == 200
     assert listing.json()[0]["id"] == file_record["id"]
 
-    content = client.get(f"/api/v1/files/{file_record['id']}/content")
+    content = client.get(
+        f"/api/v1/reviews/{review['id']}/files/{file_record['id']}/content"
+    )
     assert content.status_code == 200
     assert content.content.startswith(b"%PDF-")
 
