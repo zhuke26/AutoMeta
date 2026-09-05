@@ -161,6 +161,14 @@ class StageRun(TimestampMixin, Base):
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     input_artifact_ids: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    operation_kind: Mapped[str | None] = mapped_column(String(64))
+    request_payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    input_artifact_version_ids: Mapped[list] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    output_artifact_version_ids: Mapped[list] = mapped_column(
+        JSON, default=list, nullable=False
+    )
 
 
 class Artifact(TimestampMixin, Base):
@@ -217,4 +225,98 @@ class LocalSetting(Base):
     value: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+
+class ReviewEvent(Base):
+    __tablename__ = "review_events"
+    __table_args__ = (UniqueConstraint("review_id", "sequence"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    review_id: Mapped[str] = mapped_column(
+        ForeignKey("reviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage: Mapped[str | None] = mapped_column(String(32))
+    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    producer: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    stage_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("stage_runs.id", ondelete="SET NULL"), index=True
+    )
+    job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"), index=True
+    )
+    artifact_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("artifact_versions.id", ondelete="SET NULL"), index=True
+    )
+    elapsed_ms: Mapped[int | None] = mapped_column(Integer)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+
+class ResearcherEdit(Base):
+    __tablename__ = "researcher_edits"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    review_id: Mapped[str] = mapped_column(
+        ForeignKey("reviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    artifact_id: Mapped[str] = mapped_column(
+        ForeignKey("artifacts.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    from_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True
+    )
+    to_version_id: Mapped[str] = mapped_column(
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    changed_paths: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+
+class ProvenanceEdge(Base):
+    __tablename__ = "provenance_edges"
+    __table_args__ = (
+        UniqueConstraint("source_version_id", "target_version_id", "relation"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    review_id: Mapped[str] = mapped_column(
+        ForeignKey("reviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source_version_id: Mapped[str] = mapped_column(
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    target_version_id: Mapped[str] = mapped_column(
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    relation: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+
+class RerunRelationship(Base):
+    __tablename__ = "rerun_relationships"
+    __table_args__ = (UniqueConstraint("rerun_stage_run_id"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    review_id: Mapped[str] = mapped_column(
+        ForeignKey("reviews.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source_stage_run_id: Mapped[str] = mapped_column(
+        ForeignKey("stage_runs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    rerun_stage_run_id: Mapped[str] = mapped_column(
+        ForeignKey("stage_runs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source_event_id: Mapped[str] = mapped_column(
+        ForeignKey("review_events.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
     )

@@ -36,7 +36,7 @@
 - Produces: `ReviewEvent`, `ResearcherEdit`, `ProvenanceEdge`, and `RerunRelationship` ORM models.
 - Extends: `StageRun.operation_kind`, `StageRun.request_payload`, `StageRun.input_artifact_version_ids`, and `StageRun.output_artifact_version_ids`.
 
-- [ ] **Step 1: Write failing schema tests**
+- [x] **Step 1: Write failing schema tests**
 
 Assert that a fresh database contains `review_events`, `researcher_edits`,
 `provenance_edges`, and `rerun_relationships`; that every table cascades with
@@ -66,13 +66,13 @@ def test_provenance_rows_are_review_scoped_and_append_only(database, review) -> 
             ))
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run: `.venv/bin/python -m pytest tests/persistence/test_provenance_schema.py tests/persistence/test_migrations.py -q`
 
 Expected: failure because migration `0002` and the four ORM models do not exist.
 
-- [ ] **Step 3: Implement migration `0002` and matching ORM models**
+- [x] **Step 3: Implement migration `0002` and matching ORM models**
 
 Use these persisted fields:
 
@@ -99,7 +99,7 @@ JSON defaults of `{}` or `[]` rather than nullable request or graph fields.
 Existing Phase 1 `stage_runs` receive empty version/output lists and a null
 operation kind; they remain visible in history but are explicitly non-rerunnable.
 
-- [ ] **Step 4: Verify migration upgrade and model parity**
+- [x] **Step 4: Verify migration upgrade and model parity**
 
 Run:
 
@@ -110,7 +110,7 @@ Run:
 
 Expected: focused tests pass and model/migration column names match exactly.
 
-- [ ] **Step 5: Commit the schema**
+- [x] **Step 5: Commit the schema**
 
 ```bash
 git add autometa/persistence/models.py migrations/versions/0002_provenance.py tests/persistence
