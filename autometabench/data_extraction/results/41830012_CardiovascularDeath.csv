@@ -1,0 +1,8 @@
+Study,Year,N Treat,N Control,RR,95% CI Lower,95% CI Upper
+Lonn et al.,2006,2758,2764,0.95,0.81,1.11
+Zoungas et al.,2006,156,159,0.89,0.52,1.53
+Hankey et al.,2010,4089,4075,0.86,0.75,0.99
+Boston et al.,2011,2056,2054,0.91,0.69,1.20
+Heinz et al.,2010,327,323,1.14,0.73,1.79
+Albert et al.,2008,2721,2721,1.02,0.77,1.35
+Armitage et al.,2010,6033,6031,1.09,0.96,1.24

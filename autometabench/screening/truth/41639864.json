@@ -1,0 +1,21 @@
+{
+  "review_pmid": "41639864",
+  "pool_size": 3000,
+  "truth_input_count": 13,
+  "truth_unique_count": 13,
+  "truth_positions": [
+    97,
+    405,
+    483,
+    834,
+    1013,
+    1302,
+    1601,
+    1690,
+    1855,
+    2226,
+    2386,
+    2683,
+    2930
+  ]
+}

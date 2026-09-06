@@ -1,0 +1,5 @@
+Study,Year,Experimental Mean,Experimental SD,Experimental Total,Control Mean,Control SD,Control Total,Effect Type,Effect,95% CI Lower,95% CI Upper
+Dong et al.,2019,608.9,280.6,40,923.6,360.8,40,MD,-314.70,-456.34,-173.06
+Guo et al.,2021,16,7,24,58.5,10.1,24,MD,-42.50,-47.42,-37.58
+Yang et al.,2022,35,39.52,124,53.1,61.18,116,MD,-18.10,-31.23,-4.97
+Zhou et al.,2023,16,7,24,58.5,10.1,24,MD,-42.50,-47.42,-37.58

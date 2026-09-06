@@ -1,0 +1,11 @@
+Study,Year,Experimental Mean,Experimental SD,Experimental Total,Control Mean,Control SD,Control Total,Effect Type,Effect,95% CI Lower,95% CI Upper
+Antonicelli et al.,1991,0.9,0.7,9,0.85,0.6,9,SMD,0.07,-0.85,1.00
+Boyle et al.,2011,1.32,1.23,189,0.99,1.38,93,SMD,0.26,0.01,0.51
+Drieling et al.,2022,1.43,2.53,36,2.04,3.54,34,SMD,-0.20,-0.67,0.27
+Hansel et al.,2022,-0.89,1.64,51,-0.09,1.7,43,SMD,-0.48,-0.89,-0.06
+Lee et al.,2020,13.97,0.35,30,14.03,0.28,30,SMD,-0.19,-0.69,0.32
+Li et al.,2020,9.2,6.3,45,10,6.8,45,SMD,-0.12,-0.53,0.29
+Nogrady et al.,1983,1.81,1.39,19,2.46,1.23,19,SMD,-0.48,-1.13,0.16
+Park et al.,2017,5.5,1.5,9,8.6,2.55,8,SMD,-1.43,-2.53,-0.33
+Thiam et al.,1999,0.9,1.68,12,1.9,0.67,6,SMD,-0.66,-1.67,0.35
+Warner et al.,1992,0.43,0.71,14,0.14,0.15,14,SMD,0.55,-0.21,1.31

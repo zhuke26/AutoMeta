@@ -1,0 +1,6 @@
+Study,Year,Experimental Mean,Experimental SD,Experimental Total,Control Mean,Control SD,Control Total,SMD,95% CI Lower,95% CI Upper
+Benzo et al.,2021,3.2,7.4,56,-0.9,5.9,63,0.61,0.24,0.98
+Benzo et al.,2022,4.41,12.56,143,1.01,12.68,142,0.27,0.04,0.50
+Lin et al.,2021,17.34,16.04,54,-0.13,18.32,54,1.01,0.61,1.41
+Xi,2019,10.62,5.26,55,1.2,4.35,53,1.93,1.47,2.39
+Zhou et al.,2024,10.9,2.1,60,6.7,2.03,60,2.02,1.58,2.46
