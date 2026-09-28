@@ -10,9 +10,9 @@ screening, data extraction, and meta-analysis reproduction.
 | Systematic reviews | 27 |
 | Included-study records | 421 (392 unique PMIDs) |
 | Screening pools | 27 pools of 3000 candidate records |
-| Data-extraction result tables | 98 |
+| Data-extraction result tables | 98 (25 reviews) |
 | Evaluable data-extraction fields | 4164 |
-| Meta-analysis units | 95 |
+| Meta-analysis units | 95 (24 reviews) |
 
 Every review is identified by its PubMed identifier (`review_pmid`), which is
 the join key across all files.
@@ -28,8 +28,9 @@ autometabench/
 │   └── truth/<review_pmid>.json         positions of included studies in the pool
 ├── data_extraction/
 │   └── results/<review_pmid>[_<Outcome>].csv   study-level extracted values
-└── meta_analysis/
-    └── units.csv                     95 published pooled results
+├── meta_analysis/
+│   └── units.csv                     95 published pooled results
+└── validation/                      source ledgers, corrections, and drift check
 ```
 
 ## reviews.jsonl
@@ -113,11 +114,13 @@ sampling at 95% recall (WSS@95).
 - `<review_pmid>_<Outcome>.csv` when the review reports several outcomes
 - `<review_pmid>.csv` when the review reports a single outcome
 
-One row per study arm or per study, depending on how the source review tabulated
-its results. Columns are **intentionally heterogeneous** across files (30
+Rows usually represent a study arm or a study, depending on how the source review
+tabulated its results. The three PMID 41939286 tables instead contain 16
+pollutant-level pooled results; these rows are excluded from extraction scoring.
+Columns are **intentionally heterogeneous** across files (30
 distinct column schemas): each table keeps the fields the source review actually
 reported, rather than forcing unlike outcomes into one flattened schema. Column
-names are therefore the source review's own labels, for example
+names preserve the reported concepts, for example
 `Control Mean`, `Control SD`, `Control Total`, `SMD`, `95% CI Lower`,
 `95% CI Upper`, `OR`, `RR`, `Mean Difference`.
 
@@ -130,8 +133,8 @@ scoring, obtained by excluding:
 - **identifier columns** — `study`, `study_name`, `first_author`, `author`, `year`, `title`, `pollutant`
 - **context columns** — `location`, `geographical_setting`, `outcome`, `exposure`, `source_figure`, `outcome_unit`, `model`
 - **study weights and heterogeneity columns** — any column whose name contains `weight` or `heterogeneity`
-- **computed meta-analysis statistics** — `i2`, `tau2`, `h2`, `q`, `df`, `z`, `p`, `p_value`, and any column ending in `_p` or `_p_value`
-- **summary rows** — rows whose study label contains `pooled`, `overall`, `subtotal`, `prediction`, `random effects model`, `common effect model`, `fixed effect model`, or `mean effect`
+- **computed meta-analysis statistics** — `i2`, `tau2`, `tau_2`, `h2`, `h_2`, `q`, `df`, `z`, `z_value`, `p`, `p_value`, and any column ending in `_p` or `_p_value`
+- **summary rows** — rows whose study label contains `pooled`, `overall`, `subtotal`, `prediction`, `random effects model`, `common effect model`, `fixed effect model`, or `mean effect`; all rows with a non-empty `Pollutant` field are also summary rows
 
 Column names are matched after normalization (lowercased, non-alphanumeric
 characters collapsed to `_`). The 4164 total comprises 3891 original result
@@ -139,6 +142,16 @@ fields plus 273 scalar numeric study-characteristic fields that were merged
 inline into the same result tables.
 
 No cell is blank: all 5748 cells carry a value.
+
+The 2026-09-29 source audit checked all 4850 scalar numeric cells, including
+numeric identifiers and fields outside accuracy scoring. 4576 are transcribed
+from forest plots, 272 from review characteristic tables, one intervention N
+is the explicitly recorded sum of two table arms (12 + 12), and one publication
+year is from the reference list. The 4164 scoring fields and 4850 audited
+numeric cells are different sets; the audit does not redefine the scoring
+mask. `Sample Size` may describe the study in a characteristic table and need
+not equal the outcome-specific arm totals in the forest. Use the per-cell
+provenance in `validation/extraction_numeric_cells.csv` to distinguish them.
 
 ## meta_analysis/units.csv
 
@@ -150,24 +163,76 @@ reported for one outcome.
 | --- | --- | --- |
 | `unit_id` | string | `MA-001` … `MA-095` |
 | `review_pmid` | string | Review this unit belongs to (24 reviews are represented) |
+| `result_file` | string | Exact extraction CSV filename |
 | `outcome` | string | Outcome label; matches the `_<Outcome>` suffix of the corresponding extraction file, or equals `review_pmid` for a single-outcome review |
-| `analysis_type` | string | `continuous` or `dichotomous` |
-| `effect_measure` | string | `SMD`, `MD`, `Hedges_g`, `OR`, or `RR` |
-| `model` | string | `random_effects` or `fixed_effects` |
+| `analysis_type` | string | `continuous`, `dichotomous`, or `proportion` |
+| `effect_measure` | string | `SMD`, `MD`, `WMD`, `beta`, `OR`, `RR`, or `Proportion`; see source-specific model details |
 | `pooled_effect` | number | Published pooled point estimate |
 | `ci_lower`, `ci_upper` | number | Published 95% CI bounds |
-| `direction` | string | `positive` or `negative`, the sign of the published effect |
-| `p_value` | number | Published P value for the pooled effect |
-| `i2` | number | Published I², percent |
-| `tau2` | number | Published τ² |
+| `direction` | string | Direction relative to 1 for OR/RR and 0 for difference measures; `null` for a displayed null estimate; `not_applicable` for single-group prevalence |
+| `i2` | number or blank | Published I², percent; blank is not zero |
+| `tau2` | number or blank | Published between-study variance on the source analysis scale; τ alone is not τ² |
 
-To reproduce a unit, take the study-level rows from the matching
-`data_extraction/results/` table and pool them under the stated
-`analysis_type`, `effect_measure`, and `model`; the paper scores the result on
-effect-direction consistency, pooled-effect accuracy, and 95% CI accuracy.
+Use `validation/meta_reference.json` to select the reported model and the
+correct pooled row. Model and p-value columns are absent from `units.csv`;
+source models, separate effect/heterogeneity p-values, and field provenance
+are recorded in that sidecar. A displayed p-value such as `0.00` or `0.000`
+is rounded source text, not a claim that the mathematical p-value is zero.
+MD/WMD are equivalent difference-scale labels; the source label is retained
+in the sidecar where the normalized CSV label differs.
 
-One review (PMID 41939286) contributes extraction tables but no meta-analysis
-unit.
+All 95 pooled effect/CI triplets were checked directly against forest plots.
+Of the 475 pooled-effect, lower-CI, upper-CI, I² and τ² field slots, 413 values
+are forest-sourced, four existing heterogeneity values were verified only in
+results text, and 58 remain blank because the forest does not report them.
+The four narrative-only values are MA-027 I²/τ² and MA-011/MA-012 I²; each is
+explicitly labeled `verified_nonforest`. MA-013 I²=89.72 appears only in prose
+and is retained as supplementary evidence, while its existing target cell
+remains blank. No missing heterogeneity value was inferred or replaced by zero.
+
+MA-045 and MA-046 use the **common-effect** pooled row; their τ² values are
+reported heterogeneity diagnostics, not common-effect weighting parameters.
+MA-092–MA-095 use the reported Bayesian analysis. MA-014 is single-group
+prevalence and has no treatment-effect direction; exclude it from direction
+accuracy (94 direction-applicable units), while retaining its pooled-estimate
+and interval scoring. Compare reproduced estimates at the reported precision;
+rounded extraction inputs alone do not guarantee exact reconstruction.
+
+PMIDs 41531667 and 41721779 belong to the 27-review search/screening inventory
+but have no extraction table or meta-analysis unit in this release. PMID
+41939286 contributes three pollutant-summary extraction tables and no
+meta-analysis unit. These coverage facts are recorded in
+`validation/source_manifest.csv`.
+
+## Source verification (2026-09-29)
+
+The original PDF forest plots were rendered and checked across all 98 tables;
+characteristic fields were checked separately against their original tables.
+The audit corrected one extraction sample-size value, clarified one study-arm
+label, aligned one signed-zero display, and changed 99 meta-analysis cells
+across 59 units. The meta changes include 23 numerical discrepancies, 50
+missing reported values, four τ/τ² labeling errors, 19 rounding/display
+alignments, and three direction labels. The complete before/after log and
+page/figure evidence are in `validation/corrections.csv`.
+
+See `validation/audit_report_zh.md` for findings and source conflicts, and
+`validation/README.md` for the machine-readable audit files. The source PDFs
+are identified by public PMID links and SHA-256 hashes, and are not bundled.
+This is a transcription/provenance audit of published results; it does not
+independently validate the primary studies or resolve errors inside a source
+article. Re-score evaluations that used the earlier reference values.
+
+Run the read-only drift check from the repository root:
+
+```bash
+python3 autometabench/validation/validate.py
+```
+
+With local copies of the same source PDFs, also check their versions:
+
+```bash
+python3 autometabench/validation/validate.py --source-pdf-dir /path/to/paper
+```
 
 ## Construction
 

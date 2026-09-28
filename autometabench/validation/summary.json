@@ -1,0 +1,101 @@
+{
+  "reviews_in_inventory": 27,
+  "reviews_with_extraction": 25,
+  "reviews_with_meta": 24,
+  "outcome_tables": 98,
+  "rows": 747,
+  "numeric_cells_checked": 4850,
+  "numeric_source_counts": {
+    "forest_plot": 4576,
+    "nonforest_table": 272,
+    "nonforest_reference": 1,
+    "derived_from_reported_table": 1
+  },
+  "unchecked_numeric_cells": 0,
+  "extraction_changes": {
+    "numeric_value_change": 1,
+    "identifier_or_direction": 1,
+    "display_only": 1
+  },
+  "meta_changes": {
+    "numeric_value_change": 23,
+    "fill_reported_blank": 50,
+    "align_forest_rounding": 16,
+    "display_only": 3,
+    "remove_mislabeled_tau": 4,
+    "identifier_or_direction": 3
+  },
+  "meta_units_changed": 59,
+  "total_change_entries": 102,
+  "nonforest_existing_meta_fields": [
+    {
+      "unit_id": "MA-027",
+      "field": "i2",
+      "value": "91.002",
+      "status": "verified_nonforest",
+      "source": {
+        "page": 10,
+        "figure": "Results section 3.5",
+        "source_type": "nonforest_text"
+      }
+    },
+    {
+      "unit_id": "MA-027",
+      "field": "tau2",
+      "value": "1.731",
+      "status": "verified_nonforest",
+      "source": {
+        "page": 10,
+        "figure": "Results section 3.5",
+        "source_type": "nonforest_text"
+      }
+    },
+    {
+      "unit_id": "MA-011",
+      "field": "i2",
+      "value": "99.27",
+      "status": "verified_nonforest",
+      "source": {
+        "page": 4,
+        "figure": "Results: corresponding PM2.5 association",
+        "source_type": "nonforest_text"
+      }
+    },
+    {
+      "unit_id": "MA-012",
+      "field": "i2",
+      "value": "76.49",
+      "status": "verified_nonforest",
+      "source": {
+        "page": 4,
+        "figure": "Results: corresponding PM2.5 association",
+        "source_type": "nonforest_text"
+      }
+    }
+  ],
+  "meta_numeric_field_statuses": {
+    "verified_forest": 413,
+    "not_reported_in_forest": 58,
+    "verified_nonforest": 4
+  },
+  "skipped_changes": [
+    {
+      "file": "meta_analysis/units.csv",
+      "row": "MA-013",
+      "unit_id": "MA-013",
+      "column": "i2",
+      "old": "",
+      "new": "89.72",
+      "evidence_page": 4,
+      "evidence_figure": "Results: corresponding PM2.5 association",
+      "reason": "Published value is present in original source but target is blank.",
+      "confidence": "high",
+      "category": "missing_reported_value",
+      "source_type": "nonforest_text",
+      "reviewer": "a",
+      "disposition": "not_added_to_units; reported only in narrative and previously blank"
+    }
+  ],
+  "direction_evaluable_units": 94,
+  "single_group_prevalence_units": 1
+}
