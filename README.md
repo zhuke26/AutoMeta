@@ -5,7 +5,7 @@ evidence synthesis. Its React workspace supports a guided four-stage Review or
 independent entry into Search, Screening, Extraction, and Meta-analysis.
 
 The repository ships the AutoMetaBench evaluation dataset under
-[`autometabench/`](autometabench/README.md): 27 systematic reviews with
+[`autometabench/`](autometabench/): 27 systematic reviews with
 meta-analysis, 421 included-study records, 27 fixed screening pools of 3000
 candidates each, 4164 evaluable data-extraction fields, and 95 meta-analysis
 units. It ships no sample or demonstration review for the application itself.
